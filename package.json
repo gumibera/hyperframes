@@ -1,14 +1,17 @@
 {
   "name": "hyperframes-monorepo",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "type": "module",
   "scripts": {
-    "dev": "pnpm studio",
-    "build": "pnpm -r build",
-    "build:producer": "pnpm --filter @hyperframes/producer build",
-    "studio": "pnpm --filter @hyperframes/studio dev",
-    "build:hyperframes-runtime": "pnpm --filter @hyperframes/core build:hyperframes-runtime",
-    "build:hyperframes-runtime:modular": "pnpm --filter @hyperframes/core build:hyperframes-runtime:modular",
+    "dev": "bun run studio",
+    "build": "bun run --filter '*' build",
+    "build:producer": "bun run --filter @hyperframes/producer build",
+    "studio": "bun run --filter @hyperframes/studio dev",
+    "build:hyperframes-runtime": "bun run --filter @hyperframes/core build:hyperframes-runtime",
+    "build:hyperframes-runtime:modular": "bun run --filter @hyperframes/core build:hyperframes-runtime:modular",
     "set-version": "tsx scripts/set-version.ts",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
@@ -28,10 +31,5 @@
     "oxlint": "^1.56.0",
     "tsx": "^4.21.0",
     "typescript": "^5.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "lefthook"
-    ]
   }
 }

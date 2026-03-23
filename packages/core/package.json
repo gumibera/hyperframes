@@ -45,7 +45,7 @@
     "types": "./dist/index.d.ts"
   },
   "scripts": {
-    "build": "tsc && pnpm build:hyperframes-runtime",
+    "build": "tsc && bun run build:hyperframes-runtime",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -61,10 +61,10 @@
     "test:hyperframe-runtime-parity": "tsx scripts/test-hyperframe-runtime-parity.ts",
     "test:hyperframe-runtime-security": "tsx scripts/test-hyperframe-runtime-security.ts",
     "test:hyperframe-linter": "tsx scripts/test-hyperframe-linter.ts",
-    "test:hyperframe-runtime-ci": "pnpm build:hyperframes-runtime && pnpm test:hyperframe-runtime-contract && pnpm test:hyperframe-runtime-behavior && pnpm test:hyperframe-runtime-seek && pnpm test:hyperframe-runtime-duration-guards && pnpm test:hyperframe-runtime-parity && pnpm test:hyperframe-runtime-security",
+    "test:hyperframe-runtime-ci": "bun run build:hyperframes-runtime && bun run test:hyperframe-runtime-contract && bun run test:hyperframe-runtime-behavior && bun run test:hyperframe-runtime-seek && bun run test:hyperframe-runtime-duration-guards && bun run test:hyperframe-runtime-parity && bun run test:hyperframe-runtime-security",
     "check:hyperframe-html": "tsx scripts/check-hyperframe-static.ts",
     "debug:timeline": "tsx scripts/debug-timeline.ts",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "bun run build"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.0",

@@ -39,15 +39,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - run: bun install --frozen-lockfile
+      - run: bun run build
 
   lint-and-format:
     name: Lint & Format
@@ -55,16 +52,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm format:check
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run format:check
 
   typecheck:
     name: Typecheck
@@ -74,16 +68,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm -r typecheck
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run --filter '*' typecheck
 
   test-core:
     name: "Test: core"
@@ -93,15 +84,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @hyperframes/core test -- --coverage
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter @hyperframes/core test -- --coverage
 
   test-engine:
     name: "Test: engine"
@@ -111,15 +99,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @hyperframes/engine test
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter @hyperframes/engine test
 
   test-runtime-contract:
     name: "Test: runtime contract"
@@ -129,15 +114,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: oven-sh/setup-bun@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @hyperframes/core test:hyperframe-runtime-ci
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter @hyperframes/core test:hyperframe-runtime-ci
 
   semantic-pr-title:
     name: Semantic PR title

@@ -6,38 +6,38 @@ Thanks for your interest in contributing to Hyperframes! This guide will help yo
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/hyperframes.git`
-3. Install dependencies: `pnpm install`
+3. Install dependencies: `bun install`
 4. Create a branch: `git checkout -b my-feature`
 
 ## Development
 
 ```bash
-pnpm install        # Install all dependencies
-pnpm dev            # Run the studio (composition editor)
-pnpm build          # Build all packages
-pnpm -r typecheck   # Type-check all packages
-pnpm lint           # Lint all packages
-pnpm format:check   # Check formatting
+bun install        # Install all dependencies
+bun run dev        # Run the studio (composition editor)
+bun run build      # Build all packages
+bun run --filter '*' typecheck   # Type-check all packages
+bun run lint       # Lint all packages
+bun run format:check   # Check formatting
 ```
 
 ### Running Tests
 
 ```bash
-pnpm --filter @hyperframes/core test          # Core unit tests (vitest)
-pnpm --filter @hyperframes/engine test        # Engine unit tests (vitest)
-pnpm --filter @hyperframes/core test:hyperframe-runtime-ci  # Runtime contract tests
+bun run --filter @hyperframes/core test          # Core unit tests (vitest)
+bun run --filter @hyperframes/engine test        # Engine unit tests (vitest)
+bun run --filter @hyperframes/core test:hyperframe-runtime-ci  # Runtime contract tests
 ```
 
 ### Linting & Formatting
 
 ```bash
-pnpm lint            # Run oxlint
-pnpm lint:fix        # Run oxlint with auto-fix
-pnpm format          # Format all files with oxfmt
-pnpm format:check    # Check formatting without writing
+bun run lint            # Run oxlint
+bun run lint:fix        # Run oxlint with auto-fix
+bun run format          # Format all files with oxfmt
+bun run format:check    # Check formatting without writing
 ```
 
-Git hooks (via [lefthook](https://github.com/evilmartians/lefthook)) run automatically after `pnpm install` and enforce linting + formatting on staged files before each commit.
+Git hooks (via [lefthook](https://github.com/evilmartians/lefthook)) run automatically after `bun install` and enforce linting + formatting on staged files before each commit.
 
 ## Pull Requests
 
@@ -71,7 +71,7 @@ All packages use **fixed versioning** — every release bumps all packages to th
 
 ```bash
 # Bump versions, commit to a branch, create PR
-pnpm set-version 0.2.0
+bun run set-version 0.2.0
 git checkout -b release/v0.2.0
 git add packages/*/package.json
 git commit -m "chore: release v0.2.0"

@@ -61,7 +61,7 @@ export default defineCommand({
 });
 
 /**
- * Dev mode: spawn pnpm studio from the monorepo (existing behavior).
+ * Dev mode: spawn studio from the monorepo (existing behavior).
  */
 async function runDevMode(dir: string): Promise<void> {
   // Find monorepo root by navigating from packages/cli/src/commands/
@@ -105,7 +105,7 @@ async function runDevMode(dir: string): Promise<void> {
 
   // Run the new consolidated studio (single Vite dev server with API plugin)
   const studioPkgDir = join(repoRoot, "packages", "studio");
-  const child = spawn("pnpm", ["exec", "vite"], {
+  const child = spawn("bunx", ["vite"], {
     cwd: studioPkgDir,
     stdio: ["ignore", "pipe", "pipe"],
   });
