@@ -8,7 +8,8 @@
     "build:producer": "pnpm --filter @hyperframes/producer build",
     "studio": "pnpm --filter @hyperframes/studio dev",
     "build:hyperframes-runtime": "pnpm --filter @hyperframes/core build:hyperframes-runtime",
-    "build:hyperframes-runtime:modular": "pnpm --filter @hyperframes/core build:hyperframes-runtime:modular"
+    "build:hyperframes-runtime:modular": "pnpm --filter @hyperframes/core build:hyperframes-runtime:modular",
+    "set-version": "tsx scripts/set-version.ts"
   },
   "devDependencies": {
     "@types/node": "^25.0.10",

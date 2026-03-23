@@ -9,7 +9,67 @@ Thanks for your interest in contributing to Hyperframes! This guide will help yo
 3. Install dependencies: `pnpm install`
 4. Create a branch: `git checkout -b my-feature`
 
-<!-- TODO: Fill in development setup details once packages are ported -->
+## Development
+
+```bash
+pnpm install        # Install all dependencies
+pnpm dev            # Run the studio (composition editor)
+pnpm build          # Build all packages
+pnpm -r typecheck   # Type-check all packages
+```
+
+### Running Tests
+
+```bash
+pnpm --filter @hyperframes/core test          # Core unit tests (vitest)
+pnpm --filter @hyperframes/engine test        # Engine unit tests (vitest)
+pnpm --filter @hyperframes/core test:hyperframe-runtime-ci  # Runtime contract tests
+```
+
+## Pull Requests
+
+- Use [conventional commit](https://www.conventionalcommits.org/) format for PR titles (e.g., `feat: add timeline export`, `fix: resolve seek overflow`)
+- CI must pass before merge (build, typecheck, tests, semantic PR title)
+- PRs require at least 1 approval
+
+## Packages
+
+| Package | Description |
+|---|---|
+| `@hyperframes/core` | Types, HTML generation, runtime, linter |
+| `@hyperframes/engine` | Seekable page-to-video capture engine |
+| `@hyperframes/producer` | Full rendering pipeline (capture + encode) |
+| `@hyperframes/studio` | Composition editor UI |
+| `hyperframes` | CLI for creating, previewing, and rendering |
+
+## Releasing (Maintainers)
+
+All packages use **fixed versioning** — every release bumps all packages to the same version.
+
+### Steps
+
+```bash
+# 1. Bump version, commit, and tag
+pnpm set-version 0.1.1 --tag
+
+# 2. Push to trigger the publish workflow
+git push origin main --tags
+```
+
+The `v*` tag triggers CI, which validates (build + typecheck + tests) then publishes all packages to npm with provenance attestation.
+
+### Without `--tag` (manual control)
+
+```bash
+# 1. Bump versions only (no commit/tag)
+pnpm set-version 0.1.1
+
+# 2. Review changes, commit yourself
+git add -A
+git commit -m "chore: release v0.1.1"
+git tag v0.1.1
+git push origin main --tags
+```
 
 ## Reporting Issues
 
