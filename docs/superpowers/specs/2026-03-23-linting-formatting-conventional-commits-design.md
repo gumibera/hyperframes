@@ -49,7 +49,7 @@ Per-package overrides can be added later via oxlint's `overrides` field if neede
 
 oxlint configuration at monorepo root:
 
-- `recommended` category enabled (covers correctness + typescript rules)
+- `correctness` category enabled (oxlint's default — covers outright wrong or useless code; oxlint has no "recommended" category)
 - React plugin enabled (for studio's JSX/TSX files)
 - Nursery category excluded (not production-ready: false positives, no semver guarantees)
 - TypeScript support enabled via tsconfig detection

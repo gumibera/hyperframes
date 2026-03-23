@@ -113,7 +113,7 @@ VA-851"
 {
   "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
   "categories": {
-    "recommended": "error"
+    "correctness": "error"
   },
   "plugins": ["react", "typescript"],
   "ignorePatterns": ["dist/", "coverage/", "node_modules/"]
@@ -234,18 +234,18 @@ pre-commit:
   commands:
     lint:
       glob: "*.{js,jsx,ts,tsx}"
-      run: oxlint {staged_files}
+      run: npx oxlint {staged_files}
     format:
       glob: "*.{js,jsx,ts,tsx,json,css,md,yaml,yml}"
-      run: oxfmt --check {staged_files}
+      run: npx oxfmt --check {staged_files}
 
 commit-msg:
   commands:
     commitlint:
-      run: commitlint --edit "{1}"
+      run: npx commitlint --edit "{1}"
 ```
 
-Note: Lefthook resolves binaries from `node_modules/.bin` at the project root, so bare command names work. No `npx` or `pnpm exec` prefix needed.
+Note: Commands use `npx` prefix because bare binary names are not on PATH in the lefthook execution context.
 
 - [ ] **Step 2: Reinstall lefthook hooks to pick up the new config**
 
