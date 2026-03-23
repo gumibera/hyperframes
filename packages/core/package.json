@@ -49,7 +49,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "lint:runtime-preview-guards": "tsx scripts/lint-runtime-preview-guards.ts",
     "build:hyperframes-runtime": "tsx scripts/build-hyperframes-runtime-artifact.ts",
     "build:hyperframes-runtime:modular": "SANDBOX_RUNTIME_VARIANT=modular tsx scripts/build-hyperframes-runtime-artifact.ts",

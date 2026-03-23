@@ -24,6 +24,7 @@
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@types/node": "^25.0.10",
+    "@typescript/native-preview": "^7.0.0-dev.20260323.1",
     "concurrently": "^8.2.0",
     "knip": "^6.0.3",
     "lefthook": "^2.1.4",

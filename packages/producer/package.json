@@ -23,7 +23,7 @@
   },
   "scripts": {
     "build": "bun run --cwd ../.. build:hyperframes-runtime:modular && node build.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "parity:check": "tsx src/parity-harness.ts",
     "parity:fixtures": "tsx src/parity-fixtures.ts",
     "parity:fixtures:ci": "tsx src/parity-fixtures.ts",
