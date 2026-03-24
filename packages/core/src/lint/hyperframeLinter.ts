@@ -406,7 +406,8 @@ export function lintHyperframeHtml(
         code: "base64_media_prohibited",
         severity: "error",
         message: `Inline base64 audio/video detected (${(dataSize / 1024).toFixed(0)} KB)${isSuspicious ? " — likely fabricated data" : ""}. Base64 media is prohibited — it bloats file size and breaks rendering.`,
-        fixHint: "Use a relative path (assets/music.mp3) or HTTPS URL for the audio/video src. Never embed media as base64.",
+        fixHint:
+          "Use a relative path (assets/music.mp3) or HTTPS URL for the audio/video src. Never embed media as base64.",
         snippet: truncateSnippet((b64Match[1] ?? "").slice(0, 80) + "..."),
       });
     }

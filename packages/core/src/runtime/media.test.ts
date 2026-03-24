@@ -96,6 +96,52 @@ describe("refreshRuntimeMediaCache", () => {
     const result = refreshRuntimeMediaCache();
     expect(result.mediaClips[0].duration).toBe(8);
   });
+
+  it("reads defaultPlaybackRate from element", () => {
+    const el = createVideo({ "data-start": "0", "data-duration": "10" });
+    Object.defineProperty(el, "defaultPlaybackRate", { value: 0.5, writable: true });
+    const result = refreshRuntimeMediaCache();
+    expect(result.mediaClips[0].playbackRate).toBe(0.5);
+  });
+
+  it("defaults playback rate to 1", () => {
+    createVideo({ "data-start": "0", "data-duration": "5" });
+    const result = refreshRuntimeMediaCache();
+    expect(result.mediaClips[0].playbackRate).toBe(1);
+  });
+
+  it("clamps playback rate to [0.1, 5]", () => {
+    const el1 = createVideo({ "data-start": "0", "data-duration": "5" });
+    Object.defineProperty(el1, "defaultPlaybackRate", { value: 0.01, writable: true });
+    const r1 = refreshRuntimeMediaCache();
+    expect(r1.mediaClips[0].playbackRate).toBe(0.1);
+    document.body.innerHTML = "";
+    const el2 = createVideo({ "data-start": "0", "data-duration": "5" });
+    Object.defineProperty(el2, "defaultPlaybackRate", { value: 10, writable: true });
+    const r2 = refreshRuntimeMediaCache();
+    expect(r2.mediaClips[0].playbackRate).toBe(5);
+  });
+
+  it("adjusts fallback duration by playback rate", () => {
+    const el = createVideo({ "data-start": "0" });
+    Object.defineProperty(el, "defaultPlaybackRate", { value: 0.5, writable: true });
+    Object.defineProperty(el, "duration", { value: 10, writable: true });
+    const result = refreshRuntimeMediaCache();
+    // 10s source at 0.5x = 20s on timeline
+    expect(result.mediaClips[0].duration).toBe(20);
+  });
+
+  it("reads native loop attribute", () => {
+    createVideo({ "data-start": "0", "data-duration": "15", loop: "" });
+    const result = refreshRuntimeMediaCache();
+    expect(result.mediaClips[0].loop).toBe(true);
+  });
+
+  it("defaults loop to false", () => {
+    createVideo({ "data-start": "0", "data-duration": "5" });
+    const result = refreshRuntimeMediaCache();
+    expect(result.mediaClips[0].loop).toBe(false);
+  });
 });
 
 describe("syncRuntimeMedia", () => {
@@ -114,6 +160,9 @@ describe("syncRuntimeMedia", () => {
       duration: 10,
       end: 10,
       volume: null,
+      playbackRate: 1,
+      loop: false,
+      sourceDuration: null,
       ...overrides,
     };
   }
@@ -163,9 +212,61 @@ describe("syncRuntimeMedia", () => {
     expect(clip.el.currentTime).toBe(original);
   });
 
-  it("sets playbackRate", () => {
-    const clip = createMockClip({ start: 0, end: 10 });
+  it("sets per-element playbackRate × global rate", () => {
+    const clip = createMockClip({ start: 0, end: 10, playbackRate: 0.5 });
     syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 2 });
-    expect(clip.el.playbackRate).toBe(2);
+    expect(clip.el.playbackRate).toBe(1); // 0.5 × 2 = 1
+  });
+
+  it("computes relTime with per-element playback rate", () => {
+    const clip = createMockClip({ start: 0, end: 20, playbackRate: 0.5, mediaStart: 0 });
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 10, playing: false, playbackRate: 1 });
+    // At timeline t=10, with 0.5x rate: relTime = 10 * 0.5 + 0 = 5s into the media
+    expect(clip.el.currentTime).toBe(5);
+  });
+
+  it("wraps relTime when loop is true and media has ended", () => {
+    // 3s source at 1x, looped over 10s clip
+    const clip = createMockClip({
+      start: 0,
+      end: 10,
+      mediaStart: 0,
+      loop: true,
+      sourceDuration: 3,
+    });
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    // At t=7, relTime = 7, wraps to 7 % 3 = 1
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 7, playing: false, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(1);
+  });
+
+  it("wraps loop with mediaStart offset", () => {
+    // Source is 10s, mediaStart=5, so loop length is 5s (5-10)
+    const clip = createMockClip({
+      start: 0,
+      end: 15,
+      mediaStart: 5,
+      loop: true,
+      sourceDuration: 10,
+    });
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    // At t=7: relTime = 7*1 + 5 = 12, wraps: 5 + ((12-5) % 5) = 5 + (7%5) = 5+2 = 7
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 7, playing: false, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(7);
+  });
+
+  it("does not loop when loop is false", () => {
+    const clip = createMockClip({
+      start: 0,
+      end: 10,
+      mediaStart: 0,
+      loop: false,
+      sourceDuration: 3,
+    });
+    Object.defineProperty(clip.el, "currentTime", { value: 0, writable: true });
+    // At t=7, relTime = 7 (no wrapping, even though > sourceDuration)
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 7, playing: false, playbackRate: 1 });
+    expect(clip.el.currentTime).toBe(7);
   });
 });
