@@ -3,8 +3,8 @@
  * Set the version across all publishable packages in the monorepo.
  *
  * Usage:
- *   pnpm set-version 0.1.1
- *   pnpm set-version 0.1.1 --tag   # also creates a git commit and tag
+ *   bun run set-version 0.1.1
+ *   bun run set-version 0.1.1 --tag   # also creates a git commit and tag
  *
  * All packages share a single version number (fixed versioning).
  */
@@ -29,8 +29,8 @@ function main() {
   const shouldTag = args.includes("--tag");
 
   if (!version) {
-    console.error("Usage: pnpm set-version <version> [--tag]");
-    console.error("Example: pnpm set-version 0.1.1 --tag");
+    console.error("Usage: bun run set-version <version> [--tag]");
+    console.error("Example: bun run set-version 0.1.1 --tag");
     process.exit(1);
   }
 

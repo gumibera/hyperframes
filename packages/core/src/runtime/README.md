@@ -41,7 +41,7 @@ Determinism baseline:
 ## Build
 
 ```bash
-pnpm -C core build:hyperframes-runtime
+bun run --filter @hyperframes/core build:hyperframes-runtime
 ```
 
 ## Security Expectations

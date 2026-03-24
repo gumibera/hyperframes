@@ -16,21 +16,21 @@ Thanks for your interest in contributing to Hyperframes! This guide covers every
     ```
   </Step>
   <Step title="Install dependencies">
-    Hyperframes uses [pnpm](https://pnpm.io/) for package management:
+    Hyperframes uses [bun](https://bun.sh/) for package management:
     ```bash
-    pnpm install
+    bun install
     ```
   </Step>
   <Step title="Build all packages">
     Build the monorepo to ensure everything compiles:
     ```bash
-    pnpm build
+    bun run build
     ```
   </Step>
   <Step title="Run the studio">
     Start the development server to verify your setup:
     ```bash
-    pnpm dev
+    bun run dev
     ```
     If the studio opens at `http://localhost:3000` with a preview, your environment is ready.
   </Step>
@@ -47,33 +47,33 @@ Thanks for your interest in contributing to Hyperframes! This guide covers every
 ### Common Commands
 
 ```bash
-pnpm install        # Install all dependencies
-pnpm dev            # Start the studio (composition editor + live preview)
-pnpm build          # Build all packages
-pnpm -r typecheck   # Type-check all packages
+bun install                          # Install all dependencies
+bun run dev                          # Start the studio (composition editor + live preview)
+bun run build                        # Build all packages
+bun run --filter '*' typecheck       # Type-check all packages
 ```
 
 ### Running Tests
 
 <CodeGroup>
 ```bash Core
-pnpm --filter @hyperframes/core test
+bun run --filter @hyperframes/core test
 ```
 ```bash Engine
-pnpm --filter @hyperframes/engine test
+bun run --filter @hyperframes/engine test
 ```
 ```bash Runtime Contract
-pnpm --filter @hyperframes/core test:hyperframe-runtime-ci
+bun run --filter @hyperframes/core test:hyperframe-runtime-ci
 ```
 ```bash Producer (Docker)
-cd packages/producer && pnpm docker:build:test && pnpm docker:test
+cd packages/producer && bun run docker:build:test && bun run docker:test
 ```
 </CodeGroup>
 
 ### Running All Tests
 
 ```bash
-pnpm -r test
+bun run --filter '*' test
 ```
 
 ## Packages
@@ -114,8 +114,8 @@ test: add regression test for nested composition timing
 
 All of the following must pass before your PR can be merged:
 
-- **Build** — `pnpm build` succeeds
-- **Type check** — `pnpm -r typecheck` reports no errors
+- **Build** — `bun run build` succeeds
+- **Type check** — `bun run --filter '*' typecheck` reports no errors
 - **Tests** — all test suites pass
 - **Semantic PR title** — PR title follows conventional commit format
 

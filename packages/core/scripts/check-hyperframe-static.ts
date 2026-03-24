@@ -34,7 +34,7 @@ function main() {
   const inputPath = positionalArgs[0];
   if (!inputPath) {
     console.error(
-      "Usage: pnpm check:hyperframe-html [--json] <path-to-html>\nExample: pnpm check:hyperframe-html core/src/tests/broken-video.html",
+      "Usage: bun run check:hyperframe-html [--json] <path-to-html>\nExample: bun run check:hyperframe-html core/src/tests/broken-video.html",
     );
     process.exit(2);
   }

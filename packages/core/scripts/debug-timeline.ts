@@ -195,7 +195,7 @@ function resolveRootTag(tags: ParsedTag[]): ParsedTag | null {
 function main() {
   const { inputPath, forcedFps, forcedMaxDuration } = parseArgs();
   if (!inputPath) {
-    console.error("Usage: pnpm debug:timeline <path-to-html> [--fps 30] [--max-duration 1800]");
+    console.error("Usage: bun run debug:timeline <path-to-html> [--fps 30] [--max-duration 1800]");
     process.exit(2);
   }
 

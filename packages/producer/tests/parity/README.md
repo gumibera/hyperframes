@@ -16,7 +16,7 @@ Then in another terminal:
 
 ```bash
 cd producer
-pnpm parity:check \
+bun run parity:check \
   --preview-url "http://127.0.0.1:4173/minimal-wysiwyg.html" \
   --producer-url "http://127.0.0.1:4173/minimal-wysiwyg.html?mode=producer" \
   --checkpoints "0,0.5,1,1.5" \

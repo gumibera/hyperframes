@@ -131,13 +131,13 @@ The producer includes a regression harness for comparing render output against g
 cd packages/producer
 
 # Build the test Docker image
-pnpm docker:build:test
+bun run docker:build:test
 
 # Run regression tests (compares output against golden baselines)
-pnpm docker:test
+bun run docker:test
 
 # Regenerate golden baselines after intentional changes
-pnpm docker:test:update
+bun run docker:test:update
 ```
 
 ## Benchmarking
@@ -150,7 +150,7 @@ npx hyperframes benchmark
 
 # Directly from the producer package
 cd packages/producer
-pnpm benchmark
+bun run benchmark
 ```
 
 The benchmark runs several compositions with different quality and FPS settings and reports timing for each combination.

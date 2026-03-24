@@ -6,10 +6,10 @@
  * Results are saved to producer/tests/perf/benchmark-results.json.
  *
  * Usage:
- *   pnpm benchmark                    # 3 runs per fixture (default)
- *   pnpm benchmark -- --runs 5        # 5 runs per fixture
- *   pnpm benchmark -- --only chat     # single fixture
- *   pnpm benchmark -- --exclude-tags slow
+ *   bun run benchmark                    # 3 runs per fixture (default)
+ *   bun run benchmark -- --runs 5        # 5 runs per fixture
+ *   bun run benchmark -- --only chat     # single fixture
+ *   bun run benchmark -- --exclude-tags slow
  */
 
 import {
@@ -196,7 +196,7 @@ async function runBenchmark(): Promise<void> {
           avg(
             fixtureRuns
               .filter((r) => r.perfSummary.captureAvgMs != null)
-              .map((r) => r.perfSummary.captureAvgMs!),
+              .map((r) => r.perfSummary.captureAvgMs ?? 0),
           ) || null,
         stages: avgStages,
       },
