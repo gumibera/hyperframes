@@ -27,6 +27,9 @@ const workspaceAliasPlugin = {
     build.onResolve({ filter: /^@hyperframes\/core\/lint$/ }, () => ({
       path: resolve(scriptDir, "../core/src/lint/index.ts"),
     }));
+    build.onResolve({ filter: /^@hyperframes\/fonts$/ }, () => ({
+      path: resolve(scriptDir, "../fonts/src/index.ts"),
+    }));
   },
 };
 

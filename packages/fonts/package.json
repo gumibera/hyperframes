@@ -1,0 +1,104 @@
+{
+  "name": "@hyperframes/fonts",
+  "version": "0.1.2",
+  "description": "Deterministic font injection with build-time woff2 data URI embedding",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./inter": "./src/inter.ts",
+    "./montserrat": "./src/montserrat.ts",
+    "./outfit": "./src/outfit.ts",
+    "./nunito": "./src/nunito.ts",
+    "./oswald": "./src/oswald.ts",
+    "./league-gothic": "./src/league-gothic.ts",
+    "./archivo-black": "./src/archivo-black.ts",
+    "./space-mono": "./src/space-mono.ts",
+    "./ibm-plex-mono": "./src/ibm-plex-mono.ts",
+    "./jetbrains-mono": "./src/jetbrains-mono.ts",
+    "./eb-garamond": "./src/eb-garamond.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts"
+      },
+      "./inter": {
+        "import": "./dist/inter.js",
+        "types": "./dist/inter.d.ts"
+      },
+      "./montserrat": {
+        "import": "./dist/montserrat.js",
+        "types": "./dist/montserrat.d.ts"
+      },
+      "./outfit": {
+        "import": "./dist/outfit.js",
+        "types": "./dist/outfit.d.ts"
+      },
+      "./nunito": {
+        "import": "./dist/nunito.js",
+        "types": "./dist/nunito.d.ts"
+      },
+      "./oswald": {
+        "import": "./dist/oswald.js",
+        "types": "./dist/oswald.d.ts"
+      },
+      "./league-gothic": {
+        "import": "./dist/league-gothic.js",
+        "types": "./dist/league-gothic.d.ts"
+      },
+      "./archivo-black": {
+        "import": "./dist/archivo-black.js",
+        "types": "./dist/archivo-black.d.ts"
+      },
+      "./space-mono": {
+        "import": "./dist/space-mono.js",
+        "types": "./dist/space-mono.d.ts"
+      },
+      "./ibm-plex-mono": {
+        "import": "./dist/ibm-plex-mono.js",
+        "types": "./dist/ibm-plex-mono.d.ts"
+      },
+      "./jetbrains-mono": {
+        "import": "./dist/jetbrains-mono.js",
+        "types": "./dist/jetbrains-mono.d.ts"
+      },
+      "./eb-garamond": {
+        "import": "./dist/eb-garamond.js",
+        "types": "./dist/eb-garamond.d.ts"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "scripts": {
+    "build": "tsx scripts/generate-font-data.ts && tsc",
+    "generate": "tsx scripts/generate-font-data.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "linkedom": "^0.18.12"
+  },
+  "devDependencies": {
+    "@fontsource/archivo-black": "^5.2.8",
+    "@fontsource/eb-garamond": "^5.2.7",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/league-gothic": "^5.2.8",
+    "@fontsource/montserrat": "^5.2.8",
+    "@fontsource/nunito": "^5.2.7",
+    "@fontsource/oswald": "^5.2.8",
+    "@fontsource/outfit": "^5.2.8",
+    "@fontsource/space-mono": "^5.2.9",
+    "@types/node": "^22.10.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -5,6 +5,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Generated font data (rebuilt from @fontsource/* packages)
+packages/fonts/src/generated/
+
 # Environment
 .env
 .env.local
