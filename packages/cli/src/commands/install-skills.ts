@@ -228,10 +228,8 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
       } else {
         spinner.stop(c.warn(`${source.name}: no skills directory found`));
       }
-    } catch (err) {
-      spinner.stop(
-        c.warn(`Failed to fetch ${source.name}: ${err instanceof Error ? err.message : err}`),
-      );
+    } catch {
+      spinner.stop(c.dim(`${source.name} skills skipped (repo not accessible)`));
     }
   }
 
@@ -266,11 +264,19 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
   console.log(`   ${c.dim("Targets:")}      ${targets.map((t) => t.name).join(", ")}`);
   console.log();
 
-  clack.outro(
-    c.success(
-      `${allInstalled.length} skills installed to ${targets.length} tool${targets.length > 1 ? "s" : ""}.`,
-    ),
-  );
+  const skippedSources = SOURCES.filter((s) => !fetched.some((f) => f.source.name === s.name));
+  if (skippedSources.length > 0) {
+    console.log(
+      `   ${c.dim("Skipped:")}      ${skippedSources.map((s) => s.name).join(", ")} (repo not accessible)`,
+    );
+  }
+  console.log();
+
+  if (allInstalled.length > 0) {
+    clack.outro(c.success(`${allInstalled.length} skills ready.`));
+  } else {
+    clack.outro(c.warn("No skills installed."));
+  }
 }
 
 export default defineCommand({
