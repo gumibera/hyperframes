@@ -174,6 +174,9 @@ Caption compositions follow the standard HyperFrames composition format:
 - **Portrait (1080x1920):** Lower middle — `bottom: 600-700px`, centered horizontally
 - Use `position: absolute` on caption groups, stacked in the same container
 - Set `pointer-events: none` on the composition so captions don't block clicks
+- **Never use relative positioning for captions.** Relative positioning creates a single long line that overflows off screen. Caption groups must be absolutely positioned so hidden words don't affect layout.
+- **Avoid covering the subject's face.** Position captions in the lower third or upper portion, away from the speaker.
+- **Maintain adequate padding** from screen edges (80px minimum on sides)
 
 ## Animation Patterns
 
@@ -199,12 +202,56 @@ tl.set(el, { display: "flex" }, start);
 tl.set(el, { display: "none" }, end);
 ```
 
+## Dynamic Font Sizing
+
+If a caption group is too wide for the viewport, scale the font size down:
+
+```js
+const maxWidth = viewportWidth - 160; // 80px padding each side
+const el = document.createElement("div");
+el.className = "caption-group";
+el.textContent = group.text;
+el.style.fontSize = baseFontSize + "px";
+container.appendChild(el);
+
+// Measure and scale if needed
+const measured = el.getBoundingClientRect().width;
+if (measured > maxWidth) {
+  const scale = maxWidth / measured;
+  el.style.fontSize = Math.floor(baseFontSize * scale) + "px";
+}
+```
+
+Scale stroke width and spacing proportionally when scaling font size.
+
+## Active Word Highlighting
+
+Highlight the currently spoken word within a caption group by changing its color:
+
+```js
+// Create individual word spans within the group
+const wordSpans = group.words.map((w) => {
+  const span = document.createElement("span");
+  span.textContent = w.text + " ";
+  span.style.color = defaultColor;
+  el.appendChild(span);
+  return { span, start: w.start, end: w.end };
+});
+
+// Animate each word's color at its start time
+wordSpans.forEach((ws) => {
+  tl.to(ws.span, { color: accentColor, duration: 0.05 }, ws.start);
+  tl.to(ws.span, { color: defaultColor, duration: 0.05 }, ws.end);
+});
+```
+
 ## Timing Rules
 
 - **Entrance animation must complete before exit starts.** If a group is shorter than entrance + exit duration, reduce animation durations.
 - **Exit before next group enters.** Use `Math.min(group.end, nextGroup.start)` as the hide time.
 - **Minimum display time:** 0.3s — skip groups shorter than this.
 - **No overlapping caption groups.** Only one group visible at a time.
+- **Sync to actual audio.** Captions must match word-level timestamps from the transcript, not estimated timing.
 
 ## Constraints
 
@@ -215,6 +262,18 @@ tl.set(el, { display: "none" }, end);
 - **Set `data-duration`.** Must match or exceed the last caption's end time.
 - **Do not animate `visibility` or `display` on timed clips.** Use `opacity` or `autoAlpha`.
 - **Do not use `tl.set()` for property changes that need to survive timeline seeking.** Use `tl.to()` with a short duration instead.
+- **Keep it simple.** Simpler captions perform better than fancy ones. Avoid excessive effects.
+
+## Common Mistakes
+
+- Captions not synced to actual audio (using estimated timing instead of transcript)
+- Multiple caption groups visible simultaneously — only ONE group at a time
+- Text too small to read on mobile devices
+- Insufficient contrast between text and video background
+- Captions covering the subject's face
+- Using relative positioning (creates overflowing single line)
+- All words the same size and style (no visual hierarchy)
+- Overusing animation effects (less is more)
 
 ## Loading in the Root Composition
 

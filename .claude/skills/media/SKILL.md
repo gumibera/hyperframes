@@ -147,6 +147,44 @@ Use `data-volume` (0-1) to set playback volume:
 ></audio>
 ```
 
+### Background Music
+
+Background music should run for the entire video duration at a lower volume than the main audio:
+
+- **Volume:** 30-50% relative to voice (`data-volume="0.3"` to `data-volume="0.5"`)
+- **Style:** Instrumental only — no vocals or lyrics that compete with speech
+- **Timing:** Start at beginning, loop or extend to cover entire video
+- **Track:** Use a dedicated track index separate from voice and SFX
+
+```html
+<audio
+  id="el-bgm"
+  data-start="0"
+  data-duration="60"
+  data-track-index="3"
+  src="bgm.mp3"
+  data-volume="0.3"
+></audio>
+```
+
+### Sound Effects
+
+- **Duration:** Short — around 0.5 seconds
+- **Volume:** Lower than main audio (30-50% relative to voice)
+- **Placement:** At visual transitions (scene changes, zoom cuts, text reveals)
+- **Frequency:** 1-2 per video at key moments — don't overuse
+
+```html
+<audio
+  id="el-whoosh"
+  data-start="3"
+  data-duration="0.5"
+  data-track-index="4"
+  src="whoosh.mp3"
+  data-volume="0.4"
+></audio>
+```
+
 ### Audio Trimming
 
 Same as video — use `data-media-start`:
