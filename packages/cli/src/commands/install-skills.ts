@@ -139,7 +139,7 @@ function listInstalledSkills(): string[] {
 // ---------------------------------------------------------------------------
 
 async function runInstall(): Promise<void> {
-  clack.intro(c.bold("hyperframes skills install"));
+  clack.intro(c.bold("hyperframes skills"));
 
   mkdirSync(SKILLS_DIR, { recursive: true });
 
@@ -179,30 +179,10 @@ async function runInstall(): Promise<void> {
   clack.outro(c.success("Skills ready. They'll be available in all Claude Code sessions."));
 }
 
-async function runList(): Promise<void> {
-  const skills = listInstalledSkills();
-  if (skills.length === 0) {
-    console.log(c.dim("No skills installed. Run: hyperframes skills install"));
-    return;
-  }
-
-  console.log(c.bold(`${skills.length} skills in ${SKILLS_DIR}\n`));
-  for (const name of skills) {
-    console.log(`  ${c.accent(name)}`);
-  }
-  console.log();
-}
-
 export default defineCommand({
-  meta: { name: "skills", description: "Manage Claude Code skills for HyperFrames" },
-  subCommands: {
-    install: defineCommand({
-      meta: { name: "install", description: "Install HyperFrames and GSAP skills globally" },
-      run: runInstall,
-    }),
-    list: defineCommand({
-      meta: { name: "list", description: "List installed skills" },
-      run: runList,
-    }),
+  meta: {
+    name: "skills",
+    description: "Install HyperFrames and GSAP skills for Claude Code",
   },
+  run: runInstall,
 });
