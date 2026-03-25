@@ -468,7 +468,71 @@ def _rgba_to_hex(r: float, g: float, b: float) -> str:
 _EXPRESSION_MARKERS = ('comp(', 'effect(', 'thisComp', 'wiggle(', 'time', 'value')
 
 
-def extract_effects(layr_el, warnings: list) -> list:
+def _extract_effect_params(sspc_el, tick_rate: float, warnings: list) -> list:
+    """Extract parameters from the <tdgp> inside an effect's <sspc> element.
+
+    Walks <tdmn> -> <tdbs> pairs inside the parameter value group, similar to
+    how transform properties are extracted.
+
+    Returns a list of param dicts with matchName, displayName, value, keyframes.
+    """
+    # Find the <tdgp> inside <sspc> that holds parameter values
+    tdgp_el = sspc_el.find('ae:tdgp', NS)
+    if tdgp_el is None:
+        return []
+
+    params = []
+    current_match_name = None
+    current_display_name = None
+    for child in tdgp_el:
+        tag = child.tag.replace('{http://www.adobe.com/products/aftereffects}', '')
+
+        if tag == 'tdmn':
+            bdata = child.get('bdata', '')
+            if bdata:
+                try:
+                    decoded = decode_tdmn(bdata)
+                    if decoded == 'ADBE Group End':
+                        current_match_name = None
+                        current_display_name = None
+                        continue
+                    current_match_name = decoded
+                except Exception as exc:
+                    warnings.append(f'effect param tdmn decode error: {exc}')
+                    current_match_name = None
+        elif tag == 'tdsn':
+            str_el = child.find('ae:string', NS)
+            if str_el is not None and str_el.text:
+                current_display_name = str_el.text
+        elif tag == 'tdbs' and current_match_name:
+            prop = _extract_property_from_tdbs(child, tick_rate)
+            # Also check for expression strings
+            expression = None
+            for str_el in child.findall('ae:string', NS):
+                text = str_el.text or ''
+                if _looks_like_expression(text):
+                    expression = text
+                    break
+            param = {
+                'matchName': current_match_name,
+                'displayName': current_display_name,
+                'value': prop['value'],
+                'keyframes': prop.get('keyframes'),
+            }
+            if expression:
+                param['expression'] = expression
+            params.append(param)
+            current_match_name = None
+            current_display_name = None
+        elif tag == 'tdgp' and current_match_name:
+            # Nested group param — skip for now
+            current_match_name = None
+            current_display_name = None
+
+    return params
+
+
+def extract_effects(layr_el, warnings: list, tick_rate: float = 24000.0) -> list:
     """Extract effects from the ADBE Effect Parade group inside a <Layr>.
 
     Structure inside the parade group:
@@ -477,11 +541,14 @@ def extract_effects(layr_el, warnings: list) -> list:
       <tdmn bdata="..."/>                      (effect match name, e.g. "ADBE Fill")
       <sspc>
         <fnam><string>Fill</string></fnam>     (human-readable display name)
-        ...
+        <tdgp>                                  (parameter values)
+          <tdmn bdata="ADBE Fill-0002"/>
+          <tdbs>...</tdbs>
+        </tdgp>
       </sspc>
       <tdmn bdata="ADBE Group End"/>
 
-    Returns a list of dicts with 'name' and 'displayName'.
+    Returns a list of dicts with 'name', 'displayName', and 'params'.
     Any decoding errors append a message to warnings.
     """
     effect_parade = _find_named_group(layr_el, 'ADBE Effect Parade')
@@ -513,10 +580,275 @@ def extract_effects(layr_el, warnings: list) -> list:
                 str_el = fnam_el.find('ae:string', NS)
                 if str_el is not None and str_el.text:
                     display_name = str_el.text
-            effects.append({'name': effect_name, 'displayName': display_name})
+            # Extract parameters from <tdgp> inside <sspc>
+            params = _extract_effect_params(child, tick_rate, warnings)
+            effects.append({
+                'name': effect_name,
+                'displayName': display_name,
+                'params': params,
+            })
             pending_match_name = None
 
     return effects
+
+
+_SHAPE_TYPE_MAP = {
+    'ADBE Vector Rect': 'rectangle',
+    'ADBE Vector Ellipse': 'ellipse',
+    'ADBE Vector Shape': 'path',
+    'ADBE Vector Star': 'polystar',
+}
+
+
+def _extract_shape_properties(group_el, tick_rate: float) -> dict:
+    """Extract fill, stroke, size, position from a shape group's tdmn->tdbs pairs.
+
+    Walks children looking for known shape property match names.
+    Recurses into sub-groups (e.g. ADBE Vector Graphic - Fill contains ADBE Vector Fill Color).
+    """
+    fill = None
+    stroke = None
+    size = None
+    position = None
+
+    current_match_name = None
+    for child in group_el:
+        tag = child.tag.replace('{http://www.adobe.com/products/aftereffects}', '')
+
+        if tag == 'tdmn':
+            bdata = child.get('bdata', '')
+            if bdata:
+                try:
+                    decoded = decode_tdmn(bdata)
+                    if decoded == 'ADBE Group End':
+                        current_match_name = None
+                        continue
+                    current_match_name = decoded
+                except Exception:
+                    current_match_name = None
+        elif tag == 'tdbs' and current_match_name:
+            prop = _extract_property_from_tdbs(child, tick_rate)
+            val = prop['value']
+
+            # Size properties
+            if current_match_name in ('ADBE Vector Rect Size', 'ADBE Vector Ellipse Size'):
+                size = val
+            # Position properties
+            elif current_match_name in ('ADBE Vector Rect Position', 'ADBE Vector Ellipse Position',
+                                         'ADBE Vector Position'):
+                position = val
+            # Fill color
+            elif current_match_name == 'ADBE Vector Fill Color':
+                if isinstance(val, list) and len(val) >= 3:
+                    fill = {'color': [round(v, 6) for v in val[:4]] if len(val) >= 4 else [round(v, 6) for v in val[:3]] + [1.0]}
+            # Stroke color
+            elif current_match_name == 'ADBE Vector Stroke Color':
+                if isinstance(val, list) and len(val) >= 3:
+                    stroke = stroke or {}
+                    stroke['color'] = [round(v, 6) for v in val[:4]] if len(val) >= 4 else [round(v, 6) for v in val[:3]] + [1.0]
+            # Stroke width
+            elif current_match_name == 'ADBE Vector Stroke Width':
+                stroke = stroke or {}
+                stroke['width'] = val
+
+            current_match_name = None
+        elif tag == 'tdgp' and current_match_name:
+            # Recurse into nested groups (e.g. fill/stroke sub-groups contain
+            # color/width properties as tdmn->tdbs pairs inside their tdgp)
+            nested = _extract_shape_properties(child, tick_rate)
+            if nested.get('fill') and fill is None:
+                fill = nested['fill']
+            if nested.get('stroke'):
+                stroke = stroke or {}
+                if 'color' in nested['stroke'] and 'color' not in (stroke or {}):
+                    stroke['color'] = nested['stroke']['color']
+                if 'width' in nested['stroke'] and 'width' not in (stroke or {}):
+                    stroke['width'] = nested['stroke']['width']
+            if nested.get('size') and size is None:
+                size = nested['size']
+            if nested.get('position') and position is None:
+                position = nested['position']
+            current_match_name = None
+        elif tag in ('om-s',):
+            # Shape path data is in <om-s> — we note its existence but
+            # don't extract path vertices for now
+            current_match_name = None
+
+    return {'fill': fill, 'stroke': stroke, 'size': size, 'position': position}
+
+
+def _walk_vectors_group(vectors_group_el, tick_rate: float) -> list:
+    """Walk an ADBE Vectors Group element and extract shape items with their fill/stroke.
+
+    This is the innermost group that contains:
+      - ADBE Vector Shape - Group (with ADBE Vector Shape / Rect / Ellipse inside)
+      - ADBE Vector Graphic - Fill (fill color)
+      - ADBE Vector Graphic - Stroke (stroke color + width)
+      - ADBE Vector Filter - Trim (trim paths)
+
+    Fill/stroke groups at this level apply to all shapes in the same Vectors Group.
+    """
+    shapes = []
+    fill = None
+    stroke = None
+
+    current_match_name = None
+    for child in vectors_group_el:
+        tag = child.tag.replace('{http://www.adobe.com/products/aftereffects}', '')
+
+        if tag == 'tdmn':
+            bdata = child.get('bdata', '')
+            if bdata:
+                try:
+                    decoded = decode_tdmn(bdata)
+                    if decoded == 'ADBE Group End':
+                        current_match_name = None
+                        continue
+                    current_match_name = decoded
+                except Exception:
+                    current_match_name = None
+        elif tag == 'tdgp' and current_match_name:
+            mn = current_match_name
+
+            if mn == 'ADBE Vector Shape - Group':
+                # Sub-group containing a concrete shape — look inside for
+                # ADBE Vector Shape / Rect / Ellipse / Star
+                inner_shapes = _walk_vectors_group(child, tick_rate)
+                shapes.extend(inner_shapes)
+            elif mn in _SHAPE_TYPE_MAP:
+                # Concrete shape definition (rect, ellipse, path, polystar)
+                shape_type = _SHAPE_TYPE_MAP[mn]
+                props = _extract_shape_properties(child, tick_rate)
+                shape = {'type': shape_type}
+                if props.get('size'):
+                    shape['size'] = props['size']
+                if props.get('position'):
+                    shape['position'] = props['position']
+                shapes.append(shape)
+            elif mn == 'ADBE Vector Graphic - Fill':
+                props = _extract_shape_properties(child, tick_rate)
+                if props.get('fill'):
+                    fill = props['fill']
+            elif mn == 'ADBE Vector Graphic - Stroke':
+                props = _extract_shape_properties(child, tick_rate)
+                if props.get('stroke'):
+                    stroke = props['stroke']
+
+            current_match_name = None
+        elif tag == 'om-s' and current_match_name:
+            # <om-s> holds shape path data (for ADBE Vector Shape).
+            # Create a path shape entry for the pending match name.
+            if current_match_name in _SHAPE_TYPE_MAP:
+                shape_type = _SHAPE_TYPE_MAP[current_match_name]
+                shapes.append({'type': shape_type})
+            current_match_name = None
+        elif tag == 'tdbs':
+            current_match_name = None
+
+    # Apply fill/stroke from this level to all shapes that don't have them
+    for s in shapes:
+        if fill and 'fill' not in s:
+            s['fill'] = fill
+        if stroke and 'stroke' not in s:
+            s['stroke'] = stroke
+
+    return shapes
+
+
+def _walk_root_vectors(root_vectors_el, tick_rate: float) -> list:
+    """Walk the ADBE Root Vectors Group, handling the Vector Group / Vectors Group nesting.
+
+    Structure:
+      ADBE Root Vectors Group
+        -> ADBE Vector Group (one per shape group)
+          -> ADBE Vectors Group (contains shapes + fill/stroke)
+          -> ADBE Vector Transform Group
+          -> ADBE Vector Materials Group
+
+    Returns a flat list of shape dicts.
+    """
+    shapes = []
+    current_match_name = None
+
+    for child in root_vectors_el:
+        tag = child.tag.replace('{http://www.adobe.com/products/aftereffects}', '')
+
+        if tag == 'tdmn':
+            bdata = child.get('bdata', '')
+            if bdata:
+                try:
+                    decoded = decode_tdmn(bdata)
+                    if decoded == 'ADBE Group End':
+                        current_match_name = None
+                        continue
+                    current_match_name = decoded
+                except Exception:
+                    current_match_name = None
+        elif tag == 'tdgp' and current_match_name:
+            mn = current_match_name
+
+            if mn == 'ADBE Vector Group':
+                # Walk inside for ADBE Vectors Group
+                inner_mn = None
+                for inner in child:
+                    inner_tag = inner.tag.replace('{http://www.adobe.com/products/aftereffects}', '')
+                    if inner_tag == 'tdmn':
+                        ibd = inner.get('bdata', '')
+                        if ibd:
+                            try:
+                                inner_mn = decode_tdmn(ibd)
+                                if inner_mn == 'ADBE Group End':
+                                    inner_mn = None
+                                    continue
+                            except Exception:
+                                inner_mn = None
+                    elif inner_tag == 'tdgp' and inner_mn == 'ADBE Vectors Group':
+                        sub_shapes = _walk_vectors_group(inner, tick_rate)
+                        shapes.extend(sub_shapes)
+                        inner_mn = None
+                    elif inner_tag in ('tdgp', 'tdbs'):
+                        inner_mn = None
+            elif mn == 'ADBE Vectors Group':
+                # Sometimes Vectors Group is directly under Root Vectors Group
+                sub_shapes = _walk_vectors_group(child, tick_rate)
+                shapes.extend(sub_shapes)
+            elif mn in _SHAPE_TYPE_MAP:
+                # Concrete shape directly under root (rare but possible)
+                shape_type = _SHAPE_TYPE_MAP[mn]
+                props = _extract_shape_properties(child, tick_rate)
+                shape = {'type': shape_type}
+                if props.get('fill'):
+                    shape['fill'] = props['fill']
+                if props.get('stroke'):
+                    shape['stroke'] = props['stroke']
+                if props.get('size'):
+                    shape['size'] = props['size']
+                if props.get('position'):
+                    shape['position'] = props['position']
+                shapes.append(shape)
+
+            current_match_name = None
+        elif tag in ('tdbs', 'om-s'):
+            current_match_name = None
+
+    return shapes
+
+
+def extract_shape_data(layr_el, tick_rate: float = 24000.0) -> list:
+    """Extract shape layer geometry from the ADBE Root Vectors Group.
+
+    Returns a list of shape group dicts, each with:
+      type: 'rectangle' | 'ellipse' | 'path' | 'polystar'
+      fill: {'color': [r, g, b, a]} or None
+      stroke: {'color': [r, g, b, a], 'width': N} or None
+      size: [w, h] or None
+      position: [x, y] or None
+    """
+    root_vectors = _find_named_group(layr_el, 'ADBE Root Vectors Group')
+    if root_vectors is None:
+        return []
+
+    return _walk_root_vectors(root_vectors, tick_rate)
 
 
 def extract_masks(layr_el) -> list:
@@ -891,7 +1223,7 @@ def _parse_items(items_el_list, compositions: dict, comp_counter: list,
                     'trackMatteType': layer_meta.get('trackMatteType', None),
                     'parentIndex': layer_meta.get('parentIndex', None),
                     'transform': extract_transforms(layr_el, layer_meta.get('tickRate', 24000.0)),
-                    'effects': extract_effects(layr_el, warnings),
+                    'effects': extract_effects(layr_el, warnings, layer_meta.get('tickRate', 24000.0)),
                     'masks': extract_masks(layr_el),
                     'expression': extract_expression(layr_el),
                 }
@@ -906,6 +1238,14 @@ def _parse_items(items_el_list, compositions: dict, comp_counter: list,
                     layer['fontColor'] = text_data.get('fontColor')
                     if text_data.get('fontFamily'):
                         all_fonts.add(text_data['fontFamily'])
+
+                # Extract shape layer geometry
+                if layer_type == 'shape':
+                    shape_groups = extract_shape_data(
+                        layr_el, layer_meta.get('tickRate', 24000.0),
+                    )
+                    if shape_groups:
+                        layer['shapeGroups'] = shape_groups
 
                 layers.append(layer)
 
