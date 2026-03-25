@@ -44,7 +44,10 @@ const main = defineCommand({
 // ---------------------------------------------------------------------------
 
 const commandArg = process.argv[2];
-const isHelpOrVersion = process.argv.includes("--help") || process.argv.includes("--version") || process.argv.includes("-h");
+const isHelpOrVersion =
+  process.argv.includes("--help") ||
+  process.argv.includes("--version") ||
+  process.argv.includes("-h");
 const command = commandArg && commandArg in subCommands ? commandArg : "unknown";
 
 if (command !== "telemetry" && command !== "unknown" && !isHelpOrVersion) {

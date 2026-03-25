@@ -50,7 +50,7 @@ export function shouldTrack(): boolean {
   }
 
   // Placeholder API key means it hasn't been configured yet
-  if (POSTHOG_API_KEY === "__POSTHOG_API_KEY__") {
+  if (!POSTHOG_API_KEY.startsWith("phc_")) {
     telemetryEnabled = false;
     return false;
   }
@@ -139,10 +139,14 @@ export function flushSync(): void {
     // Spawn a detached process to send the request so we don't block exit.
     // The subprocess inherits nothing and runs independently.
     const { execFileSync } = require("node:child_process") as typeof import("node:child_process");
-    execFileSync(process.execPath, [
-      "-e",
-      `fetch(${JSON.stringify(`${POSTHOG_HOST}/batch/`)},{method:"POST",headers:{"Content-Type":"application/json"},body:${JSON.stringify(payload)},signal:AbortSignal.timeout(${FLUSH_TIMEOUT_MS})}).catch(()=>{})`,
-    ], { stdio: "ignore", timeout: FLUSH_TIMEOUT_MS });
+    execFileSync(
+      process.execPath,
+      [
+        "-e",
+        `fetch(${JSON.stringify(`${POSTHOG_HOST}/batch/`)},{method:"POST",headers:{"Content-Type":"application/json"},body:${JSON.stringify(payload)},signal:AbortSignal.timeout(${FLUSH_TIMEOUT_MS})}).catch(()=>{})`,
+      ],
+      { stdio: "ignore", timeout: FLUSH_TIMEOUT_MS },
+    );
   } catch {
     // Silently ignore
   }
