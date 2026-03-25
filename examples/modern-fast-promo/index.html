@@ -5,105 +5,227 @@
     <title>Modern Fast Promo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
-      body,
-      html {
-        margin: 0;
-        padding: 0;
-        background: #111111;
-        overflow: hidden;
-        width: 1920px;
-        height: 1080px;
+      @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap");
+      body, html {
+        margin: 0; padding: 0;
+        background: #111; overflow: hidden;
+        width: 1920px; height: 1080px;
       }
-      #main-composition {
+      #root {
         position: relative;
-        width: 1920px;
-        height: 1080px;
-        background: #111111;
-        overflow: hidden;
+        width: 1920px; height: 1080px;
+        background: #111; overflow: hidden;
       }
-      #scene01-host,
-      #scene02-host,
-      #scene03-host,
-      #scene04-host {
+      .scene {
+        position: absolute; top: 0; left: 0;
+        width: 1920px; height: 1080px;
+        overflow: hidden; opacity: 0;
+      }
+      .text-el {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 1920px;
-        height: 1080px;
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900; color: #fff;
+        text-transform: uppercase; letter-spacing: 0.1em;
+        white-space: nowrap; opacity: 0;
+      }
+      .shape-bar {
+        position: absolute; opacity: 0;
+      }
+      .photo-thumb {
+        position: absolute; background: #1a1a1a;
+        border: 1px solid #333; opacity: 0;
       }
     </style>
   </head>
   <body>
-    <div
-      id="main-composition"
-      data-composition-id="render"
-      data-width="1920"
-      data-height="1080"
-      data-duration="22"
-    >
-      <div
-        id="scene01-host"
-        data-composition-id="scene-01"
-        data-composition-src="compositions/scene-01.html"
-        data-start="0"
-        data-duration="6.57"
-        data-track-index="0"
-      ></div>
+    <div id="root" data-composition-id="render"
+      data-width="1920" data-height="1080" data-duration="21">
 
-      <div
-        id="scene02-host"
-        data-composition-id="scene-02"
-        data-composition-src="compositions/scene-02.html"
-        data-start="5.87"
-        data-duration="3.14"
-        data-track-index="1"
-      ></div>
+      <!-- ═══ SCENE 1 (0-6.5s): MODERN PROMO → CLEAN DESIGN ═══ -->
+      <div id="s1" class="scene">
+        <div id="s1-bg" style="position:absolute;inset:0;background:#111;"></div>
+        <div id="s1-accent" class="shape-bar" style="left:0;top:0;width:1920px;height:6px;background:#ff3333;"></div>
+        <div id="s1-accent2" class="shape-bar" style="left:0;bottom:0;width:1920px;height:6px;background:#00ddee;"></div>
+        <div id="s1-bar-l" class="shape-bar" style="left:0;top:0;width:8px;height:1080px;background:#ff3333;"></div>
+        <div id="s1-bar-r" class="shape-bar" style="right:0;top:0;width:8px;height:1080px;background:#00ddee;"></div>
+        <div id="s1-text1" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:72px;">MODERN PROMO</div>
+        <div id="s1-line" class="shape-bar" style="left:660px;top:580px;width:600px;height:4px;background:#ff3333;"></div>
+        <div id="s1-text2" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:64px;">CLEAN DESIGN</div>
+        <div id="s1-frame" class="shape-bar" style="left:100px;top:100px;width:300px;height:300px;border:3px solid #ff3333;background:transparent;"></div>
+      </div>
 
-      <div
-        id="scene03-host"
-        data-composition-id="scene-03"
-        data-composition-src="compositions/scene-03.html"
-        data-start="8.64"
-        data-duration="4.13"
-        data-track-index="2"
-      ></div>
+      <!-- ═══ SCENE 2 (5.87-9s): EASY TO USE ═══ -->
+      <div id="s2" class="scene">
+        <div style="position:absolute;inset:0;background:#111;"></div>
+        <div id="s2-bar" class="shape-bar" style="left:0;top:536px;width:1920px;height:8px;background:#00ddee;"></div>
+        <div id="s2-text" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:72px;">EASY TO USE</div>
+        <div id="s2-ghost" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:160px;color:rgba(255,51,51,0.08);">EASY TO USE</div>
+      </div>
 
-      <div
-        id="scene04-host"
-        data-composition-id="scene-04"
-        data-composition-src="compositions/scene-04.html"
-        data-start="15.45"
-        data-duration="5.35"
-        data-track-index="3"
-      ></div>
+      <!-- ═══ SCENE 3 (8.64-12.8s): STYLISH / MODERN / CREATIVE → DYNAMIC ═══ -->
+      <div id="s3" class="scene">
+        <div style="position:absolute;inset:0;background:#111;"></div>
+        <div id="s3-t1" class="text-el" style="left:0;top:280px;width:1920px;height:120px;font-size:48px;">STYLISH</div>
+        <div id="s3-t2" class="text-el" style="left:0;top:440px;width:1920px;height:120px;font-size:48px;">MODERN</div>
+        <div id="s3-t3" class="text-el" style="left:0;top:600px;width:1920px;height:120px;font-size:48px;">CREATIVE</div>
+        <div id="s3-burst" style="position:absolute;left:0;top:0;width:1920px;height:1080px;opacity:0;">
+          <svg width="1920" height="1080" style="position:absolute;inset:0;">
+            <line x1="960" y1="540" x2="1478" y2="952" stroke="#fff" stroke-width="4" stroke-dasharray="600" stroke-dashoffset="600"/>
+            <line x1="960" y1="540" x2="1662" y2="452" stroke="#fff" stroke-width="8" stroke-dasharray="800" stroke-dashoffset="800"/>
+            <line x1="960" y1="540" x2="668" y2="830" stroke="#fff" stroke-width="3" stroke-dasharray="500" stroke-dashoffset="500"/>
+            <line x1="960" y1="540" x2="1425" y2="660" stroke="#fff" stroke-width="2" stroke-dasharray="500" stroke-dashoffset="500"/>
+            <line x1="960" y1="540" x2="592" y2="552" stroke="#fff" stroke-width="6" stroke-dasharray="400" stroke-dashoffset="400"/>
+          </svg>
+        </div>
+        <div id="s3-t4" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:56px;">DYNAMIC</div>
+        <div id="s3-t5" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:140px;color:rgba(255,255,255,0.15);">DYNAMIC</div>
+        <div id="s3-frame1" class="shape-bar" style="left:40px;top:40px;width:400px;height:300px;border:3px solid #ff3333;background:transparent;"></div>
+        <div id="s3-frame2" class="shape-bar" style="right:40px;bottom:40px;width:400px;height:300px;border:3px solid #00ddee;background:transparent;"></div>
+      </div>
 
-      <script>
-        window.__timelines = window.__timelines || {};
-        var __rootTl = gsap.timeline({ paused: true });
-        /* Scene transitions — fade between scenes at overlap points */
-        __rootTl.to("#scene01-host", { opacity: 0, duration: 0.3 }, 6.27);
-        __rootTl.to("#scene02-host", { opacity: 0, duration: 0.3 }, 8.71);
-        __rootTl.to("#scene03-host", { opacity: 0, duration: 0.3 }, 12.47);
-        __rootTl.to("#scene04-host", { opacity: 0, duration: 0.3 }, 20.5);
-        window.__timelines["render"] = __rootTl;
-        window.__timeline = __rootTl;
-
-        /* Nest scene timelines into root after all scripts have run */
-        requestAnimationFrame(function() {
-          var scenes = [
-            { id: "scene-01", start: 0 },
-            { id: "scene-02", start: 5.87 },
-            { id: "scene-03", start: 8.64 },
-            { id: "scene-04", start: 15.45 }
-          ];
-          for (var i = 0; i < scenes.length; i++) {
-            var sceneTl = window.__timelines[scenes[i].id];
-            if (sceneTl) {
-              __rootTl.add(sceneTl, scenes[i].start);
-            }
-          }
-        });
-      </script>
+      <!-- ═══ SCENE 4 (15.45-20.8s): CHANGE / MEDIA FILES → TRENDY → THANKS FOR WATCHING ═══ -->
+      <div id="s4" class="scene">
+        <div style="position:absolute;inset:0;background:#111;"></div>
+        <div id="s4-shape1" class="shape-bar" style="left:200px;top:200px;width:250px;height:250px;border:4px solid #ff3333;background:transparent;"></div>
+        <div id="s4-shape2" class="shape-bar" style="right:200px;bottom:200px;width:250px;height:250px;border:4px solid #ff3333;background:transparent;transform:scale(-1,-1);"></div>
+        <div id="s4-t1" class="text-el" style="left:0;top:300px;width:960px;height:200px;font-size:56px;">CHANGE</div>
+        <div id="s4-t2" class="text-el" style="left:960px;top:300px;width:960px;height:200px;font-size:52px;">MEDIA FILES</div>
+        <div id="s4-cyan" style="position:absolute;inset:0;background:#00ddee;opacity:0;"></div>
+        <div id="s4-shape3" class="shape-bar" style="left:100px;top:100px;width:350px;height:350px;border:3px solid #00ddee;background:transparent;"></div>
+        <div id="s4-shape4" class="shape-bar" style="right:100px;bottom:100px;width:350px;height:350px;border:3px solid #00ddee;background:transparent;transform:scale(-1,-1);"></div>
+        <div id="s4-t3" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:96px;">TRENDY</div>
+        <div id="s4-magenta" style="position:absolute;inset:0;background:#ff3333;opacity:0;"></div>
+        <div id="s4-t4" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:56px;">THANKS FOR WATCHING</div>
+      </div>
     </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      // ═══ SCENE 1: 0-6.5s ═══
+      tl.to("#s1", { opacity: 1, duration: 0.01 }, 0);
+
+      // Accent bars slide in
+      tl.fromTo("#s1-accent", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.4, ease: "power3.out", transformOrigin: "left" }, 0.2);
+      tl.fromTo("#s1-accent2", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.4, ease: "power3.out", transformOrigin: "right" }, 0.3);
+      tl.fromTo("#s1-bar-l", { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 0.6, duration: 0.5, ease: "power3.out", transformOrigin: "top" }, 0.4);
+      tl.fromTo("#s1-bar-r", { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 0.6, duration: 0.5, ease: "power3.out", transformOrigin: "bottom" }, 0.5);
+
+      // "MODERN PROMO" text reveal
+      tl.fromTo("#s1-text1", { opacity: 0, scale: 0.6, y: 30 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.8);
+      tl.fromTo("#s1-line", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "center" }, 1.3);
+
+      // "MODERN PROMO" out
+      tl.to("#s1-text1", { opacity: 0, scale: 1.1, duration: 0.3, ease: "power2.in" }, 2.8);
+      tl.to("#s1-line", { opacity: 0, duration: 0.2 }, 2.9);
+
+      // "CLEAN DESIGN" in
+      tl.fromTo("#s1-text2", { opacity: 0, scale: 0.4, y: -20 }, { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "back.out(1.4)" }, 3.3);
+      tl.fromTo("#s1-frame", { scale: 0, opacity: 0, rotation: -10 }, { scale: 1, opacity: 0.7, rotation: 0, duration: 0.5, ease: "back.out(1.5)" }, 3.5);
+      tl.to("#s1-frame", { rotation: 45, scale: 1.2, duration: 2, ease: "power1.inOut" }, 4);
+
+      // Scene 1 out
+      tl.to("#s1-text2", { opacity: 0, duration: 0.3 }, 6);
+      tl.to("#s1-accent", { opacity: 0, duration: 0.2 }, 6);
+      tl.to("#s1-accent2", { opacity: 0, duration: 0.2 }, 6);
+      tl.to("#s1-bar-l", { opacity: 0, duration: 0.2 }, 6.1);
+      tl.to("#s1-bar-r", { opacity: 0, duration: 0.2 }, 6.1);
+      tl.to("#s1-frame", { opacity: 0, duration: 0.2 }, 6.1);
+      tl.to("#s1", { opacity: 0, duration: 0.3 }, 6.3);
+
+      // ═══ SCENE 2: 5.87-9s ═══
+      tl.to("#s2", { opacity: 1, duration: 0.01 }, 5.87);
+
+      tl.fromTo("#s2-ghost", { opacity: 0, scale: 4 }, { opacity: 1, scale: 1, duration: 0.8, ease: "power2.out" }, 6);
+      tl.fromTo("#s2-bar", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.4, ease: "power3.out", transformOrigin: "center" }, 6.3);
+      tl.fromTo("#s2-text", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 6.5);
+
+      tl.to("#s2-text", { opacity: 0, y: -30, duration: 0.3, ease: "power2.in" }, 8.3);
+      tl.to("#s2-bar", { scaleX: 0, opacity: 0, duration: 0.3 }, 8.4);
+      tl.to("#s2-ghost", { opacity: 0, scale: 0.8, duration: 0.3 }, 8.4);
+      tl.to("#s2", { opacity: 0, duration: 0.3 }, 8.7);
+
+      // ═══ SCENE 3: 8.64-12.8s ═══
+      tl.to("#s3", { opacity: 1, duration: 0.01 }, 8.64);
+
+      // Staggered text: STYLISH, MODERN, CREATIVE
+      tl.fromTo("#s3-t1", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 8.9);
+      tl.fromTo("#s3-t2", { opacity: 0, x: 80 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 9.1);
+      tl.fromTo("#s3-t3", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 9.3);
+
+      // Text out
+      tl.to("#s3-t1", { opacity: 0, x: 80, duration: 0.3, ease: "power2.in" }, 10.2);
+      tl.to("#s3-t2", { opacity: 0, x: -80, duration: 0.3, ease: "power2.in" }, 10.3);
+      tl.to("#s3-t3", { opacity: 0, x: 80, duration: 0.3, ease: "power2.in" }, 10.4);
+
+      // Line burst
+      tl.to("#s3-burst", { opacity: 1, duration: 0.01 }, 10.5);
+      var lines = "#s3-burst line";
+      tl.to(lines, { strokeDashoffset: 0, duration: 0.6, ease: "power2.out", stagger: 0.08 }, 10.5);
+      tl.to("#s3-burst", { opacity: 0, duration: 0.3 }, 11.2);
+
+      // "DYNAMIC" small
+      tl.fromTo("#s3-t4", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.3)" }, 10.8);
+      tl.to("#s3-t4", { opacity: 0, duration: 0.25 }, 11.5);
+
+      // "DYNAMIC" large
+      tl.fromTo("#s3-t5", { opacity: 0, scale: 3 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 11.5);
+
+      // Geometric frames
+      tl.fromTo("#s3-frame1", { scale: 0, opacity: 0, rotation: -20 }, { scale: 1, opacity: 0.6, rotation: 0, duration: 0.5, ease: "back.out(1.2)" }, 11.8);
+      tl.fromTo("#s3-frame2", { scale: 0, opacity: 0, rotation: 20 }, { scale: 1, opacity: 0.5, rotation: 0, duration: 0.5, ease: "back.out(1.2)" }, 11.9);
+
+      // Scene 3 out
+      tl.to("#s3-t5", { opacity: 0, duration: 0.2 }, 12.5);
+      tl.to("#s3-frame1", { opacity: 0, duration: 0.2 }, 12.5);
+      tl.to("#s3-frame2", { opacity: 0, duration: 0.2 }, 12.5);
+      tl.to("#s3", { opacity: 0, duration: 0.3 }, 12.6);
+
+      // ═══ SCENE 4: 15.45-20.8s ═══
+      tl.to("#s4", { opacity: 1, duration: 0.01 }, 15.45);
+
+      // Mirrored shapes
+      tl.fromTo("#s4-shape1", { scale: 0, opacity: 0, rotation: -15 }, { scale: 1, opacity: 0.7, rotation: 0, duration: 0.5, ease: "back.out(1.5)" }, 15.6);
+      tl.fromTo("#s4-shape2", { scale: 0, opacity: 0, rotation: 15 }, { scale: 1, opacity: 0.7, rotation: 0, duration: 0.5, ease: "back.out(1.5)" }, 15.7);
+
+      // CHANGE + MEDIA FILES (side by side)
+      tl.fromTo("#s4-t1", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 15.9);
+      tl.fromTo("#s4-t2", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 16);
+
+      // Cyan flash
+      tl.to("#s4-cyan", { opacity: 0.15, duration: 0.1 }, 16.3);
+      tl.to("#s4-cyan", { opacity: 0, duration: 0.4 }, 16.4);
+
+      // Shapes out, text out
+      tl.to("#s4-shape1", { opacity: 0, rotation: 30, duration: 0.3 }, 16.8);
+      tl.to("#s4-shape2", { opacity: 0, rotation: -30, duration: 0.3 }, 16.8);
+      tl.to("#s4-t1", { opacity: 0, duration: 0.25 }, 16.9);
+      tl.to("#s4-t2", { opacity: 0, duration: 0.25 }, 16.9);
+
+      // Second shape pair
+      tl.fromTo("#s4-shape3", { scale: 0, opacity: 0 }, { scale: 1, opacity: 0.6, rotation: 45, duration: 0.5, ease: "back.out(1.3)" }, 17.2);
+      tl.fromTo("#s4-shape4", { scale: 0, opacity: 0 }, { scale: 1, opacity: 0.6, rotation: 45, duration: 0.5, ease: "back.out(1.3)" }, 17.3);
+
+      // TRENDY
+      tl.fromTo("#s4-t3", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.4)" }, 17.5);
+
+      // Magenta flash
+      tl.to("#s4-magenta", { opacity: 0.12, duration: 0.08 }, 17.9);
+      tl.to("#s4-magenta", { opacity: 0, duration: 0.3 }, 18);
+
+      tl.to("#s4-t3", { opacity: 0, duration: 0.25 }, 18.3);
+      tl.to("#s4-shape3", { opacity: 0, duration: 0.2 }, 18.3);
+      tl.to("#s4-shape4", { opacity: 0, duration: 0.2 }, 18.3);
+
+      // THANKS FOR WATCHING — final reveal
+      tl.fromTo("#s4-t4", { opacity: 0, scale: 0.5, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "power3.out" }, 19);
+      tl.to("#s4-t4", { opacity: 0, duration: 0.5 }, 20.3);
+      tl.to("#s4", { opacity: 0, duration: 0.3 }, 20.5);
+
+      window.__timelines["render"] = tl;
+      window.__timeline = tl;
+    </script>
   </body>
 </html>
