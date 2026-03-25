@@ -138,6 +138,39 @@ function installSkillsFromDir(
 }
 
 // ---------------------------------------------------------------------------
+// Programmatic API — used by init command
+// ---------------------------------------------------------------------------
+
+export async function installAllSkills(): Promise<{ count: number; targets: string[] }> {
+  if (!hasGit()) return { count: 0, targets: [] };
+
+  const targets = TARGETS.filter((t) => t.defaultEnabled);
+  let totalCount = 0;
+
+  // Fetch sources
+  const fetched: { source: SkillSource; skillsDir: string }[] = [];
+  for (const source of SOURCES) {
+    try {
+      const skillsDir = fetchRepo(source);
+      if (existsSync(skillsDir)) fetched.push({ source, skillsDir });
+    } catch {
+      // Skip failed sources
+    }
+  }
+
+  // Install to each target
+  for (const target of targets) {
+    mkdirSync(target.dir, { recursive: true });
+    for (const { skillsDir, source } of fetched) {
+      const skills = installSkillsFromDir(skillsDir, target.dir, source.name);
+      if (target === targets[0]) totalCount += skills.length;
+    }
+  }
+
+  return { count: totalCount, targets: targets.map((t) => t.name) };
+}
+
+// ---------------------------------------------------------------------------
 // Command
 // ---------------------------------------------------------------------------
 

@@ -20,12 +20,24 @@ import { trackInitTemplate } from "../telemetry/events.js";
 // Install skills silently after scaffolding
 // ---------------------------------------------------------------------------
 
-async function installSkills(): Promise<void> {
+async function installSkills(interactive: boolean): Promise<void> {
+  const spin = interactive ? clack.spinner() : null;
+  spin?.start("Installing AI coding skills...");
   try {
-    const skillsCmd = await import("./install-skills.js").then((m) => m.default);
-    await runCommand(skillsCmd, { rawArgs: [] });
+    const { installAllSkills } = await import("./install-skills.js");
+    const result = await installAllSkills();
+    if (result.count > 0) {
+      const msg = `${result.count} AI skills installed (${result.targets.join(", ")})`;
+      if (spin) {
+        spin.stop(c.success(msg));
+      } else {
+        console.log(c.success(msg));
+      }
+    } else {
+      spin?.stop(c.dim("No skills installed"));
+    }
   } catch {
-    // Skills install is best-effort — don't block project creation
+    spin?.stop(c.dim("Skills install skipped (no git or network)"));
   }
 }
 
@@ -401,7 +413,7 @@ export default defineCommand({
 
       scaffoldProject(destDir, basename(destDir), templateId, localVideoName);
       trackInitTemplate(templateId);
-      await installSkills();
+      await installSkills(false);
 
       console.log(c.success(`\nCreated ${c.accent(name + "/")}`));
       for (const f of readdirSync(destDir)) {
@@ -524,7 +536,7 @@ export default defineCommand({
     trackInitTemplate(templateId);
 
     // 5. Install AI coding skills
-    await installSkills();
+    await installSkills(true);
 
     const files = readdirSync(destDir);
     clack.note(files.map((f) => c.accent(f)).join("\n"), c.success(`Created ${name}/`));
