@@ -28,7 +28,7 @@ async function installSkills(interactive: boolean): Promise<void> {
 
     if (interactive) {
       const choices = await clack.multiselect({
-        message: "Install AI coding skills for:",
+        message: "Install skills for:",
         options: TARGETS.map((t) => ({
           value: t.flag,
           label: t.name,
@@ -54,11 +54,19 @@ async function installSkills(interactive: boolean): Promise<void> {
 
     const result = await installAllSkills(selectedTargets);
     if (result.count > 0) {
-      const msg = `${result.count} AI skills installed (${result.targets.join(", ")})`;
+      const msg = `${result.count} skills installed (${result.targets.join(", ")})`;
       if (spin) {
         spin.stop(c.success(msg));
       } else {
         console.log(c.success(msg));
+      }
+      if (result.skipped.length > 0) {
+        const skipMsg = `Skipped: ${result.skipped.join(", ")} (repo not accessible)`;
+        if (interactive) {
+          clack.log.warn(c.dim(skipMsg));
+        } else {
+          console.log(c.dim(`  ${skipMsg}`));
+        }
       }
     } else {
       spin?.stop(c.dim("No skills installed"));

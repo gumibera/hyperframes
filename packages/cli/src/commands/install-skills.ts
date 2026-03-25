@@ -155,22 +155,27 @@ export { TARGETS };
 
 export async function installAllSkills(
   targetNames?: string[],
-): Promise<{ count: number; targets: string[] }> {
-  if (!hasGit()) return { count: 0, targets: [] };
+): Promise<{ count: number; targets: string[]; skipped: string[] }> {
+  if (!hasGit()) return { count: 0, targets: [], skipped: SOURCES.map((s) => s.name) };
 
   const targets = targetNames
     ? TARGETS.filter((t) => targetNames.includes(t.flag))
     : TARGETS.filter((t) => t.defaultEnabled);
   let totalCount = 0;
+  const skipped: string[] = [];
 
   // Fetch sources
   const fetched: { source: SkillSource; skillsDir: string }[] = [];
   for (const source of SOURCES) {
     try {
       const skillsDir = fetchRepo(source);
-      if (existsSync(skillsDir)) fetched.push({ source, skillsDir });
+      if (existsSync(skillsDir)) {
+        fetched.push({ source, skillsDir });
+      } else {
+        skipped.push(source.name);
+      }
     } catch {
-      // Skip failed sources
+      skipped.push(source.name);
     }
   }
 
@@ -183,7 +188,7 @@ export async function installAllSkills(
     }
   }
 
-  return { count: totalCount, targets: targets.map((t) => t.name) };
+  return { count: totalCount, targets: targets.map((t) => t.name), skipped };
 }
 
 // ---------------------------------------------------------------------------
