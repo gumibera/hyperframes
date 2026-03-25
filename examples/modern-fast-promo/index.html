@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Modern Fast Promo</title>
+    <title>Render</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap");
@@ -16,213 +16,192 @@
         width: 1920px; height: 1080px;
         background: #111; overflow: hidden;
       }
-      .scene {
-        position: absolute; top: 0; left: 0;
-        width: 1920px; height: 1080px;
-        overflow: hidden; opacity: 0;
-      }
-      .text-el {
-        position: absolute;
-        display: flex; align-items: center; justify-content: center;
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 900; color: #fff;
-        text-transform: uppercase; letter-spacing: 0.1em;
-        white-space: nowrap; opacity: 0;
-      }
-      .shape-bar {
-        position: absolute; opacity: 0;
-      }
-      .photo-thumb {
-        position: absolute; background: #1a1a1a;
-        border: 1px solid #333; opacity: 0;
-      }
     </style>
   </head>
   <body>
     <div id="root" data-composition-id="render"
-      data-width="1920" data-height="1080" data-duration="21">
-
-      <!-- ═══ SCENE 1 (0-6.5s): MODERN PROMO → CLEAN DESIGN ═══ -->
-      <div id="s1" class="scene">
-        <div id="s1-bg" style="position:absolute;inset:0;background:#111;"></div>
-        <div id="s1-accent" class="shape-bar" style="left:0;top:0;width:1920px;height:6px;background:#ff3333;"></div>
-        <div id="s1-accent2" class="shape-bar" style="left:0;bottom:0;width:1920px;height:6px;background:#00ddee;"></div>
-        <div id="s1-bar-l" class="shape-bar" style="left:0;top:0;width:8px;height:1080px;background:#ff3333;"></div>
-        <div id="s1-bar-r" class="shape-bar" style="right:0;top:0;width:8px;height:1080px;background:#00ddee;"></div>
-        <div id="s1-text1" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:72px;">MODERN PROMO</div>
-        <div id="s1-line" class="shape-bar" style="left:660px;top:580px;width:600px;height:4px;background:#ff3333;"></div>
-        <div id="s1-text2" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:64px;">CLEAN DESIGN</div>
-        <div id="s1-frame" class="shape-bar" style="left:100px;top:100px;width:300px;height:300px;border:3px solid #ff3333;background:transparent;"></div>
-      </div>
-
-      <!-- ═══ SCENE 2 (5.87-9s): EASY TO USE ═══ -->
-      <div id="s2" class="scene">
-        <div style="position:absolute;inset:0;background:#111;"></div>
-        <div id="s2-bar" class="shape-bar" style="left:0;top:536px;width:1920px;height:8px;background:#00ddee;"></div>
-        <div id="s2-text" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:72px;">EASY TO USE</div>
-        <div id="s2-ghost" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:160px;color:rgba(255,51,51,0.08);">EASY TO USE</div>
-      </div>
-
-      <!-- ═══ SCENE 3 (8.64-12.8s): STYLISH / MODERN / CREATIVE → DYNAMIC ═══ -->
-      <div id="s3" class="scene">
-        <div style="position:absolute;inset:0;background:#111;"></div>
-        <div id="s3-t1" class="text-el" style="left:0;top:280px;width:1920px;height:120px;font-size:48px;">STYLISH</div>
-        <div id="s3-t2" class="text-el" style="left:0;top:440px;width:1920px;height:120px;font-size:48px;">MODERN</div>
-        <div id="s3-t3" class="text-el" style="left:0;top:600px;width:1920px;height:120px;font-size:48px;">CREATIVE</div>
-        <div id="s3-burst" style="position:absolute;left:0;top:0;width:1920px;height:1080px;opacity:0;">
-          <svg width="1920" height="1080" style="position:absolute;inset:0;">
-            <line x1="960" y1="540" x2="1478" y2="952" stroke="#fff" stroke-width="4" stroke-dasharray="600" stroke-dashoffset="600"/>
-            <line x1="960" y1="540" x2="1662" y2="452" stroke="#fff" stroke-width="8" stroke-dasharray="800" stroke-dashoffset="800"/>
-            <line x1="960" y1="540" x2="668" y2="830" stroke="#fff" stroke-width="3" stroke-dasharray="500" stroke-dashoffset="500"/>
-            <line x1="960" y1="540" x2="1425" y2="660" stroke="#fff" stroke-width="2" stroke-dasharray="500" stroke-dashoffset="500"/>
-            <line x1="960" y1="540" x2="592" y2="552" stroke="#fff" stroke-width="6" stroke-dasharray="400" stroke-dashoffset="400"/>
-          </svg>
-        </div>
-        <div id="s3-t4" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:56px;">DYNAMIC</div>
-        <div id="s3-t5" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:140px;color:rgba(255,255,255,0.15);">DYNAMIC</div>
-        <div id="s3-frame1" class="shape-bar" style="left:40px;top:40px;width:400px;height:300px;border:3px solid #ff3333;background:transparent;"></div>
-        <div id="s3-frame2" class="shape-bar" style="right:40px;bottom:40px;width:400px;height:300px;border:3px solid #00ddee;background:transparent;"></div>
-      </div>
-
-      <!-- ═══ SCENE 4 (15.45-20.8s): CHANGE / MEDIA FILES → TRENDY → THANKS FOR WATCHING ═══ -->
-      <div id="s4" class="scene">
-        <div style="position:absolute;inset:0;background:#111;"></div>
-        <div id="s4-shape1" class="shape-bar" style="left:200px;top:200px;width:250px;height:250px;border:4px solid #ff3333;background:transparent;"></div>
-        <div id="s4-shape2" class="shape-bar" style="right:200px;bottom:200px;width:250px;height:250px;border:4px solid #ff3333;background:transparent;transform:scale(-1,-1);"></div>
-        <div id="s4-t1" class="text-el" style="left:0;top:300px;width:960px;height:200px;font-size:56px;">CHANGE</div>
-        <div id="s4-t2" class="text-el" style="left:960px;top:300px;width:960px;height:200px;font-size:52px;">MEDIA FILES</div>
-        <div id="s4-cyan" style="position:absolute;inset:0;background:#00ddee;opacity:0;"></div>
-        <div id="s4-shape3" class="shape-bar" style="left:100px;top:100px;width:350px;height:350px;border:3px solid #00ddee;background:transparent;"></div>
-        <div id="s4-shape4" class="shape-bar" style="right:100px;bottom:100px;width:350px;height:350px;border:3px solid #00ddee;background:transparent;transform:scale(-1,-1);"></div>
-        <div id="s4-t3" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:96px;">TRENDY</div>
-        <div id="s4-magenta" style="position:absolute;inset:0;background:#ff3333;opacity:0;"></div>
-        <div id="s4-t4" class="text-el" style="left:0;top:0;width:1920px;height:1080px;font-size:56px;">THANKS FOR WATCHING</div>
-      </div>
+      data-width="1920" data-height="1080" data-duration="26.69">
+    <div id="c999-l0" data-start="0.0" data-duration="22.7895" data-track-index="0" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:#111111"></div>
+    <!-- ═══ Scene_04 (15.4-20.4s) ═══ -->
+    <div id="scene-0" data-start="15.4488" data-duration="5.0" data-track-index="1" style="position:absolute;top:0;left:0;width:1920px;height:1080px;overflow:hidden;opacity:0;">
+    <div id="c1-l0" data-start="3.5369" data-duration="0.8842" data-track-index="0" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.5;transform:scale(-1.0,-1.0);border:2px solid #ffffff;background:transparent"></div>
+    <div id="c1-l1" data-start="3.5369" data-duration="0.8842" data-track-index="1" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.5;border:2px solid #ffffff;background:transparent"></div>
+    <div id="c1-l2" data-start="0.0" data-duration="0.8842" data-track-index="2" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.0,0.5);background:#111111"></div>
+    <div id="c1-l3" data-start="4.4044" data-duration="0.8842" data-track-index="3" style="position:absolute;left:0.0px;top:0.0px;width:2062px;height:142px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">THANKS FOR WATCHING</span></div>
+    <div id="c1-l4" data-start="0.0" data-duration="0.8842" data-track-index="4" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.0,0.5);background:#111111"></div>
+    <div id="c1-l5" data-start="4.4044" data-duration="0.8842" data-track-index="5" style="position:absolute;left:0.0px;top:0.0px;width:2062px;height:142px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">THANKS FOR WATCHING</span></div>
+    <div id="c1-l6" data-start="0.0" data-duration="0.8842" data-track-index="6" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:#111111"></div>
+    <div id="c1-l7" data-start="4.9049" data-duration="0.0023" data-track-index="7" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_10</span></div>
+    <div id="c1-l8" data-start="0.0" data-duration="0.8842" data-track-index="8" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(0.5,1.0);background:#111111"></div>
+    <div id="c1-l9" data-start="2.7361" data-duration="1.368" data-track-index="9" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.1,1.1);background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_09</span></div>
+    <div id="c1-l10" data-start="2.7361" data-duration="0.7007" data-track-index="10" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:321px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:27px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">trendy</span></div>
+    <div id="c1-l11" data-start="2.7361" data-duration="0.367" data-track-index="11" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:321px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:27px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">trendy</span></div>
+    <div id="c1-l12" data-start="2.7361" data-duration="0.7007" data-track-index="12" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:#111111"></div>
+    <div id="c1-l13" data-start="2.7361" data-duration="0.2763" data-track-index="13" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_09</span></div>
+    <div id="c1-l14" data-start="1.3347" data-duration="0.1001" data-track-index="14" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(-1.0,-1.0);border:18px solid #ffcb00;background:transparent"></div>
+    <div id="c1-l15" data-start="1.3347" data-duration="0.1001" data-track-index="15" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;border:18px solid #ffcb00;background:transparent"></div>
+    <div id="c1-l16" data-start="0.8342" data-duration="1.1011" data-track-index="16" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(-1.0,-1.0);border:18px solid #ff00de;background:transparent"></div>
+    <div id="c1-l17" data-start="0.8342" data-duration="1.1011" data-track-index="17" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;border:18px solid #ff00de;background:transparent"></div>
+    <div id="c1-l18" data-start="0.9343" data-duration="0.7007" data-track-index="18" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.5;background:#111111"></div>
+    <div id="c1-l19" data-start="0.6673" data-duration="0.5672" data-track-index="19" style="position:absolute;left:-0.34px;top:-0.51px;width:1920px;height:1080px;transform-origin:0.34px 0.51px;opacity:1;background:#111111"></div>
+    <div id="c1-l20" data-start="0.8342" data-duration="0.2336" data-track-index="20" style="position:absolute;left:0.0px;top:0.0px;width:1195px;height:137px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">media files</span></div>
+    <div id="c1-l21" data-start="0.6673" data-duration="0.5672" data-track-index="21" style="position:absolute;left:-0.34px;top:-0.51px;width:1920px;height:1080px;transform-origin:0.34px 0.51px;opacity:1;background:#111111"></div>
+    <div id="c1-l22" data-start="0.8342" data-duration="0.2336" data-track-index="22" style="position:absolute;left:0.0px;top:0.0px;width:990px;height:163px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">change</span></div>
+    <div id="c1-l23" data-start="1.8685" data-duration="0.9009" data-track-index="23" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.4;border:2px solid #ffffff;background:transparent"></div>
+    <div id="c1-l24" data-start="0.6673" data-duration="1.4348" data-track-index="24" style="position:absolute;left:-0.34px;top:-0.51px;width:1920px;height:1080px;transform-origin:0.34px 0.51px;opacity:1;background:#111111"></div>
+    <div id="c1-l25" data-start="0.0" data-duration="2.7694" data-track-index="25" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_08</span></div>
+    <div id="c1-l26" data-start="0.3337" data-duration="0.7007" data-track-index="26" style="position:absolute;left:-0.34px;top:-0.51px;width:1920px;height:1080px;transform-origin:0.34px 0.51px;opacity:1;background:#111111"></div>
+    <div id="c1-l27" data-start="0.0" data-duration="1.368" data-track-index="27" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_08</span></div>
+    <div id="c1-l28" data-start="0.0" data-duration="1.0344" data-track-index="28" style="position:absolute;left:-0.34px;top:-0.51px;width:1920px;height:1080px;transform-origin:0.34px 0.51px;opacity:1;background:#111111"></div>
+    <div id="c1-l29" data-start="0.0" data-duration="1.0677" data-track-index="29" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_08</span></div>
     </div>
 
+    <!-- ═══ Scene_03 (8.6-13.6s) ═══ -->
+    <div id="scene-1" data-start="8.642" data-duration="5.0" data-track-index="2" style="position:absolute;top:0;left:0;width:1920px;height:1080px;overflow:hidden;opacity:0;">
+    <div id="c2-l0" data-start="0.0" data-duration="0.8967" data-track-index="0" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.0,0.5);background:#111111"></div>
+    <div id="c2-l1" data-start="5.372" data-duration="1.635" data-track-index="1" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.2;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:27px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">dynamic</span></div>
+    <div id="c2-l2" data-start="0.0" data-duration="0.8967" data-track-index="2" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.0,0.5);background:#111111"></div>
+    <div id="c2-l3" data-start="5.372" data-duration="1.635" data-track-index="3" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.2;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:27px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">dynamic</span></div>
+    <div id="c2-l4" data-start="4.638" data-duration="2.369" data-track-index="4" style="position:absolute;left:-984.0px;top:-340.0px;width:1920px;height:1080px;transform-origin:984.0px 340.0px;opacity:0.5;border:22px solid #ff00de;background:transparent"></div>
+    <div id="c2-l5" data-start="4.638" data-duration="2.369" data-track-index="5" style="position:absolute;left:984.0px;top:340.0px;width:1920px;height:1080px;transform-origin:-984.0px -340.0px;opacity:0.35;border:51px solid #ff00de;background:transparent"></div>
+    <div id="c2-l6" data-start="4.638" data-duration="2.369" data-track-index="6" style="position:absolute;left:-976.0px;top:-444.0px;width:1920px;height:1080px;transform-origin:976.0px 444.0px;opacity:0.6;border:51px solid #ffcb00;background:transparent"></div>
+    <div id="c2-l7" data-start="4.638" data-duration="2.369" data-track-index="7" style="position:absolute;left:988.0px;top:448.0px;width:1920px;height:1080px;transform-origin:-988.0px -448.0px;opacity:0.7;border:29px solid #ffcb00;background:transparent"></div>
+    <div id="c2-l8" data-start="3.9039" data-duration="1.4681" data-track-index="8" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:148px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">dynamic</span></div>
+    <div id="c2-l9" data-start="4.638" data-duration="2.5359" data-track-index="9" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_07</span></div>
+    <div id="c2-l10" data-start="0.0" data-duration="0.5797" data-track-index="10" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(0.5,1.0);background:#111111"></div>
+    <div id="c2-l11" data-start="2.6026" data-duration="2.0687" data-track-index="11" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.1,1.1);background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_06</span></div>
+    <div id="c2-l12" data-start="0.0" data-duration="0.5797" data-track-index="12" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(0.5,1.0);background:#111111"></div>
+    <div id="c2-l13" data-start="2.6026" data-duration="2.0687" data-track-index="13" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_06</span></div>
+    <div id="c2-l14" data-start="0.5005" data-duration="1.8018" data-track-index="14" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:114px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">modern</span></div>
+    <div id="c2-l15" data-start="0.6673" data-duration="1.8018" data-track-index="15" style="position:absolute;left:0.0px;top:0.0px;width:810px;height:114px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">creative</span></div>
+    <div id="c2-l16" data-start="0.3337" data-duration="2.3023" data-track-index="16" style="position:absolute;left:0.0px;top:0.0px;width:662px;height:114px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">stylish</span></div>
+    <div id="c2-l17" data-start="2.5359" data-duration="1.368" data-track-index="17" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Effect_01</span></div>
+    <div id="c2-l18" data-start="2.6026" data-duration="1.3013" data-track-index="18" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.15,1.15);background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_06</span></div>
+    <div id="c2-l19" data-start="2.6026" data-duration="1.3013" data-track-index="19" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_06</span></div>
+    <div id="c2-l20" data-start="0.1668" data-duration="0.8675" data-track-index="20" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.0,0.5);background:#111111"></div>
+    <div id="c2-l21" data-start="0.0" data-duration="1.2012" data-track-index="21" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.1,1.1);background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_05</span></div>
+    <div id="c2-l22" data-start="0.0" data-duration="2.636" data-track-index="22" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_05</span></div>
+    </div>
+
+    <!-- ═══ Scene_02 (5.9-10.9s) ═══ -->
+    <div id="scene-2" data-start="5.8725" data-duration="5.0" data-track-index="3" style="position:absolute;top:0;left:0;width:1920px;height:1080px;overflow:hidden;opacity:0;">
+    <div id="c3-l0" data-start="0.0" data-duration="3.1365" data-track-index="0" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_04</span></div>
+    <div id="c3-l1" data-start="0.9343" data-duration="1.2679" data-track-index="1" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:114px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">easy to use</span></div>
+    <div id="c3-l2" data-start="0.9343" data-duration="1.2679" data-track-index="2" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:114px;transform-origin:0px 0px;opacity:0.2;transform:scale(4.0,4.0);display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">easy to use</span></div>
+    <div id="c3-l3" data-start="1.5349" data-duration="1.4348" data-track-index="3" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;border:2px solid #ff00dd;background:transparent"></div>
+    <div id="c3-l4" data-start="0.0" data-duration="2.9696" data-track-index="4" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.1,1.1);background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_04</span></div>
+    <div id="c3-l5" data-start="0.0" data-duration="3.1365" data-track-index="5" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_04</span></div>
+    <div id="c3-l6" data-start="0.0" data-duration="3.1365" data-track-index="6" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_04</span></div>
+    <div id="c3-l7" data-start="0.0" data-duration="3.1365" data-track-index="7" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_04</span></div>
+    </div>
+
+    <!-- ═══ Scene_01 (0.0-6.6s) ═══ -->
+    <div id="scene-3" data-start="0.0" data-duration="6.5732" data-track-index="4" style="position:absolute;top:0;left:0;width:1920px;height:1080px;overflow:hidden;opacity:0;">
+    <div id="c4-l0" data-start="3.5369" data-duration="2.7027" data-track-index="0" style="position:absolute;left:0.0px;top:0.0px;width:1338px;height:133px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">clean design</span></div>
+    <div id="c4-l1" data-start="4.1041" data-duration="2.1355" data-track-index="1" style="position:absolute;left:-0.5px;top:0.0px;width:1920px;height:1080px;transform-origin:0.5px 0.0px;opacity:1;border:5px solid #ffcb00;background:transparent"></div>
+    <div id="c4-l2" data-start="3.6703" data-duration="0.5005" data-track-index="2" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:#ff3333"></div>
+    <div id="c4-l3" data-start="3.5369" data-duration="0.634" data-track-index="3" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;transform:scale(1.1,1.1);background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_02</span></div>
+    <div id="c4-l4" data-start="4.2042" data-duration="2.369" data-track-index="4" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;pointer-events:none"></div>
+    <div id="c4-l5" data-start="3.2032" data-duration="1.0344" data-track-index="5" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;border:20px solid #ff00de;background:transparent"></div>
+    <div id="c4-l6" data-start="3.1365" data-duration="1.0344" data-track-index="6" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.7;border:50px solid #ffcb00;background:transparent"></div>
+    <div id="c4-l7" data-start="3.0697" data-duration="1.0344" data-track-index="7" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.5;border:50px solid #ffcb00;background:transparent"></div>
+    <div id="c4-l8" data-start="2.7027" data-duration="1.0344" data-track-index="8" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.3;border:110px solid #ffcb00;background:transparent"></div>
+    <div id="c4-l9" data-start="2.3357" data-duration="1.0344" data-track-index="9" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;border:170px solid #ff00de;background:transparent"></div>
+    <div id="c4-l10" data-start="3.5369" data-duration="0.5266" data-track-index="10" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_02</span></div>
+    <div id="c4-l11" data-start="2.3357" data-duration="0.7007" data-track-index="11" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;border:170px solid #ff00de;background:transparent"></div>
+    <div id="c4-l12" data-start="1.001" data-duration="1.0344" data-track-index="12" style="position:absolute;left:0.0px;top:0.0px;width:1574px;height:128px;transform-origin:0px 0px;opacity:1;display:flex;align-items:center;justify-content:center"><span style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:36px;color:#ffffff;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">modern promo</span></div>
+    <div id="c4-l13" data-start="1.3347" data-duration="5.1051" data-track-index="13" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:0.4;border:2px solid #ffffff;background:transparent"></div>
+    <div id="c4-l14" data-start="0.0" data-duration="3.1031" data-track-index="14" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Transition_01</span></div>
+    <div id="c4-l15" data-start="0.0" data-duration="3.1031" data-track-index="15" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_01</span></div>
+    <div id="c4-l16" data-start="0.0" data-duration="4.2376" data-track-index="16" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:rgba(30,30,30,0.8)"><span style="font-family:monospace;font-size:14px;color:#555;position:absolute;bottom:8px;right:8px;">Photo/Video_01</span></div>
+    <div id="c4-l17" data-start="0.0" data-duration="7.7744" data-track-index="17" style="position:absolute;left:0.0px;top:0.0px;width:1920px;height:1080px;transform-origin:0px 0px;opacity:1;background:#111111"></div>
+    </div>
+
+    </div>
     <script>
       window.__timelines = window.__timelines || {};
       var tl = gsap.timeline({ paused: true });
 
-      // ═══ SCENE 1: 0-6.5s ═══
-      tl.to("#s1", { opacity: 1, duration: 0.01 }, 0);
+      /* Scene_04 */
+      tl.to("#scene-0", { opacity: 1, duration: 0.01 }, 15.4488);
+      tl.set("#c1-l3", { scale: 1.0 }, 15.4488);
+      tl.to("#c1-l3", { scale: 0.76, duration: 2.636, ease: "power2.inOut" }, 15.4488);
+      tl.set("#c1-l5", { scale: 1.0 }, 15.4488);
+      tl.to("#c1-l5", { scale: 0.76, duration: 2.636, ease: "power2.inOut" }, 15.4488);
+      tl.set("#c1-l6", { opacity: 0.0 }, 21.5549);
+      tl.to("#c1-l6", { opacity: 1.0, duration: 0.3337, ease: "power2.inOut" }, 21.5549);
+      tl.set("#c1-l12", { opacity: 1.0 }, 15.4822);
+      tl.to("#c1-l12", { opacity: 0.3, duration: 0.3003, ease: "none" }, 15.4822);
+      tl.set("#c1-l13", { scale: 1.0 }, 15.7825);
+      tl.to("#c1-l13", { scale: 1.2, duration: 1.8018, ease: "power2.inOut" }, 15.7825);
+      tl.set("#c1-l20", { scale: 1.0 }, 15.8492);
+      tl.to("#c1-l20", { scale: 1.1, duration: 0.367, ease: "none" }, 15.8492);
+      tl.to("#c1-l20", { scale: 0.9, duration: 0.4672, ease: "none" }, 16.2162);
+      tl.set("#c1-l22", { scale: 1.0 }, 15.7491);
+      tl.to("#c1-l22", { scale: 1.2, duration: 0.1001, ease: "none" }, 15.7491);
+      tl.to("#c1-l22", { scale: 0.9, duration: 0.367, ease: "none" }, 15.8492);
+      tl.to("#scene-0", { opacity: 0, duration: 0.3 }, 20.1488);
 
-      // Accent bars slide in
-      tl.fromTo("#s1-accent", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.4, ease: "power3.out", transformOrigin: "left" }, 0.2);
-      tl.fromTo("#s1-accent2", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.4, ease: "power3.out", transformOrigin: "right" }, 0.3);
-      tl.fromTo("#s1-bar-l", { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 0.6, duration: 0.5, ease: "power3.out", transformOrigin: "top" }, 0.4);
-      tl.fromTo("#s1-bar-r", { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 0.6, duration: 0.5, ease: "power3.out", transformOrigin: "bottom" }, 0.5);
+      /* Scene_03 */
+      tl.to("#scene-1", { opacity: 1, duration: 0.01 }, 8.642);
+      tl.set("#c2-l14", { scale: 1.0 }, 8.8088);
+      tl.to("#c2-l14", { scale: 1.2, duration: 0.1669, ease: "none" }, 8.8088);
+      tl.to("#c2-l14", { scale: 1.0, duration: 0.1668, ease: "none" }, 8.9757);
+      tl.to("#c2-l14", { scale: 1.0, duration: 0.1668, ease: "power2.inOut" }, 9.1425);
+      tl.to("#c2-l14", { scale: 1.05, duration: 0.3337, ease: "none" }, 9.3093);
+      tl.to("#c2-l14", { scale: 0.95, duration: 0.3337, ease: "none" }, 9.643);
+      tl.to("#c2-l14", { scale: 1.0, duration: 0.3336, ease: "none" }, 9.9767);
+      tl.set("#c2-l14", { opacity: 1.0 }, 10.3103);
+      tl.to("#c2-l14", { opacity: 0.0, duration: 0.3337, ease: "power2.inOut" }, 10.3103);
+      tl.set("#c2-l15", { scale: 1.0 }, 9.3093);
+      tl.to("#c2-l15", { scale: 1.05, duration: 0.3337, ease: "none" }, 9.3093);
+      tl.to("#c2-l15", { scale: 0.95, duration: 0.3337, ease: "none" }, 9.643);
+      tl.to("#c2-l15", { scale: 1.0, duration: 0.3336, ease: "none" }, 9.9767);
+      tl.set("#c2-l15", { opacity: 1.0 }, 10.3103);
+      tl.to("#c2-l15", { opacity: 0.0, duration: 0.3337, ease: "power2.inOut" }, 10.3103);
+      tl.set("#c2-l16", { scale: 1.0 }, 8.8088);
+      tl.to("#c2-l16", { scale: 1.2, duration: 0.1669, ease: "none" }, 8.8088);
+      tl.to("#c2-l16", { scale: 1.0, duration: 0.1668, ease: "none" }, 8.9757);
+      tl.to("#c2-l16", { scale: 1.0, duration: 0.1668, ease: "power2.inOut" }, 9.1425);
+      tl.to("#c2-l16", { scale: 1.05, duration: 0.3337, ease: "none" }, 9.3093);
+      tl.to("#c2-l16", { scale: 0.95, duration: 0.3337, ease: "none" }, 9.643);
+      tl.to("#c2-l16", { scale: 1.0, duration: 0.3336, ease: "none" }, 9.9767);
+      tl.set("#c2-l16", { opacity: 1.0 }, 10.3103);
+      tl.to("#c2-l16", { opacity: 0.0, duration: 0.3337, ease: "power2.inOut" }, 10.3103);
+      tl.set("#c2-l22", { scale: 1.5 }, 8.642);
+      tl.to("#c2-l22", { scale: 1.0, duration: 0.6673, ease: "power2.inOut" }, 8.642);
+      tl.set("#c2-l22", { opacity: 0.0 }, 8.642);
+      tl.to("#c2-l22", { opacity: 1.0, duration: 0.3337, ease: "power2.inOut" }, 8.642);
+      tl.to("#scene-1", { opacity: 0, duration: 0.3 }, 13.342);
 
-      // "MODERN PROMO" text reveal
-      tl.fromTo("#s1-text1", { opacity: 0, scale: 0.6, y: 30 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.8);
-      tl.fromTo("#s1-line", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "center" }, 1.3);
+      /* Scene_02 */
+      tl.to("#scene-2", { opacity: 1, duration: 0.01 }, 5.8725);
+      tl.set("#c3-l0", { scale: 1.0 }, 8.3083);
+      tl.to("#c3-l0", { scale: 1.2, duration: 0.6673, ease: "power2.inOut" }, 8.3083);
+      tl.set("#c3-l1", { scale: 0.8 }, 5.8725);
+      tl.to("#c3-l1", { scale: 1.0, duration: 0.6673, ease: "power2.inOut" }, 5.8725);
+      tl.to("#c3-l1", { scale: 1.2, duration: 0.1335, ease: "none" }, 6.5398);
+      tl.to("#c3-l1", { scale: 1.0, duration: 0.2669, ease: "none" }, 6.6733);
+      tl.to("#c3-l1", { scale: 1.15, duration: 1.1011, ease: "power2.inOut" }, 6.9402);
+      tl.set("#c3-l5", { scale: 1.0 }, 8.3083);
+      tl.to("#c3-l5", { scale: 1.2, duration: 0.6673, ease: "power2.inOut" }, 8.3083);
+      tl.to("#scene-2", { opacity: 0, duration: 0.3 }, 10.5725);
 
-      // "MODERN PROMO" out
-      tl.to("#s1-text1", { opacity: 0, scale: 1.1, duration: 0.3, ease: "power2.in" }, 2.8);
-      tl.to("#s1-line", { opacity: 0, duration: 0.2 }, 2.9);
+      /* Scene_01 */
+      tl.to("#scene-3", { opacity: 1, duration: 0.01 }, 0.0);
+      tl.set("#c4-l0", { scale: 0.0 }, 0.0);
+      tl.to("#c4-l0", { scale: 1.0, duration: 0.6673, ease: "power2.inOut" }, 0.0);
+      tl.to("#c4-l0", { scale: 1.0, duration: 0.0334, ease: "power2.inOut" }, 0.6673);
+      tl.to("#c4-l0", { scale: 1.2, duration: 0.1335, ease: "none" }, 0.7007);
+      tl.to("#c4-l0", { scale: 0.8, duration: 0.2669, ease: "none" }, 0.8342);
+      tl.to("#c4-l0", { scale: 0.8, duration: 0.0334, ease: "power2.inOut" }, 1.1011);
+      tl.to("#c4-l0", { scale: 0.65, duration: 1.5348, ease: "power2.inOut" }, 1.1345);
+      tl.set("#c4-l10", { scale: 1.0 }, 0.6673);
+      tl.to("#c4-l10", { scale: 1.15, duration: 2.2022, ease: "power2.inOut" }, 0.6673);
+      tl.set("#c4-l12", { scale: 1.0 }, 0.6673);
+      tl.to("#c4-l12", { scale: 0.8, duration: 1.001, ease: "power2.inOut" }, 0.6673);
+      tl.to("#scene-3", { opacity: 0, duration: 0.3 }, 6.2732);
 
-      // "CLEAN DESIGN" in
-      tl.fromTo("#s1-text2", { opacity: 0, scale: 0.4, y: -20 }, { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: "back.out(1.4)" }, 3.3);
-      tl.fromTo("#s1-frame", { scale: 0, opacity: 0, rotation: -10 }, { scale: 1, opacity: 0.7, rotation: 0, duration: 0.5, ease: "back.out(1.5)" }, 3.5);
-      tl.to("#s1-frame", { rotation: 45, scale: 1.2, duration: 2, ease: "power1.inOut" }, 4);
-
-      // Scene 1 out
-      tl.to("#s1-text2", { opacity: 0, duration: 0.3 }, 6);
-      tl.to("#s1-accent", { opacity: 0, duration: 0.2 }, 6);
-      tl.to("#s1-accent2", { opacity: 0, duration: 0.2 }, 6);
-      tl.to("#s1-bar-l", { opacity: 0, duration: 0.2 }, 6.1);
-      tl.to("#s1-bar-r", { opacity: 0, duration: 0.2 }, 6.1);
-      tl.to("#s1-frame", { opacity: 0, duration: 0.2 }, 6.1);
-      tl.to("#s1", { opacity: 0, duration: 0.3 }, 6.3);
-
-      // ═══ SCENE 2: 5.87-9s ═══
-      tl.to("#s2", { opacity: 1, duration: 0.01 }, 5.87);
-
-      tl.fromTo("#s2-ghost", { opacity: 0, scale: 4 }, { opacity: 1, scale: 1, duration: 0.8, ease: "power2.out" }, 6);
-      tl.fromTo("#s2-bar", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.4, ease: "power3.out", transformOrigin: "center" }, 6.3);
-      tl.fromTo("#s2-text", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 6.5);
-
-      tl.to("#s2-text", { opacity: 0, y: -30, duration: 0.3, ease: "power2.in" }, 8.3);
-      tl.to("#s2-bar", { scaleX: 0, opacity: 0, duration: 0.3 }, 8.4);
-      tl.to("#s2-ghost", { opacity: 0, scale: 0.8, duration: 0.3 }, 8.4);
-      tl.to("#s2", { opacity: 0, duration: 0.3 }, 8.7);
-
-      // ═══ SCENE 3: 8.64-12.8s ═══
-      tl.to("#s3", { opacity: 1, duration: 0.01 }, 8.64);
-
-      // Staggered text: STYLISH, MODERN, CREATIVE
-      tl.fromTo("#s3-t1", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 8.9);
-      tl.fromTo("#s3-t2", { opacity: 0, x: 80 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 9.1);
-      tl.fromTo("#s3-t3", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.4, ease: "power3.out" }, 9.3);
-
-      // Text out
-      tl.to("#s3-t1", { opacity: 0, x: 80, duration: 0.3, ease: "power2.in" }, 10.2);
-      tl.to("#s3-t2", { opacity: 0, x: -80, duration: 0.3, ease: "power2.in" }, 10.3);
-      tl.to("#s3-t3", { opacity: 0, x: 80, duration: 0.3, ease: "power2.in" }, 10.4);
-
-      // Line burst
-      tl.to("#s3-burst", { opacity: 1, duration: 0.01 }, 10.5);
-      var lines = "#s3-burst line";
-      tl.to(lines, { strokeDashoffset: 0, duration: 0.6, ease: "power2.out", stagger: 0.08 }, 10.5);
-      tl.to("#s3-burst", { opacity: 0, duration: 0.3 }, 11.2);
-
-      // "DYNAMIC" small
-      tl.fromTo("#s3-t4", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.3)" }, 10.8);
-      tl.to("#s3-t4", { opacity: 0, duration: 0.25 }, 11.5);
-
-      // "DYNAMIC" large
-      tl.fromTo("#s3-t5", { opacity: 0, scale: 3 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 11.5);
-
-      // Geometric frames
-      tl.fromTo("#s3-frame1", { scale: 0, opacity: 0, rotation: -20 }, { scale: 1, opacity: 0.6, rotation: 0, duration: 0.5, ease: "back.out(1.2)" }, 11.8);
-      tl.fromTo("#s3-frame2", { scale: 0, opacity: 0, rotation: 20 }, { scale: 1, opacity: 0.5, rotation: 0, duration: 0.5, ease: "back.out(1.2)" }, 11.9);
-
-      // Scene 3 out
-      tl.to("#s3-t5", { opacity: 0, duration: 0.2 }, 12.5);
-      tl.to("#s3-frame1", { opacity: 0, duration: 0.2 }, 12.5);
-      tl.to("#s3-frame2", { opacity: 0, duration: 0.2 }, 12.5);
-      tl.to("#s3", { opacity: 0, duration: 0.3 }, 12.6);
-
-      // ═══ SCENE 4: 15.45-20.8s ═══
-      tl.to("#s4", { opacity: 1, duration: 0.01 }, 15.45);
-
-      // Mirrored shapes
-      tl.fromTo("#s4-shape1", { scale: 0, opacity: 0, rotation: -15 }, { scale: 1, opacity: 0.7, rotation: 0, duration: 0.5, ease: "back.out(1.5)" }, 15.6);
-      tl.fromTo("#s4-shape2", { scale: 0, opacity: 0, rotation: 15 }, { scale: 1, opacity: 0.7, rotation: 0, duration: 0.5, ease: "back.out(1.5)" }, 15.7);
-
-      // CHANGE + MEDIA FILES (side by side)
-      tl.fromTo("#s4-t1", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 15.9);
-      tl.fromTo("#s4-t2", { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.35, ease: "power3.out" }, 16);
-
-      // Cyan flash
-      tl.to("#s4-cyan", { opacity: 0.15, duration: 0.1 }, 16.3);
-      tl.to("#s4-cyan", { opacity: 0, duration: 0.4 }, 16.4);
-
-      // Shapes out, text out
-      tl.to("#s4-shape1", { opacity: 0, rotation: 30, duration: 0.3 }, 16.8);
-      tl.to("#s4-shape2", { opacity: 0, rotation: -30, duration: 0.3 }, 16.8);
-      tl.to("#s4-t1", { opacity: 0, duration: 0.25 }, 16.9);
-      tl.to("#s4-t2", { opacity: 0, duration: 0.25 }, 16.9);
-
-      // Second shape pair
-      tl.fromTo("#s4-shape3", { scale: 0, opacity: 0 }, { scale: 1, opacity: 0.6, rotation: 45, duration: 0.5, ease: "back.out(1.3)" }, 17.2);
-      tl.fromTo("#s4-shape4", { scale: 0, opacity: 0 }, { scale: 1, opacity: 0.6, rotation: 45, duration: 0.5, ease: "back.out(1.3)" }, 17.3);
-
-      // TRENDY
-      tl.fromTo("#s4-t3", { opacity: 0, scale: 0.3 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.4)" }, 17.5);
-
-      // Magenta flash
-      tl.to("#s4-magenta", { opacity: 0.12, duration: 0.08 }, 17.9);
-      tl.to("#s4-magenta", { opacity: 0, duration: 0.3 }, 18);
-
-      tl.to("#s4-t3", { opacity: 0, duration: 0.25 }, 18.3);
-      tl.to("#s4-shape3", { opacity: 0, duration: 0.2 }, 18.3);
-      tl.to("#s4-shape4", { opacity: 0, duration: 0.2 }, 18.3);
-
-      // THANKS FOR WATCHING — final reveal
-      tl.fromTo("#s4-t4", { opacity: 0, scale: 0.5, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "power3.out" }, 19);
-      tl.to("#s4-t4", { opacity: 0, duration: 0.5 }, 20.3);
-      tl.to("#s4", { opacity: 0, duration: 0.3 }, 20.5);
 
       window.__timelines["render"] = tl;
       window.__timeline = tl;
