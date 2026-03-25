@@ -14,7 +14,7 @@
     "build": "bun run build:studio && tsup && bun run build:runtime && bun run build:copy",
     "build:studio": "cd ../studio && bun run build",
     "build:runtime": "tsx scripts/build-runtime.ts",
-    "build:copy": "mkdir -p dist/studio dist/docs dist/templates dist/skills && cp -r ../studio/dist/* dist/studio/ && cp -r src/templates/warm-grain src/templates/play-mode src/templates/swiss-grid src/templates/vignelli dist/templates/ && (cp src/docs/*.md dist/docs/ 2>/dev/null || true) && (cp -r ../../skills/compose-video ../../skills/asset-management dist/skills/ 2>/dev/null || true)",
+    "build:copy": "mkdir -p dist/studio dist/docs dist/templates && cp -r ../studio/dist/* dist/studio/ && cp -r src/templates/warm-grain src/templates/play-mode src/templates/swiss-grid src/templates/vignelli dist/templates/ && (cp src/docs/*.md dist/docs/ 2>/dev/null || true)",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

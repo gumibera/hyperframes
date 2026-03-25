@@ -1,9 +1,8 @@
 import { defineCommand } from "citty";
 import { existsSync, mkdirSync, readdirSync, rmSync, cpSync } from "node:fs";
-import { join, resolve, dirname } from "node:path";
+import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 import { execSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import * as clack from "@clack/prompts";
 import { c } from "../ui/colors.js";
 
@@ -45,22 +44,35 @@ const TARGETS: Target[] = [
   },
 ];
 
-const GSAP_REPO = "https://github.com/greensock/gsap-skills.git";
-const GSAP_CACHE = join(homedir(), ".cache", "hyperframes", "gsap-skills");
-
 // ---------------------------------------------------------------------------
-// Bundled HyperFrames skills
+// Skill sources — all fetched from GitHub
 // ---------------------------------------------------------------------------
 
-function getBundledSkillsDir(): string {
-  const dir = dirname(fileURLToPath(import.meta.url));
-  const devPath = resolve(dir, "..", "..", "..", "..", "skills");
-  const builtPath = resolve(dir, "skills");
-  return existsSync(devPath) ? devPath : builtPath;
+interface SkillSource {
+  name: string;
+  repo: string;
+  /** Subdirectory within the repo that contains skill folders */
+  skillsPath: string;
+  cache: string;
 }
 
+const SOURCES: SkillSource[] = [
+  {
+    name: "HyperFrames",
+    repo: "https://github.com/heygen-com/hyperframes.git",
+    skillsPath: "skills",
+    cache: join(homedir(), ".cache", "hyperframes", "hyperframes-skills"),
+  },
+  {
+    name: "GSAP",
+    repo: "https://github.com/greensock/gsap-skills.git",
+    skillsPath: "skills",
+    cache: join(homedir(), ".cache", "hyperframes", "gsap-skills"),
+  },
+];
+
 // ---------------------------------------------------------------------------
-// GSAP skills — cloned from GitHub
+// Git helpers
 // ---------------------------------------------------------------------------
 
 function hasGit(): boolean {
@@ -72,40 +84,40 @@ function hasGit(): boolean {
   }
 }
 
-function fetchGsapSkills(): string {
-  if (existsSync(GSAP_CACHE)) {
+function fetchRepo(source: SkillSource): string {
+  if (existsSync(source.cache)) {
     try {
-      execSync("git pull --ff-only", { cwd: GSAP_CACHE, stdio: "ignore", timeout: 30_000 });
+      execSync("git pull --ff-only", { cwd: source.cache, stdio: "ignore", timeout: 30_000 });
     } catch {
-      rmSync(GSAP_CACHE, { recursive: true, force: true });
-      execSync(`git clone --depth 1 ${GSAP_REPO} ${GSAP_CACHE}`, {
+      rmSync(source.cache, { recursive: true, force: true });
+      execSync(`git clone --depth 1 ${source.repo} ${source.cache}`, {
         stdio: "ignore",
         timeout: 60_000,
       });
     }
   } else {
-    mkdirSync(dirname(GSAP_CACHE), { recursive: true });
-    execSync(`git clone --depth 1 ${GSAP_REPO} ${GSAP_CACHE}`, {
+    mkdirSync(dirname(source.cache), { recursive: true });
+    execSync(`git clone --depth 1 ${source.repo} ${source.cache}`, {
       stdio: "ignore",
       timeout: 60_000,
     });
   }
-  return GSAP_CACHE;
+  return join(source.cache, source.skillsPath);
 }
 
 // ---------------------------------------------------------------------------
-// Install logic — generic per target directory
+// Install logic
 // ---------------------------------------------------------------------------
 
 interface InstalledSkill {
   name: string;
-  source: "hyperframes" | "gsap";
+  source: string;
 }
 
 function installSkillsFromDir(
   sourceDir: string,
   targetDir: string,
-  source: "hyperframes" | "gsap",
+  sourceName: string,
 ): InstalledSkill[] {
   const installed: InstalledSkill[] = [];
   if (!existsSync(sourceDir)) return installed;
@@ -120,7 +132,7 @@ function installSkillsFromDir(
     if (existsSync(destDir)) rmSync(destDir, { recursive: true, force: true });
     mkdirSync(destDir, { recursive: true });
     cpSync(join(sourceDir, entry.name), destDir, { recursive: true });
-    installed.push({ name: entry.name, source });
+    installed.push({ name: entry.name, source: sourceName });
   }
   return installed;
 }
@@ -131,39 +143,40 @@ function installSkillsFromDir(
 
 function resolveTargets(args: Record<string, unknown>): Target[] {
   const hasAnyFlag = TARGETS.some((t) => args[t.flag] === true);
-
   if (hasAnyFlag) {
-    // Explicit flags — install only to those targets
     return TARGETS.filter((t) => args[t.flag] === true);
   }
-
-  // No flags — install to all default-enabled targets
   return TARGETS.filter((t) => t.defaultEnabled);
 }
 
 async function runInstall({ args }: { args: Record<string, unknown> }): Promise<void> {
   clack.intro(c.bold("hyperframes skills"));
 
+  if (!hasGit()) {
+    clack.log.error(c.error("git is required to install skills. Install git and retry."));
+    clack.outro(c.warn("No skills installed."));
+    return;
+  }
+
   const targets = resolveTargets(args);
 
-  // 1. Gather skill sources
-  const bundledDir = getBundledSkillsDir();
-  const hasBundled = existsSync(bundledDir);
+  // 1. Fetch all skill sources
+  const fetched: { source: SkillSource; skillsDir: string }[] = [];
 
-  let gsapSourceDir: string | undefined;
-  if (!hasGit()) {
-    clack.log.warn(c.warn("git not found — skipping GSAP skills. Install git and retry."));
-  } else {
-    const gsapSpinner = clack.spinner();
-    gsapSpinner.start("Fetching GSAP skills from GitHub...");
+  for (const source of SOURCES) {
+    const spinner = clack.spinner();
+    spinner.start(`Fetching ${source.name} skills...`);
     try {
-      const cacheDir = fetchGsapSkills();
-      const skillsRoot = join(cacheDir, "skills");
-      if (existsSync(skillsRoot)) gsapSourceDir = skillsRoot;
-      gsapSpinner.stop(c.success("GSAP skills fetched"));
+      const skillsDir = fetchRepo(source);
+      if (existsSync(skillsDir)) {
+        fetched.push({ source, skillsDir });
+        spinner.stop(c.success(`${source.name} skills fetched`));
+      } else {
+        spinner.stop(c.warn(`${source.name}: no skills directory found`));
+      }
     } catch (err) {
-      gsapSpinner.stop(
-        c.warn(`Failed to fetch GSAP skills: ${err instanceof Error ? err.message : err}`),
+      spinner.stop(
+        c.warn(`Failed to fetch ${source.name}: ${err instanceof Error ? err.message : err}`),
       );
     }
   }
@@ -178,33 +191,25 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
     mkdirSync(target.dir, { recursive: true });
 
     let count = 0;
-    if (hasBundled) {
-      const hf = installSkillsFromDir(bundledDir, target.dir, "hyperframes");
-      count += hf.length;
-      // Only track for summary from first target to avoid duplicates
-      if (target === targets[0]) allInstalled.push(...hf);
-    }
-    if (gsapSourceDir) {
-      const gsap = installSkillsFromDir(gsapSourceDir, target.dir, "gsap");
-      count += gsap.length;
-      if (target === targets[0]) allInstalled.push(...gsap);
+    for (const { source, skillsDir } of fetched) {
+      const skills = installSkillsFromDir(skillsDir, target.dir, source.name);
+      count += skills.length;
+      if (target === targets[0]) allInstalled.push(...skills);
     }
 
     spinner.stop(c.success(`${count} skills → ${target.name} ${c.dim(target.dir)}`));
   }
 
   // 3. Summary
-  const hfNames = allInstalled.filter((s) => s.source === "hyperframes").map((s) => s.name);
-  const gsapNames = allInstalled.filter((s) => s.source === "gsap").map((s) => s.name);
-
   console.log();
-  if (hfNames.length > 0) {
-    console.log(`   ${c.dim("HyperFrames:")} ${hfNames.map((s) => c.accent(s)).join(", ")}`);
+  for (const source of SOURCES) {
+    const names = allInstalled.filter((s) => s.source === source.name).map((s) => s.name);
+    if (names.length > 0) {
+      const label = `${source.name}:`.padEnd(14);
+      console.log(`   ${c.dim(label)} ${names.map((s) => c.accent(s)).join(", ")}`);
+    }
   }
-  if (gsapNames.length > 0) {
-    console.log(`   ${c.dim("GSAP:")}        ${gsapNames.map((s) => c.accent(s)).join(", ")}`);
-  }
-  console.log(`   ${c.dim("Targets:")}     ${targets.map((t) => t.name).join(", ")}`);
+  console.log(`   ${c.dim("Targets:")}      ${targets.map((t) => t.name).join(", ")}`);
   console.log();
 
   clack.outro(
