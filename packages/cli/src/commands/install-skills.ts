@@ -84,15 +84,24 @@ function hasGit(): boolean {
   }
 }
 
+// Suppress git credential prompts — fail fast instead of hanging
+const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+
 function fetchRepo(source: SkillSource): string {
   if (existsSync(source.cache)) {
     try {
-      execSync("git pull --ff-only", { cwd: source.cache, stdio: "ignore", timeout: 30_000 });
+      execSync("git pull --ff-only", {
+        cwd: source.cache,
+        stdio: "ignore",
+        timeout: 30_000,
+        env: GIT_ENV,
+      });
     } catch {
       rmSync(source.cache, { recursive: true, force: true });
       execSync(`git clone --depth 1 ${source.repo} ${source.cache}`, {
         stdio: "ignore",
         timeout: 60_000,
+        env: GIT_ENV,
       });
     }
   } else {
@@ -100,6 +109,7 @@ function fetchRepo(source: SkillSource): string {
     execSync(`git clone --depth 1 ${source.repo} ${source.cache}`, {
       stdio: "ignore",
       timeout: 60_000,
+      env: GIT_ENV,
     });
   }
   return join(source.cache, source.skillsPath);
