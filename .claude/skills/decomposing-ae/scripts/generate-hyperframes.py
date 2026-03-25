@@ -88,7 +88,7 @@ def generate_keyframe_tweens(
             x = round(val[0], 2) if isinstance(val, list) and len(val) > 0 else 0
             y = round(val[1], 2) if isinstance(val, list) and len(val) > 1 else 0
             if i == 0:
-                lines.append(f'      tl.set("{element_id}", {{ x: {x}, y: {y} }}, {t});')
+                lines.append(f'      tl.to("{element_id}", {{ x: {x}, y: {y} }}, {t});')
             else:
                 prev_t = round(abs_start + keyframes[i - 1]["time"], 4)
                 dur = round(t - prev_t, 4)
@@ -114,7 +114,7 @@ def generate_keyframe_tweens(
             v = val
 
         if i == 0:
-            lines.append(f'      tl.set("{element_id}", {{ {gsap_prop}: {v} }}, {t});')
+            lines.append(f'      tl.to("{element_id}", {{ {gsap_prop}: {v} }}, {t});')
         else:
             prev_t = round(abs_start + keyframes[i - 1]["time"], 4)
             dur = round(t - prev_t, 4)
@@ -292,11 +292,11 @@ def layer_to_html(
     # ── Mount/unmount via GSAP ───────────────────────────────────────────
     if ltype != "null":
         gsap_lines.append(
-            f'      tl.set("#{el_id}", {{ opacity: {round(op, 4)} }}, {abs_in});'
+            f'      tl.to("#{el_id}", {{ opacity: {round(op, 4)}, duration: 0.001 }}, {abs_in});'
         )
         if dur > 0:
             gsap_lines.append(
-                f'      tl.set("#{el_id}", {{ opacity: 0 }}, {abs_out});'
+                f'      tl.to("#{el_id}", {{ opacity: 0, duration: 0.001 }}, {abs_out});'
             )
 
     # ── Keyframe animations ──────────────────────────────────────────────
@@ -385,7 +385,7 @@ def generate_html(data: dict) -> str:
 
             all_gsap.append(f'      /* ═══ {scene_name} ({scene_start:.1f}-{scene_end:.1f}s) ═══ */')
             if initial_opacity == 0:
-                all_gsap.append(f'      tl.set("#{scene_id}", {{ opacity: 1 }}, {round(scene_start, 4)});')
+                all_gsap.append(f'      tl.to("#{scene_id}", {{ opacity: 1 }}, {round(scene_start, 4)});')
 
             if scene_comp:
                 scene_layers = scene_comp.get("layers", [])
