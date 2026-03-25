@@ -85,6 +85,7 @@ def decode_ldta(bdata_hex: str) -> dict:
         'id': layer_id,
         'inPoint': round(in_point, 6),
         'outPoint': round(out_point, 6),
+        'tickRate': tick_rate,
         'type': layer_type,
         'blendMode': 'normal',
         'trackMatteType': None,
@@ -110,6 +111,129 @@ def _decode_tdb4_dimensions(bdata_hex: str) -> int:
     if len(data) < 4:
         return 1
     return struct.unpack('>H', data[2:4])[0]
+
+
+def _decode_keyframes(tdbs_el, dims: int, tick_rate: int,
+                      is_spatial: bool = False) -> list | None:
+    """Decode keyframe data from a <tdbs> property element.
+
+    Looks for a <list> child containing <lhd3> (header) and <ldat> (packed entries).
+    is_spatial: True for spatial properties (Position, Anchor Point) which have an extra
+    8-byte header in 2D/3D entries containing the spatial dimension count.
+    Returns a list of keyframe dicts or None if no keyframes are present.
+    """
+    list_el = tdbs_el.find('ae:list', NS)
+    if list_el is None:
+        return None
+
+    lhd3 = list_el.find('ae:lhd3', NS)
+    ldat = list_el.find('ae:ldat', NS)
+    if lhd3 is None or ldat is None:
+        return None
+
+    hdr_data = bytes.fromhex(lhd3.get('bdata', ''))
+    if len(hdr_data) < 20:
+        return None
+
+    kf_count = struct.unpack('>I', hdr_data[8:12])[0]
+    entry_size = struct.unpack('>I', hdr_data[16:20])[0]
+
+    if kf_count == 0 or entry_size == 0:
+        return None
+
+    ldat_data = bytes.fromhex(ldat.get('bdata', ''))
+    if len(ldat_data) < kf_count * entry_size:
+        return None
+
+    # Expected entry sizes: 1D=48, 2D=104, 3D=128
+    # We support any entry size as long as it has room for the values we need
+    keyframes = []
+    for i in range(kf_count):
+        offset = i * entry_size
+        entry = ldat_data[offset:offset + entry_size]
+
+        if len(entry) < 8:
+            continue
+
+        time_ticks = struct.unpack('>I', entry[0:4])[0]
+        interp_flags = struct.unpack('>I', entry[4:8])[0]
+
+        time_sec = round(time_ticks / tick_rate, 6) if tick_rate > 0 else 0.0
+
+        # Determine easing type from interpolation flags
+        flag_hi = (interp_flags >> 16) & 0xFF
+        if flag_hi == 0x03:
+            easing_type = 'linear'
+        elif flag_hi == 0x01:
+            easing_type = 'bezier'
+        else:
+            easing_type = 'bezier'
+
+        # Extract values based on dimensions.
+        # Spatial properties (Position, Anchor Point) have an 8-byte header at
+        # offset 8 containing uint32 spatial_dims + padding, shifting values by 8.
+        # Non-spatial multi-dim properties (Scale) store values directly at offset 8.
+        if dims == 1 and entry_size >= 48:
+            value = round(struct.unpack('>d', entry[8:16])[0], 6)
+            easing = {'type': easing_type}
+            if easing_type == 'bezier':
+                # 1D layout: offset 16 = in tangent value, offset 24 = out influence,
+                # offset 32 = in influence
+                out_influence = struct.unpack('>d', entry[24:32])[0]
+                easing['outInfluence'] = round(out_influence, 4)
+                in_influence = struct.unpack('>d', entry[32:40])[0]
+                if abs(in_influence) > 1e-9:
+                    easing['inInfluence'] = round(in_influence, 4)
+        elif dims >= 2 and is_spatial:
+            # Spatial 2D/3D: 8 bytes of header at offset 8, then values
+            val_start = 16
+            values = []
+            for d in range(dims):
+                off = val_start + d * 8
+                if off + 8 <= len(entry):
+                    values.append(round(struct.unpack('>d', entry[off:off + 8])[0], 6))
+                else:
+                    values.append(0.0)
+            value = values
+            easing = {'type': easing_type}
+            # For spatial bezier, influence may follow after values
+            influence_off = val_start + dims * 8
+            if easing_type == 'bezier' and influence_off + 8 <= len(entry):
+                influence_val = struct.unpack('>d', entry[influence_off:influence_off + 8])[0]
+                # AE default spatial influence is ~0.1667; filter out large spatial tangent vectors
+                if 0 < influence_val <= 1.0:
+                    easing['outInfluence'] = round(influence_val, 4)
+        elif dims >= 2:
+            # Non-spatial multi-dim (e.g. Scale): values directly at offset 8
+            values = []
+            for d in range(dims):
+                off = 8 + d * 8
+                if off + 8 <= len(entry):
+                    values.append(round(struct.unpack('>d', entry[off:off + 8])[0], 6))
+                else:
+                    values.append(0.0)
+            value = values
+            easing = {'type': easing_type}
+            # Influence follows after the values
+            influence_off = 8 + dims * 8
+            if easing_type == 'bezier' and influence_off + 8 <= len(entry):
+                influence_val = struct.unpack('>d', entry[influence_off:influence_off + 8])[0]
+                if 0 < influence_val <= 1.0:
+                    easing['outInfluence'] = round(influence_val, 4)
+        elif len(entry) >= 16:
+            # Fallback: read a single double value
+            value = round(struct.unpack('>d', entry[8:16])[0], 6)
+            easing = {'type': easing_type}
+        else:
+            continue
+
+        keyframes.append({
+            'time': time_sec,
+            'value': value,
+            'easing': easing,
+        })
+
+    return keyframes if keyframes else None
 
 
 def _find_named_group(layr_el, match_name: str):
@@ -138,8 +262,10 @@ def _find_transform_group(layr_el):
     return _find_named_group(layr_el, 'ADBE Transform Group')
 
 
-def _extract_property_from_tdbs(tdbs_el) -> dict:
-    """Extract dimensions and value doubles from a <tdbs> property element."""
+def _extract_property_from_tdbs(tdbs_el, tick_rate: int = 24000,
+                                is_spatial: bool = False) -> dict:
+    """Extract dimensions, value doubles, and keyframes from a <tdbs> property element."""
+    tdsb = tdbs_el.find('ae:tdsb', NS)
     tdb4 = tdbs_el.find('ae:tdb4', NS)
     cdat = tdbs_el.find('ae:cdat', NS)
 
@@ -162,6 +288,19 @@ def _extract_property_from_tdbs(tdbs_el) -> dict:
     if dims == 1 and len(value) == 1:
         value = value[0]
 
+    # Check if property is keyframed (tdsb bdata first byte == 01)
+    is_keyframed = False
+    if tdsb is not None:
+        tdsb_data = bytes.fromhex(tdsb.get('bdata', ''))
+        if len(tdsb_data) >= 4:
+            tdsb_flag = struct.unpack('>I', tdsb_data[0:4])[0]
+            if tdsb_flag == 1:
+                is_keyframed = True
+
+    keyframes = None
+    if is_keyframed:
+        keyframes = _decode_keyframes(tdbs_el, dims, tick_rate, is_spatial)
+
     # Flag potential keyframes: if there is more data than the static value needs
     has_extra_data = len(doubles) > dims
 
@@ -169,10 +308,51 @@ def _extract_property_from_tdbs(tdbs_el) -> dict:
         'value': value,
         'dimensions': dims,
         'has_extra_data': has_extra_data,
+        'keyframes': keyframes,
     }
 
 
-def extract_transforms(layr_el) -> dict:
+def _merge_separated_position_keyframes(
+    separated_keyframes: dict, static_values: list
+) -> list | None:
+    """Merge per-axis keyframe lists into combined 3D position keyframes.
+
+    Each axis (0=X, 1=Y, 2=Z) may have its own keyframe list with different times.
+    We collect all unique times, then for each time, use the axis keyframe value
+    if one exists at that time, otherwise the static value.
+    """
+    # Collect all keyframe times across all axes
+    any_kf = False
+    time_map: dict[float, list] = {}  # time -> [x, y, z]
+    easing_map: dict[float, dict] = {}
+
+    for axis_idx in range(3):
+        kfs = separated_keyframes.get(axis_idx)
+        if not kfs:
+            continue
+        any_kf = True
+        for kf in kfs:
+            t = kf['time']
+            if t not in time_map:
+                time_map[t] = list(static_values)
+                easing_map[t] = kf.get('easing', {'type': 'linear'})
+            time_map[t][axis_idx] = kf['value']
+
+    if not any_kf:
+        return None
+
+    # Sort by time and build keyframe list
+    result = []
+    for t in sorted(time_map.keys()):
+        result.append({
+            'time': t,
+            'value': time_map[t],
+            'easing': easing_map[t],
+        })
+    return result if result else None
+
+
+def extract_transforms(layr_el, tick_rate: int = 24000) -> dict:
     """Extract transform properties from a <Layr> element."""
     transform = {
         'anchorPoint': {'value': [0, 0, 0], 'keyframes': None},
@@ -204,6 +384,7 @@ def extract_transforms(layr_el) -> dict:
 
     has_separated_position = False
     separated_position = [0.0, 0.0, 0.0]
+    separated_keyframes = {0: None, 1: None, 2: None}
 
     current_match_name = None
     for child in transform_group:
@@ -216,7 +397,9 @@ def extract_transforms(layr_el) -> dict:
             continue
 
         if tag == 'tdbs' and current_match_name:
-            prop = _extract_property_from_tdbs(child)
+            # Position and Anchor Point are spatial properties with different binary layout
+            spatial = current_match_name in ('ADBE Position', 'ADBE Anchor Point')
+            prop = _extract_property_from_tdbs(child, tick_rate, is_spatial=spatial)
 
             if current_match_name in MATCH_NAME_MAP:
                 key = MATCH_NAME_MAP[current_match_name]
@@ -226,7 +409,7 @@ def extract_transforms(layr_el) -> dict:
                     value = transform[key]['value']
                 transform[key] = {
                     'value': value,
-                    'keyframes': None,
+                    'keyframes': prop.get('keyframes'),
                 }
             elif current_match_name in POSITION_AXIS_MAP:
                 has_separated_position = True
@@ -236,6 +419,7 @@ def extract_transforms(layr_el) -> dict:
                     separated_position[axis_idx] = val[0] if val else 0.0
                 else:
                     separated_position[axis_idx] = val
+                separated_keyframes[axis_idx] = prop.get('keyframes')
 
             current_match_name = None
 
@@ -244,12 +428,18 @@ def extract_transforms(layr_el) -> dict:
             # We skip these for now
             current_match_name = None
 
-    # If position was separated into X/Y/Z, combine them
+    # If position was separated into X/Y/Z, combine them — but only if the
+    # unified ADBE Position property didn't already provide keyframes.
     if has_separated_position:
-        transform['position'] = {
-            'value': separated_position,
-            'keyframes': None,
-        }
+        unified_pos_kfs = transform['position'].get('keyframes')
+        if not unified_pos_kfs:
+            merged_kfs = _merge_separated_position_keyframes(
+                separated_keyframes, separated_position
+            )
+            transform['position'] = {
+                'value': separated_position,
+                'keyframes': merged_kfs,
+            }
 
     return transform
 
@@ -611,6 +801,8 @@ def _parse_items(items_el_list, compositions: dict, comp_counter: list,
                     if bdata:
                         layer_meta = decode_ldta(bdata)
 
+                layer_tick_rate = layer_meta.get('tickRate', 24000)
+
                 layer = {
                     'index': idx,
                     'name': layer_name,
@@ -620,7 +812,7 @@ def _parse_items(items_el_list, compositions: dict, comp_counter: list,
                     'blendMode': layer_meta.get('blendMode', 'normal'),
                     'trackMatteType': layer_meta.get('trackMatteType', None),
                     'parentIndex': layer_meta.get('parentIndex', None),
-                    'transform': extract_transforms(layr_el),
+                    'transform': extract_transforms(layr_el, layer_tick_rate),
                     'effects': extract_effects(layr_el, warnings),
                     'masks': extract_masks(layr_el),
                     'expression': extract_expression(layr_el),
