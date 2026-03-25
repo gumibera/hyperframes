@@ -97,6 +97,7 @@
         const tl = gsap.timeline({ paused: true });
 
         if (!TRANSCRIPT || TRANSCRIPT.length === 0) {
+          window.__timelines = window.__timelines || {};
           window.__timelines["captions"] = tl;
           return;
         }

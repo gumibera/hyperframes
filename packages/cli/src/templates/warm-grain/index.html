@@ -118,6 +118,7 @@
         <div class="grain-texture"></div>
         <script>
           const grainTl = gsap.timeline({ paused: true });
+          window.__timelines = window.__timelines || {};
           window.__timelines["grain-overlay"] = grainTl;
         </script>
       </div>

@@ -156,6 +156,7 @@
         // Hold until end (14s)
         tl.to("#moment-3", { opacity: 0, duration: 0.5, ease: "power2.in" }, 13.5);
 
+        window.__timelines = window.__timelines || {};
         window.__timelines["graphics"] = tl;
       })();
     </script>
