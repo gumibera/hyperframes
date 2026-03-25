@@ -215,7 +215,10 @@ def layer_to_html(
 
     # ── Solid layers ─────────────────────────────────────────────────────
     elif ltype == "solid":
-        color = extract_fill_color(layer.get("effects", [])) or "#1a1a1a"
+        # Use Fill effect color, but skip if layer has expressions (colors are expression-driven)
+        color = "#1a1a1a"
+        if not layer.get("expression"):
+            color = extract_fill_color(layer.get("effects", [])) or "#1a1a1a"
         css_left = round(px - ax, 2)
         css_top = round(py - ay, 2)
         w, h = parent_w, parent_h
@@ -230,10 +233,11 @@ def layer_to_html(
     # ── Shape layers ─────────────────────────────────────────────────────
     elif ltype == "shape":
         stroke_color, stroke_width = extract_stroke_style(layer.get("shapeGroups", []))
-        # Also check Fill effect for override color
-        fill_eff_color = extract_fill_color(layer.get("effects", []))
-        if fill_eff_color:
-            stroke_color = fill_eff_color
+        # Also check Fill effect for override color (skip if expression-driven)
+        if not layer.get("expression"):
+            fill_eff_color = extract_fill_color(layer.get("effects", []))
+            if fill_eff_color:
+                stroke_color = fill_eff_color
 
         css_left = round(px - ax, 2)
         css_top = round(py - ay, 2)
@@ -363,15 +367,10 @@ def generate_html(data: dict) -> str:
             scene_z = num_scenes - comp_idx  # first scene = highest z
             comp_idx += 1
 
-            # Scene background: find the last solid layer's fill color
-            scene_bg = "#1a1a1a"
-            if scene_comp:
-                for sl in reversed(scene_comp.get("layers", [])):
-                    if sl["type"] == "solid":
-                        c = extract_fill_color(sl.get("effects", []))
-                        if c:
-                            scene_bg = c
-                        break
+            # Scene background: dark by default.
+            # AE solid backgrounds often have expression-driven colors
+            # that we can't resolve, so use a safe dark default.
+            scene_bg = "#111111"
 
             initial_opacity = 1 if scene_start < 0.01 else 0
             all_html.append(
