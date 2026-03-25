@@ -210,7 +210,7 @@ def layer_to_html(
             f"position:absolute;left:{css_left}px;top:{css_top}px;"
             f"width:{w}px;height:{h}px;"
             f"display:flex;align-items:center;justify-content:center;"
-            f"z-index:{z_index};visibility:hidden"
+            f"z-index:{z_index};opacity:0"
         )
 
     # ── Solid layers ─────────────────────────────────────────────────────
@@ -225,7 +225,7 @@ def layer_to_html(
         style = (
             f"position:absolute;left:{css_left}px;top:{css_top}px;"
             f"width:{w}px;height:{h}px;"
-            f"background:{color};z-index:{z_index};visibility:hidden"
+            f"background:{color};z-index:{z_index};opacity:0"
         )
         if abs(sx - 1) > 0.01 or abs(sy - 1) > 0.01:
             style += f";transform:scale({round(sx, 3)},{round(sy, 3)})"
@@ -246,7 +246,7 @@ def layer_to_html(
             f"position:absolute;left:{css_left}px;top:{css_top}px;"
             f"width:{w}px;height:{h}px;"
             f"border:{min(stroke_width, 20)}px solid {stroke_color};"
-            f"background:transparent;z-index:{z_index};visibility:hidden"
+            f"background:transparent;z-index:{z_index};opacity:0"
         )
         if abs(sx - 1) > 0.01 or abs(sy - 1) > 0.01:
             style += f";transform:scale({round(sx, 3)},{round(sy, 3)})"
@@ -261,7 +261,7 @@ def layer_to_html(
             f"width:{w}px;height:{h}px;"
             f"background:#222;border:1px solid #333;"
             f"display:flex;align-items:center;justify-content:center;"
-            f"z-index:{z_index};visibility:hidden"
+            f"z-index:{z_index};opacity:0"
         )
         inner = (
             f'<span style="font-family:sans-serif;font-size:16px;color:#555;">'
@@ -272,7 +272,7 @@ def layer_to_html(
 
     # ── Null layers (invisible) ──────────────────────────────────────────
     elif ltype == "null":
-        style = "position:absolute;visibility:hidden;pointer-events:none"
+        style = "position:absolute;opacity:0;pointer-events:none"
         w, h = 0, 0
 
     # ── Unknown ──────────────────────────────────────────────────────────
@@ -280,7 +280,7 @@ def layer_to_html(
         w, h = parent_w, parent_h
         style = (
             f"position:absolute;left:0;top:0;width:{w}px;height:{h}px;"
-            f"background:rgba(50,50,50,0.3);z-index:{z_index};visibility:hidden"
+            f"background:rgba(50,50,50,0.3);z-index:{z_index};opacity:0"
         )
 
     element_html = (
@@ -292,11 +292,11 @@ def layer_to_html(
     # ── Mount/unmount via GSAP ───────────────────────────────────────────
     if ltype != "null":
         gsap_lines.append(
-            f'      tl.set("#{el_id}", {{ visibility: "visible", opacity: {round(op, 4)} }}, {abs_in});'
+            f'      tl.set("#{el_id}", {{ opacity: {round(op, 4)} }}, {abs_in});'
         )
         if dur > 0:
             gsap_lines.append(
-                f'      tl.set("#{el_id}", {{ visibility: "hidden" }}, {abs_out});'
+                f'      tl.set("#{el_id}", {{ opacity: 0 }}, {abs_out});'
             )
 
     # ── Keyframe animations ──────────────────────────────────────────────
