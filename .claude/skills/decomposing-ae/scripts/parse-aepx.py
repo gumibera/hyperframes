@@ -65,7 +65,12 @@ def decode_ldta(bdata_hex: str) -> dict:
       offset  12, uint32: in point (ticks)
       offset  16, uint32: tick rate
       offset  28, uint32: out point (ticks)
+      offset  40, uint32: source item id (matches iide of the source Item)
       offset 128, uint32: layer type (0=AVLayer, 1=Light, 2=Camera, 3=Text, 4=Shape)
+
+    The source item id at offset 40 is stored as a big-endian uint32. To match
+    against an Item's <iide bdata="..."> hex string, reverse the 4 bytes
+    (iide is serialized as little-endian raw bytes in the XML).
     """
     data = bytes.fromhex(bdata_hex)
     if len(data) < 132:
@@ -75,6 +80,7 @@ def decode_ldta(bdata_hex: str) -> dict:
     in_point_ticks = struct.unpack('>I', data[12:16])[0]
     tick_rate = struct.unpack('>I', data[16:20])[0]
     out_point_ticks = struct.unpack('>I', data[28:32])[0]
+    source_item_id = data[40:44][::-1].hex() if len(data) >= 44 else None
     type_val = struct.unpack('>I', data[128:132])[0]
 
     in_point = in_point_ticks / tick_rate if tick_rate > 0 else 0.0
@@ -86,6 +92,7 @@ def decode_ldta(bdata_hex: str) -> dict:
         'inPoint': round(in_point, 6),
         'outPoint': round(out_point, 6),
         'type': layer_type,
+        'sourceItemId': source_item_id,
         'blendMode': 'normal',
         'trackMatteType': None,
         'parentIndex': None,
@@ -694,8 +701,124 @@ def _guess_footage_type(name: str) -> str:
     return 'unknown'
 
 
+def _resolve_solid_name(item) -> str | None:
+    """Extract the human-readable name from a solid/footage item's <Pin><opti> data.
+
+    Solid items have no <string> name in the XML; the name is embedded inside
+    the opti binary blob as the last printable ASCII run (e.g. "White Solid 1").
+    """
+    pin_el = item.find('ae:Pin', NS)
+    if pin_el is None:
+        return None
+    opti_el = pin_el.find('ae:opti', NS)
+    if opti_el is None:
+        return None
+    bdata = opti_el.get('bdata', '')
+    if not bdata:
+        return None
+    raw = bytes.fromhex(bdata)
+    runs = re.findall(b'[ -~]{3,}', raw)
+    if len(runs) >= 2:
+        return runs[-1].decode('ascii').strip()
+    return None
+
+
+def _is_solid_item(item) -> bool:
+    """Return True if a footage item is a solid (opti starts with 'Soli' magic)."""
+    pin_el = item.find('ae:Pin', NS)
+    if pin_el is None:
+        return False
+    opti_el = pin_el.find('ae:opti', NS)
+    if opti_el is None:
+        return False
+    bdata = opti_el.get('bdata', '')
+    if not bdata:
+        return False
+    raw = bytes.fromhex(bdata)
+    return raw[:4] == b'Soli'
+
+
+def _build_item_lookup(root) -> dict:
+    """Build a lookup from iide hex string to item info for all Items in the project.
+
+    Returns a dict mapping iide -> {
+        'name': str | None,
+        'itemType': 'comp' | 'folder' | 'footage',
+        'isSolid': bool,
+        'isNull': bool,
+    }
+
+    This is used to resolve AVLayer sub-types and null layer names by looking
+    up the source item referenced in ldta offset 40.
+    """
+    lookup = {}
+    for item in root.iter('{http://www.adobe.com/products/aftereffects}Item'):
+        string_el = item.find('ae:string', NS)
+        iide_el = item.find('ae:iide', NS)
+        cdta_el = item.find('ae:cdta', NS)
+        sfdr_el = item.find('ae:Sfdr', NS)
+
+        name = string_el.text if string_el is not None else None
+        iide = iide_el.get('bdata') if iide_el is not None else None
+        if not iide:
+            continue
+
+        if sfdr_el is not None:
+            item_type = 'folder'
+        elif cdta_el is not None:
+            item_type = 'comp'
+        else:
+            item_type = 'footage'
+
+        # For footage items (especially solids), resolve the name from opti
+        resolved_name = name
+        is_solid = False
+        is_null = False
+        if item_type == 'footage':
+            is_solid = _is_solid_item(item)
+            if not resolved_name:
+                resolved_name = _resolve_solid_name(item)
+            # Null objects in AE are solids named "Null *"
+            if resolved_name and resolved_name.lower().startswith('null'):
+                is_null = True
+
+        lookup[iide] = {
+            'name': resolved_name if resolved_name else name,
+            'itemType': item_type,
+            'isSolid': is_solid,
+            'isNull': is_null,
+        }
+
+    return lookup
+
+
+def _classify_avlayer(source_item_id: str | None, item_lookup: dict) -> tuple[str, str | None]:
+    """Classify an AVLayer sub-type based on its source item reference.
+
+    Returns (layer_type, resolved_name) where:
+      - layer_type is one of: 'precomp', 'solid', 'null', 'avlayer'
+      - resolved_name is the source item's name (for null-named layers)
+    """
+    if not source_item_id or source_item_id not in item_lookup:
+        return 'avlayer', None
+
+    info = item_lookup[source_item_id]
+    resolved_name = info['name']
+
+    if info['itemType'] == 'comp':
+        return 'precomp', resolved_name
+    elif info['isNull']:
+        return 'null', resolved_name
+    elif info['isSolid']:
+        return 'solid', resolved_name
+    else:
+        # Regular footage (video, image, audio, etc.) — keep as avlayer
+        return 'avlayer', resolved_name
+
+
 def _parse_items(items_el_list, compositions: dict, comp_counter: list,
-                  all_fonts: set, footage: dict, warnings: list) -> list:
+                  all_fonts: set, footage: dict, warnings: list,
+                  item_lookup: dict | None = None) -> list:
     """Recursively walk a list of <Item> elements and build folder tree nodes.
 
     compositions is mutated in place.
@@ -703,6 +826,7 @@ def _parse_items(items_el_list, compositions: dict, comp_counter: list,
     all_fonts is a set that collects unique font family names across the project.
     footage is mutated in place with non-comp, non-folder items.
     warnings is mutated in place with any non-fatal issues encountered.
+    item_lookup maps iide hex -> item info for resolving AVLayer sub-types and names.
     Returns a list of folder/comp node dicts.
     """
     nodes = []
@@ -719,7 +843,8 @@ def _parse_items(items_el_list, compositions: dict, comp_counter: list,
             # Folder: recurse into its Item children
             child_items = sfdr_el.findall('ae:Item', NS)
             children = _parse_items(
-                child_items, compositions, comp_counter, all_fonts, footage, warnings
+                child_items, compositions, comp_counter, all_fonts, footage, warnings,
+                item_lookup=item_lookup,
             )
             node = {'type': 'folder', 'name': name, 'iide': iide, 'children': children}
             nodes.append(node)
@@ -743,10 +868,23 @@ def _parse_items(items_el_list, compositions: dict, comp_counter: list,
                     if bdata:
                         layer_meta = decode_ldta(bdata)
 
+                layer_type = layer_meta.get('type', 'unknown')
+                source_item_id = layer_meta.get('sourceItemId')
+
+                # Resolve AVLayer sub-types (precomp, solid, null) and null names
+                if layer_type == 'avlayer' and item_lookup:
+                    resolved_type, resolved_name = _classify_avlayer(
+                        source_item_id, item_lookup,
+                    )
+                    layer_type = resolved_type
+                    # If the layer has no name, use the source item's name
+                    if layer_name is None and resolved_name is not None:
+                        layer_name = resolved_name
+
                 layer = {
                     'index': idx,
                     'name': layer_name,
-                    'type': layer_meta.get('type', 'unknown'),
+                    'type': layer_type,
                     'inPoint': layer_meta.get('inPoint', 0.0),
                     'outPoint': layer_meta.get('outPoint', 0.0),
                     'blendMode': layer_meta.get('blendMode', 'normal'),
@@ -844,9 +982,14 @@ def main():
     footage: dict = {}
     warnings: list = []
 
+    # Pre-pass: build a lookup from iide -> item info for resolving
+    # AVLayer sub-types (precomp, solid, null) and null layer names.
+    item_lookup = _build_item_lookup(root)
+
     top_items = fold.findall('ae:Item', NS)
     folders = _parse_items(
-        top_items, compositions, comp_counter, all_fonts, footage, warnings
+        top_items, compositions, comp_counter, all_fonts, footage, warnings,
+        item_lookup=item_lookup,
     )
 
     output = {
