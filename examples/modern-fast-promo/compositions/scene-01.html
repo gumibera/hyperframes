@@ -1,0 +1,276 @@
+<template id="scene-01-template">
+  <div data-composition-id="scene-01" data-width="1920" data-height="1080">
+
+    <style>
+      [data-composition-id="scene-01"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #111111;
+      }
+      [data-composition-id="scene-01"] .photo-placeholder {
+        position: absolute;
+        background: #333333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 18px;
+        color: #666666;
+        letter-spacing: 0.05em;
+        overflow: hidden;
+      }
+      [data-composition-id="scene-01"] .photo-placeholder::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #444444 0%, #222222 100%);
+      }
+      [data-composition-id="scene-01"] .photo-tinted {
+        filter: grayscale(1) sepia(0.3);
+      }
+      [data-composition-id="scene-01"] .shape-layer {
+        position: absolute;
+      }
+      [data-composition-id="scene-01"] .venetian-blinds {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        pointer-events: none;
+      }
+      [data-composition-id="scene-01"] .blind-strip {
+        flex: 1;
+        background: #ff3333;
+        transform-origin: top center;
+      }
+    </style>
+
+    <!-- L18: Background solid (0.0-7.77s) — Fill effect #ff3333 -->
+    <div id="sc01-bg"
+      data-start="0" data-duration="7.77" data-track-index="0"
+      style="position:absolute; left:0; top:0; width:1920px; height:1080px; background:#ff3333;">
+    </div>
+
+    <!-- L17: Photo/Video_01 placeholder (0.0-4.24s, full size) -->
+    <div class="photo-placeholder" id="sc01-photo1"
+      data-start="0" data-duration="4.24" data-track-index="1"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:1;">
+      <span style="z-index:1;">Photo/Video_01</span>
+    </div>
+
+    <!-- L16: Photo/Video_01 with Tint (0.0-3.1s) -->
+    <div class="photo-placeholder photo-tinted" id="sc01-photo1-tint"
+      data-start="0" data-duration="3.1" data-track-index="2"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:2;">
+    </div>
+
+    <!-- L15: Transition_01 sub-composition (0.0-3.1s) -->
+    <div id="sc01-transition"
+      data-composition-id="transition-01" data-composition-src="compositions/transition-01.html"
+      data-start="0" data-duration="1.5" data-track-index="3"
+      data-width="1920" data-height="1080"
+      style="z-index:3;">
+    </div>
+
+    <!-- L14: Shape Layer 1 — Venetian Blinds + Fill (1.33-6.44s) -->
+    <div class="venetian-blinds" id="sc01-venetian"
+      data-start="1.33" data-duration="5.11" data-track-index="4"
+      style="z-index:4; opacity:0;">
+      <div class="blind-strip" id="sc01-vb1"></div>
+      <div class="blind-strip" id="sc01-vb2"></div>
+      <div class="blind-strip" id="sc01-vb3"></div>
+      <div class="blind-strip" id="sc01-vb4"></div>
+      <div class="blind-strip" id="sc01-vb5"></div>
+      <div class="blind-strip" id="sc01-vb6"></div>
+      <div class="blind-strip" id="sc01-vb7"></div>
+      <div class="blind-strip" id="sc01-vb8"></div>
+    </div>
+
+    <!-- L13: text_01 "modern promo" sub-comp (1.0-2.04s, scale keyframes) -->
+    <div id="sc01-text01"
+      data-composition-id="text-01" data-composition-src="compositions/text-01.html"
+      data-start="1.0" data-duration="2.04" data-track-index="5"
+      data-width="1574" data-height="128"
+      style="position:absolute; left:173px; top:476px; z-index:5;">
+    </div>
+
+    <!-- L12: Shape Layer 3 (2.34-0.7s) — accent bar -->
+    <div class="shape-layer" id="sc01-shape3"
+      data-start="2.34" data-duration="0.7" data-track-index="6"
+      style="left:80px; top:620px; width:400px; height:6px; background:#ff3333; z-index:6; opacity:0;">
+    </div>
+
+    <!-- L6-L10: Shape Layers 2-7 (2.34-1.03s) — varying opacity shapes -->
+    <div class="shape-layer" id="sc01-shape-a"
+      data-start="2.34" data-duration="1.03" data-track-index="7"
+      style="left:0; top:0; width:120px; height:1080px; background:#ff3333; z-index:7; opacity:0;">
+    </div>
+    <div class="shape-layer" id="sc01-shape-b"
+      data-start="2.34" data-duration="1.03" data-track-index="8"
+      style="left:1800px; top:0; width:120px; height:1080px; background:#00ddee; z-index:7; opacity:0;">
+    </div>
+    <div class="shape-layer" id="sc01-shape-c"
+      data-start="2.5" data-duration="1.03" data-track-index="9"
+      style="left:0; top:0; width:1920px; height:80px; background:#ff3333; z-index:7; opacity:0;">
+    </div>
+    <div class="shape-layer" id="sc01-shape-d"
+      data-start="2.5" data-duration="1.03" data-track-index="10"
+      style="left:0; top:1000px; width:1920px; height:80px; background:#ffffff; z-index:7; opacity:0;">
+    </div>
+    <div class="shape-layer" id="sc01-shape-e"
+      data-start="2.6" data-duration="1.03" data-track-index="11"
+      style="left:400px; top:200px; width:6px; height:680px; background:#ffffff; z-index:7; opacity:0;">
+    </div>
+
+    <!-- L11: Photo/Video_02 (3.54-0.53s, scale keyframes) -->
+    <div class="photo-placeholder" id="sc01-photo2"
+      data-start="3.54" data-duration="0.53" data-track-index="12"
+      style="left:960px; top:200px; width:880px; height:600px; z-index:8; opacity:0;">
+      <span style="z-index:1;">Photo/Video_02</span>
+    </div>
+
+    <!-- L4: Photo/Video_02 with Tint (3.54-0.63s) -->
+    <div class="photo-placeholder photo-tinted" id="sc01-photo2-tint"
+      data-start="3.54" data-duration="0.63" data-track-index="13"
+      style="left:960px; top:200px; width:880px; height:600px; z-index:9; opacity:0;">
+    </div>
+
+    <!-- L1: text_02 "clean design" sub-comp (3.54-2.7s, 7 scale keyframes) -->
+    <div id="sc01-text02"
+      data-composition-id="text-02" data-composition-src="compositions/text-02.html"
+      data-start="3.54" data-duration="2.7" data-track-index="14"
+      data-width="1338" data-height="133"
+      style="position:absolute; left:291px; top:474px; z-index:10;">
+    </div>
+
+    <!-- L3: Shape Layer 8 (3.67-0.5s) -->
+    <div class="shape-layer" id="sc01-shape8"
+      data-start="3.67" data-duration="0.5" data-track-index="15"
+      style="left:1400px; top:820px; width:440px; height:6px; background:#00ddee; z-index:11; opacity:0;">
+    </div>
+
+    <!-- L2: Shape Layer 9 (4.1-2.14s) -->
+    <div class="shape-layer" id="sc01-shape9"
+      data-start="4.1" data-duration="2.14" data-track-index="16"
+      style="left:60px; top:160px; width:200px; height:200px; border:4px solid #ff3333; background:transparent; z-index:12; opacity:0;">
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* L17: Photo/Video_01 clip reveal */
+      tl.fromTo("#sc01-photo1",
+        { clipPath: "inset(0 100% 0 0)" },
+        { clipPath: "inset(0 0% 0 0)", duration: 0.8, ease: "power3.inOut" },
+        0.0
+      );
+
+      /* L16: Tinted overlay fades in over photo */
+      tl.fromTo("#sc01-photo1-tint",
+        { opacity: 0 },
+        { opacity: 0.6, duration: 0.5, ease: "power2.out" },
+        0.3
+      );
+
+      /* L14: Venetian blinds reveal (1.33s) */
+      tl.set("#sc01-venetian", { opacity: 1 }, 1.33);
+      var blinds = ["#sc01-vb1","#sc01-vb2","#sc01-vb3","#sc01-vb4","#sc01-vb5","#sc01-vb6","#sc01-vb7","#sc01-vb8"];
+      for (var i = 0; i < blinds.length; i++) {
+        tl.fromTo(blinds[i], { scaleY: 0 }, { scaleY: 1, duration: 0.35, ease: "power2.inOut" }, 1.33 + i * 0.06);
+      }
+      /* Venetian blinds fade out */
+      for (var j = 0; j < blinds.length; j++) {
+        tl.to(blinds[j], { scaleY: 0, duration: 0.3, ease: "power2.in", transformOrigin: "bottom center" }, 5.5 + j * 0.04);
+      }
+
+      /* L13: text_01 scale in (1.0s) — 2 scale keyframes */
+      tl.fromTo("#sc01-text01",
+        { scale: 0.5, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" },
+        1.0
+      );
+      tl.to("#sc01-text01",
+        { scale: 1.05, duration: 0.3, ease: "power1.inOut" },
+        1.5
+      );
+
+      /* L12: Shape Layer 3 accent bar (2.34s) */
+      tl.fromTo("#sc01-shape3",
+        { scaleX: 0, opacity: 0 },
+        { scaleX: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "left center" },
+        2.34
+      );
+
+      /* L6-L10: Shape layers burst (2.34-2.6s, varying opacity 0.3-1.0) */
+      tl.to("#sc01-shape-a", { opacity: 0.5, duration: 0.2, ease: "power2.out" }, 2.34);
+      tl.to("#sc01-shape-b", { opacity: 0.3, duration: 0.2, ease: "power2.out" }, 2.4);
+      tl.to("#sc01-shape-c", { opacity: 0.7, duration: 0.2, ease: "power2.out" }, 2.5);
+      tl.to("#sc01-shape-d", { opacity: 1.0, duration: 0.2, ease: "power2.out" }, 2.5);
+      tl.to("#sc01-shape-e", { opacity: 0.6, duration: 0.2, ease: "power2.out" }, 2.6);
+
+      /* Shape layers fade out */
+      tl.to("#sc01-shape-a", { opacity: 0, duration: 0.25 }, 3.1);
+      tl.to("#sc01-shape-b", { opacity: 0, duration: 0.25 }, 3.1);
+      tl.to("#sc01-shape-c", { opacity: 0, duration: 0.25 }, 3.15);
+      tl.to("#sc01-shape-d", { opacity: 0, duration: 0.25 }, 3.15);
+      tl.to("#sc01-shape-e", { opacity: 0, duration: 0.25 }, 3.2);
+
+      /* L11: Photo/Video_02 scale in (3.54s) */
+      tl.fromTo("#sc01-photo2",
+        { scale: 1.3, opacity: 0 },
+        { scale: 1, opacity: 1, duration: 0.4, ease: "power2.out" },
+        3.54
+      );
+
+      /* L4: Photo/Video_02 tint (3.54s) */
+      tl.fromTo("#sc01-photo2-tint",
+        { opacity: 0 },
+        { opacity: 0.5, duration: 0.3, ease: "power2.out" },
+        3.6
+      );
+
+      /* L1: text_02 "clean design" 7 scale keyframes (3.54s) */
+      tl.fromTo("#sc01-text02",
+        { scale: 0.3, opacity: 0 },
+        { scale: 1.1, opacity: 1, duration: 0.3, ease: "power3.out" },
+        3.54
+      );
+      tl.to("#sc01-text02", { scale: 0.95, duration: 0.15, ease: "power1.inOut" }, 3.84);
+      tl.to("#sc01-text02", { scale: 1.02, duration: 0.12, ease: "power1.inOut" }, 3.99);
+      tl.to("#sc01-text02", { scale: 0.98, duration: 0.1, ease: "power1.inOut" }, 4.11);
+      tl.to("#sc01-text02", { scale: 1.0, duration: 0.15, ease: "power1.out" }, 4.21);
+      tl.to("#sc01-text02", { scale: 1.0, duration: 1.5 }, 4.36);
+      tl.to("#sc01-text02", { scale: 0.8, opacity: 0, duration: 0.35, ease: "power2.in" }, 5.86);
+
+      /* L3: Shape Layer 8 (3.67s) */
+      tl.fromTo("#sc01-shape8",
+        { scaleX: 0, opacity: 0 },
+        { scaleX: 1, opacity: 1, duration: 0.25, ease: "power3.out", transformOrigin: "right center" },
+        3.67
+      );
+      tl.to("#sc01-shape8", { opacity: 0, duration: 0.2 }, 3.97);
+
+      /* L2: Shape Layer 9 (4.1s) */
+      tl.fromTo("#sc01-shape9",
+        { scale: 0, opacity: 0 },
+        { scale: 1, opacity: 0.8, duration: 0.4, ease: "back.out(1.5)" },
+        4.1
+      );
+      tl.to("#sc01-shape9", { rotation: 45, duration: 1.5, ease: "power1.inOut" }, 4.5);
+      tl.to("#sc01-shape9", { opacity: 0, duration: 0.3 }, 5.94);
+
+      /* Fade out remaining elements */
+      tl.to("#sc01-photo1", { opacity: 0, duration: 0.4, ease: "power2.in" }, 6.8);
+      tl.to("#sc01-photo1-tint", { opacity: 0, duration: 0.3 }, 6.8);
+      tl.to("#sc01-text01", { opacity: 0, duration: 0.3 }, 6.5);
+      tl.to("#sc01-photo2", { opacity: 0, duration: 0.3 }, 6.5);
+      tl.to("#sc01-photo2-tint", { opacity: 0, duration: 0.3 }, 6.5);
+      tl.to("#sc01-shape3", { opacity: 0, duration: 0.2 }, 6.8);
+
+      window.__timelines["scene-01"] = tl;
+    </script>
+  </div>
+</template>

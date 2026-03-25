@@ -1,0 +1,110 @@
+<template id="effect-01-template">
+  <div data-composition-id="effect-01" data-width="1920" data-height="1080">
+
+    <style>
+      [data-composition-id="effect-01"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: transparent;
+      }
+      [data-composition-id="effect-01"] .geo-line {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        pointer-events: none;
+      }
+      [data-composition-id="effect-01"] .geo-line line {
+        stroke: #ffffff;
+        fill: none;
+      }
+    </style>
+
+    <!-- SVG lines radiating from center (960,540) to each anchor point -->
+    <!-- Shape Layer 9: anchor (518, 412), stroke 31 -->
+    <svg class="geo-line" id="eff01-s9" data-start="0" data-duration="1.37" data-track-index="0">
+      <line x1="960" y1="540" x2="518" y2="412" stroke-width="31" stroke-dasharray="540" stroke-dashoffset="540" />
+    </svg>
+
+    <!-- Shape Layer 8: anchor (702, -88), stroke 127 -->
+    <svg class="geo-line" id="eff01-s8" data-start="0" data-duration="1.37" data-track-index="1">
+      <line x1="960" y1="540" x2="702" y2="-88" stroke-width="127" stroke-dasharray="670" stroke-dashoffset="670" />
+    </svg>
+
+    <!-- Shape Layer 6: anchor (-292, 290), stroke 47 -->
+    <svg class="geo-line" id="eff01-s6" data-start="0" data-duration="1.37" data-track-index="2">
+      <line x1="960" y1="540" x2="-292" y2="290" stroke-width="47" stroke-dasharray="1280" stroke-dashoffset="1280" />
+    </svg>
+
+    <!-- Shape Layer 5: anchor (465, 120), stroke 25 -->
+    <svg class="geo-line" id="eff01-s5" data-start="0" data-duration="1.37" data-track-index="3">
+      <line x1="960" y1="540" x2="465" y2="120" stroke-width="25" stroke-dasharray="630" stroke-dashoffset="630" />
+    </svg>
+
+    <!-- Shape Layer 4: anchor (-368, 12), stroke 92 -->
+    <svg class="geo-line" id="eff01-s4" data-start="0" data-duration="1.37" data-track-index="4">
+      <line x1="960" y1="540" x2="-368" y2="12" stroke-width="92" stroke-dasharray="1410" stroke-dashoffset="1410" />
+    </svg>
+
+    <!-- Shape Layer 3: anchor (-461, -156), stroke 15 -->
+    <svg class="geo-line" id="eff01-s3" data-start="0" data-duration="1.37" data-track-index="5">
+      <line x1="960" y1="540" x2="-461" y2="-156" stroke-width="15" stroke-dasharray="1560" stroke-dashoffset="1560" />
+    </svg>
+
+    <!-- Shape Layer 2: anchor (286, -220), stroke 37 -->
+    <svg class="geo-line" id="eff01-s2" data-start="0" data-duration="1.37" data-track-index="6">
+      <line x1="960" y1="540" x2="286" y2="-220" stroke-width="37" stroke-dasharray="1010" stroke-dashoffset="1010" />
+    </svg>
+
+    <!-- Shape Layer 1: anchor (-60, -336), stroke 29 -->
+    <svg class="geo-line" id="eff01-s1" data-start="0" data-duration="1.37" data-track-index="7">
+      <line x1="960" y1="540" x2="-60" y2="-336" stroke-width="29" stroke-dasharray="1320" stroke-dashoffset="1320" />
+    </svg>
+
+    <!-- Shape Layer 7: anchor (-565, -336), stroke 53 -->
+    <svg class="geo-line" id="eff01-s7" data-start="0" data-duration="1.37" data-track-index="8">
+      <line x1="960" y1="540" x2="-565" y2="-336" stroke-width="53" stroke-dasharray="1720" stroke-dashoffset="1720" />
+    </svg>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      var lines = [
+        { sel: "#eff01-s9 line", dash: 540 },
+        { sel: "#eff01-s8 line", dash: 670 },
+        { sel: "#eff01-s6 line", dash: 1280 },
+        { sel: "#eff01-s5 line", dash: 630 },
+        { sel: "#eff01-s4 line", dash: 1410 },
+        { sel: "#eff01-s3 line", dash: 1560 },
+        { sel: "#eff01-s2 line", dash: 1010 },
+        { sel: "#eff01-s1 line", dash: 1320 },
+        { sel: "#eff01-s7 line", dash: 1720 }
+      ];
+
+      /* Draw-on effect: staggered stroke-dashoffset animation */
+      for (var i = 0; i < lines.length; i++) {
+        var delay = i * 0.08;
+        tl.to(lines[i].sel, {
+          attr: { "stroke-dashoffset": 0 },
+          duration: 0.45,
+          ease: "power2.out"
+        }, delay);
+      }
+
+      /* Fade out all lines near the end */
+      for (var j = 0; j < lines.length; j++) {
+        tl.to(lines[j].sel, {
+          opacity: 0,
+          duration: 0.2,
+          ease: "power2.in"
+        }, 1.0 + j * 0.025);
+      }
+
+      window.__timelines["effect-01"] = tl;
+    </script>
+  </div>
+</template>

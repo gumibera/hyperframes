@@ -1,0 +1,165 @@
+<template id="scene-02-template">
+  <div data-composition-id="scene-02" data-width="1920" data-height="1080">
+
+    <style>
+      [data-composition-id="scene-02"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #111111;
+      }
+      [data-composition-id="scene-02"] .photo-placeholder {
+        position: absolute;
+        background: #333333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 18px;
+        color: #666666;
+        letter-spacing: 0.05em;
+        overflow: hidden;
+      }
+      [data-composition-id="scene-02"] .photo-placeholder::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #444444 0%, #222222 100%);
+      }
+      [data-composition-id="scene-02"] .photo-tinted {
+        filter: grayscale(1) sepia(0.3);
+      }
+      [data-composition-id="scene-02"] .shape-layer {
+        position: absolute;
+      }
+      /* Zoomed text behind — large blurred version */
+      [data-composition-id="scene-02"] .zoom-text {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        color: #ffffff;
+        pointer-events: none;
+      }
+    </style>
+
+    <!-- L7/L8: Photo/Video_04 with Tint (0.0-3.14s, background) -->
+    <div class="photo-placeholder photo-tinted" id="sc02-photo-bg-tint"
+      data-start="0" data-duration="3.14" data-track-index="0"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:0;">
+    </div>
+
+    <!-- L6: Photo/Video_04 scaled (0.0-3.14s, scale keyframes) -->
+    <div class="photo-placeholder" id="sc02-photo-scaled"
+      data-start="0" data-duration="3.14" data-track-index="1"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:1;">
+      <span style="z-index:1;">Photo/Video_04</span>
+    </div>
+
+    <!-- L5: Photo/Video_04 (0.0-2.97s) -->
+    <div class="photo-placeholder" id="sc02-photo-main"
+      data-start="0" data-duration="2.97" data-track-index="2"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:2;">
+    </div>
+
+    <!-- L3: text_03 duplicate with Geometry2 + Fill (0.93-2.2s, 4x scale = zoomed behind) -->
+    <div class="zoom-text" id="sc02-text-zoom"
+      data-start="0.93" data-duration="2.2" data-track-index="3"
+      style="left:-1440px; top:-1080px; width:7680px; height:4320px;
+             font-size: 192px; color: rgba(255, 51, 51, 0.15); z-index:3; opacity:0;">
+      EASY TO USE
+    </div>
+
+    <!-- L2: text_03 "easy to use" sub-comp (0.93-2.2s, 5 scale keyframes, Fill) -->
+    <div id="sc02-text03"
+      data-composition-id="text-03" data-composition-src="compositions/text-03.html"
+      data-start="0.93" data-duration="2.2" data-track-index="4"
+      data-width="1920" data-height="114"
+      style="position:absolute; left:0; top:483px; z-index:5;">
+    </div>
+
+    <!-- L4: Shape Layer 10 (1.53-1.43s) — accent element -->
+    <div class="shape-layer" id="sc02-shape10"
+      data-start="1.53" data-duration="1.43" data-track-index="5"
+      style="left:760px; top:610px; width:400px; height:6px; background:#00ddee; z-index:6; opacity:0;">
+    </div>
+
+    <!-- L1: Photo/Video_04 scaled (0.0-3.14s, scale keyframes, top layer) -->
+    <div class="photo-placeholder" id="sc02-photo-top"
+      data-start="0" data-duration="3.14" data-track-index="6"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:7; opacity:0;
+             clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);">
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* L6: Photo scaled — slow zoom in */
+      tl.fromTo("#sc02-photo-scaled",
+        { scale: 1.15 },
+        { scale: 1.0, duration: 3.14, ease: "power1.inOut" },
+        0.0
+      );
+
+      /* L5: Photo main — clip reveal */
+      tl.fromTo("#sc02-photo-main",
+        { clipPath: "inset(0 0 100% 0)" },
+        { clipPath: "inset(0 0 0% 0)", duration: 0.6, ease: "power3.inOut" },
+        0.0
+      );
+      tl.to("#sc02-photo-main", { opacity: 0, duration: 0.2 }, 2.77);
+
+      /* L3: Zoomed text behind — fade in and scale */
+      tl.fromTo("#sc02-text-zoom",
+        { opacity: 0, scale: 0.8 },
+        { opacity: 1, scale: 1, duration: 0.5, ease: "power2.out" },
+        0.93
+      );
+      tl.to("#sc02-text-zoom", { opacity: 0, duration: 0.3, ease: "power2.in" }, 2.83);
+
+      /* L2: text_03 "easy to use" — 5 scale keyframes */
+      tl.fromTo("#sc02-text03",
+        { scale: 0.4, opacity: 0 },
+        { scale: 1.08, opacity: 1, duration: 0.25, ease: "power3.out" },
+        0.93
+      );
+      tl.to("#sc02-text03", { scale: 0.96, duration: 0.12, ease: "power1.inOut" }, 1.18);
+      tl.to("#sc02-text03", { scale: 1.02, duration: 0.1, ease: "power1.inOut" }, 1.30);
+      tl.to("#sc02-text03", { scale: 1.0, duration: 0.1, ease: "power1.out" }, 1.40);
+      tl.to("#sc02-text03", { scale: 0.85, opacity: 0, duration: 0.3, ease: "power2.in" }, 2.83);
+
+      /* L4: Shape Layer 10 accent — draw on */
+      tl.fromTo("#sc02-shape10",
+        { scaleX: 0, opacity: 0 },
+        { scaleX: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "center center" },
+        1.53
+      );
+      tl.to("#sc02-shape10", { scaleX: 0, opacity: 0, duration: 0.25, ease: "power2.in", transformOrigin: "right center" }, 2.66);
+
+      /* L1: Top photo layer — split screen reveal */
+      tl.fromTo("#sc02-photo-top",
+        { opacity: 0 },
+        { opacity: 0.6, duration: 0.4, ease: "power2.out" },
+        0.5
+      );
+      tl.to("#sc02-photo-top", {
+        clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)",
+        duration: 1.5, ease: "power2.inOut"
+      }, 1.5);
+      tl.to("#sc02-photo-top", { opacity: 0, duration: 0.3 }, 2.84);
+
+      /* Global exit fade */
+      tl.to("#sc02-photo-bg-tint", { opacity: 0, duration: 0.3 }, 2.84);
+      tl.to("#sc02-photo-scaled", { opacity: 0, duration: 0.3 }, 2.84);
+
+      window.__timelines["scene-02"] = tl;
+    </script>
+  </div>
+</template>

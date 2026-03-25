@@ -1,0 +1,33 @@
+<template id="text-08-template">
+  <div data-composition-id="text-08" data-width="1920" data-height="1080">
+    <div id="ae-text-08-1"
+      data-start="0" data-duration="7.01" data-track-index="0"
+      style="position:absolute; left:0; top:0; width:1920px; height:1080px;
+             display:flex; align-items:center; justify-content:center;">
+      <span class="text" style="opacity:0;">DYNAMIC</span>
+    </div>
+
+    <style>
+      [data-composition-id="text-08"] .text {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 120px;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        white-space: nowrap;
+      }
+    </style>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#ae-text-08-1 .text",
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+        0.1
+      );
+      window.__timelines["text-08"] = tl;
+    </script>
+  </div>
+</template>

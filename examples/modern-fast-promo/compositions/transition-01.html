@@ -1,0 +1,74 @@
+<template id="transition-01-template">
+  <div data-composition-id="transition-01" data-width="1920" data-height="1080">
+
+    <style>
+      [data-composition-id="transition-01"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: transparent;
+      }
+      [data-composition-id="transition-01"] .wipe-strip {
+        position: absolute;
+        left: 0;
+        width: 1920px;
+        height: 216px;
+        background: #ffffff;
+      }
+    </style>
+
+    <!-- Strip 1 (odd): top-anchored, slides from left via scaleX -->
+    <div class="wipe-strip" id="trans01-s1"
+      data-start="0" data-duration="1.5" data-track-index="0"
+      style="top: 0; transform-origin: left center;"></div>
+
+    <!-- Strip 2 (even): bottom-anchored, slides from right via scaleX -->
+    <div class="wipe-strip" id="trans01-s2"
+      data-start="0" data-duration="1.5" data-track-index="1"
+      style="top: 216px; transform-origin: right center;"></div>
+
+    <!-- Strip 3 (odd): top-anchored, slides from left -->
+    <div class="wipe-strip" id="trans01-s3"
+      data-start="0" data-duration="1.5" data-track-index="2"
+      style="top: 432px; transform-origin: left center;"></div>
+
+    <!-- Strip 4 (even): bottom-anchored, slides from right -->
+    <div class="wipe-strip" id="trans01-s4"
+      data-start="0" data-duration="1.5" data-track-index="3"
+      style="top: 648px; transform-origin: right center;"></div>
+
+    <!-- Strip 5 (odd): top-anchored, slides from left -->
+    <div class="wipe-strip" id="trans01-s5"
+      data-start="0" data-duration="1.5" data-track-index="4"
+      style="top: 864px; transform-origin: left center;"></div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* All strips start with scaleX 0 */
+      tl.set("#trans01-s1", { scaleX: 0 });
+      tl.set("#trans01-s2", { scaleX: 0 });
+      tl.set("#trans01-s3", { scaleX: 0 });
+      tl.set("#trans01-s4", { scaleX: 0 });
+      tl.set("#trans01-s5", { scaleX: 0 });
+
+      /* Wipe in: staggered by 0.05s each */
+      tl.to("#trans01-s1", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.0);
+      tl.to("#trans01-s2", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.05);
+      tl.to("#trans01-s3", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.10);
+      tl.to("#trans01-s4", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.15);
+      tl.to("#trans01-s5", { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 0.20);
+
+      /* Hold fully visible, then wipe out from opposite origin */
+      tl.to("#trans01-s1", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "right center" }, 0.85);
+      tl.to("#trans01-s2", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "left center" }, 0.90);
+      tl.to("#trans01-s3", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "right center" }, 0.95);
+      tl.to("#trans01-s4", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "left center" }, 1.00);
+      tl.to("#trans01-s5", { scaleX: 0, duration: 0.35, ease: "power3.inOut", transformOrigin: "right center" }, 1.05);
+
+      window.__timelines["transition-01"] = tl;
+    </script>
+  </div>
+</template>

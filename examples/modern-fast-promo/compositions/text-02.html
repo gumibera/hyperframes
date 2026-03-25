@@ -1,0 +1,33 @@
+<template id="text-02-template">
+  <div data-composition-id="text-02" data-width="1338" data-height="133">
+    <div id="ae-text-02-1"
+      data-start="0" data-duration="4.13" data-track-index="0"
+      style="position:absolute; left:0; top:0; width:1338px; height:133px;
+             display:flex; align-items:center; justify-content:center;">
+      <span class="text" style="opacity:0;">CLEAN DESIGN</span>
+    </div>
+
+    <style>
+      [data-composition-id="text-02"] .text {
+        font-family: 'Montserrat', sans-serif;
+        font-weight: 900;
+        font-size: 52px;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        white-space: nowrap;
+      }
+    </style>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#ae-text-02-1 .text",
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" },
+        0.1
+      );
+      window.__timelines["text-02"] = tl;
+    </script>
+  </div>
+</template>

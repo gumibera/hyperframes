@@ -1,0 +1,447 @@
+<template id="scene-04-template">
+  <div data-composition-id="scene-04" data-width="1920" data-height="1080">
+
+    <style>
+      [data-composition-id="scene-04"] {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #111111;
+      }
+      [data-composition-id="scene-04"] .photo-placeholder {
+        position: absolute;
+        background: #333333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 18px;
+        color: #666666;
+        letter-spacing: 0.05em;
+        overflow: hidden;
+      }
+      [data-composition-id="scene-04"] .photo-placeholder::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #444444 0%, #222222 100%);
+      }
+      [data-composition-id="scene-04"] .photo-tinted {
+        filter: grayscale(1) sepia(0.3);
+      }
+      [data-composition-id="scene-04"] .white-strip {
+        position: absolute;
+        background: #ffffff;
+      }
+      [data-composition-id="scene-04"] .shape-layer {
+        position: absolute;
+      }
+      [data-composition-id="scene-04"] .shape-mirrored {
+        transform: scale(-1, -1);
+      }
+      [data-composition-id="scene-04"] .venetian-blinds {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        pointer-events: none;
+      }
+      [data-composition-id="scene-04"] .blind-strip {
+        flex: 1;
+        background: #ff3333;
+        transform-origin: top center;
+      }
+      [data-composition-id="scene-04"] .color-solid {
+        position: absolute;
+        left: 0; top: 0;
+        width: 1920px; height: 1080px;
+      }
+    </style>
+
+    <!-- L26: Photo/Video_08 background (0.0-2.77s) -->
+    <div class="photo-placeholder" id="sc04-photo8"
+      data-start="0" data-duration="2.77" data-track-index="0"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:0;">
+      <span style="z-index:1;">Photo/Video_08</span>
+    </div>
+
+    <!-- L28/L30: Photo/Video_08 with Tint (0.0-1.37s) -->
+    <div class="photo-placeholder photo-tinted" id="sc04-photo8-tint-a"
+      data-start="0" data-duration="1.37" data-track-index="1"
+      style="left:0; top:0; width:960px; height:1080px; z-index:1; opacity:0;">
+    </div>
+    <div class="photo-placeholder photo-tinted" id="sc04-photo8-tint-b"
+      data-start="0" data-duration="1.37" data-track-index="2"
+      style="left:960px; top:0; width:960px; height:1080px; z-index:1; opacity:0;">
+    </div>
+
+    <!-- L27/L29: White solid strips (0.33-1.03s) -->
+    <div class="white-strip" id="sc04-strip1"
+      data-start="0.33" data-duration="1.03" data-track-index="3"
+      style="left:0; top:0; width:960px; height:6px; z-index:2; opacity:0;">
+    </div>
+    <div class="white-strip" id="sc04-strip2"
+      data-start="0.33" data-duration="1.03" data-track-index="4"
+      style="left:960px; top:1074px; width:960px; height:6px; z-index:2; opacity:0;">
+    </div>
+
+    <!-- L25: White solid photo frame (0.67-2.1s) -->
+    <div class="white-strip" id="sc04-frame"
+      data-start="0.67" data-duration="2.1" data-track-index="5"
+      style="left:360px; top:190px; width:1200px; height:700px; z-index:3; opacity:0;">
+    </div>
+
+    <!-- L20/L22: White solid strips (0.67-1.23s) -->
+    <div class="white-strip" id="sc04-strip3"
+      data-start="0.67" data-duration="1.23" data-track-index="6"
+      style="left:0; top:536px; width:1920px; height:8px; z-index:4; opacity:0;">
+    </div>
+    <div class="white-strip" id="sc04-strip4"
+      data-start="0.67" data-duration="1.23" data-track-index="7"
+      style="left:956px; top:0; width:8px; height:1080px; z-index:4; opacity:0;">
+    </div>
+
+    <!-- L17: Shape Layer 3 (0.83-1.94s) -->
+    <div class="shape-layer" id="sc04-shape3"
+      data-start="0.83" data-duration="1.94" data-track-index="8"
+      style="left:160px; top:160px; width:300px; height:300px; border:4px solid #ff3333;
+             background:transparent; z-index:5; opacity:0;">
+    </div>
+
+    <!-- L18: Shape Layer 4 (0.83-1.94s, mirrored scale:[-1,-1,1]) -->
+    <div class="shape-layer shape-mirrored" id="sc04-shape4"
+      data-start="0.83" data-duration="1.94" data-track-index="9"
+      style="left:1460px; top:620px; width:300px; height:300px; border:4px solid #ff3333;
+             background:transparent; z-index:5; opacity:0;">
+    </div>
+
+    <!-- L23: text_09 "change" sub-comp (0.83-1.07s, 3 scale kf, Fill) -->
+    <div id="sc04-text09"
+      data-composition-id="text-09" data-composition-src="compositions/text-09.html"
+      data-start="0.83" data-duration="1.07" data-track-index="10"
+      data-width="1920" data-height="114"
+      style="position:absolute; left:0; top:360px; z-index:6;">
+    </div>
+
+    <!-- L21: text_10 "media files" sub-comp (0.83-1.07s, 3 scale kf, Fill) -->
+    <div id="sc04-text10"
+      data-composition-id="text-10" data-composition-src="compositions/text-10.html"
+      data-start="0.83" data-duration="1.07" data-track-index="11"
+      data-width="1920" data-height="114"
+      style="position:absolute; left:0; top:560px; z-index:6;">
+    </div>
+
+    <!-- L19: Cyan Solid with Fill (0.93-0.7s) -->
+    <div class="color-solid" id="sc04-cyan"
+      data-start="0.93" data-duration="0.7" data-track-index="12"
+      style="background:#00ddee; z-index:7; opacity:0;">
+    </div>
+
+    <!-- L15: Shape Layer 1 (1.33-1.43s) -->
+    <div class="shape-layer" id="sc04-shape1"
+      data-start="1.33" data-duration="1.43" data-track-index="13"
+      style="left:100px; top:100px; width:250px; height:250px; border:3px solid #ffffff;
+             background:transparent; z-index:8; opacity:0;">
+    </div>
+
+    <!-- L16: Shape Layer 2 (1.33-1.43s, mirrored) -->
+    <div class="shape-layer shape-mirrored" id="sc04-shape2"
+      data-start="1.33" data-duration="1.43" data-track-index="14"
+      style="left:1570px; top:730px; width:250px; height:250px; border:3px solid #ffffff;
+             background:transparent; z-index:8; opacity:0;">
+    </div>
+
+    <!-- L24: Shape Layer 5 — Venetian Blinds + Fill (1.87-0.9s) -->
+    <div class="venetian-blinds" id="sc04-venetian"
+      data-start="1.87" data-duration="0.9" data-track-index="15"
+      style="z-index:9; opacity:0;">
+      <div class="blind-strip" id="sc04-vb1"></div>
+      <div class="blind-strip" id="sc04-vb2"></div>
+      <div class="blind-strip" id="sc04-vb3"></div>
+      <div class="blind-strip" id="sc04-vb4"></div>
+      <div class="blind-strip" id="sc04-vb5"></div>
+      <div class="blind-strip" id="sc04-vb6"></div>
+    </div>
+
+    <!-- L10: Photo/Video_09 with Tint (2.74-1.37s) -->
+    <div class="photo-placeholder photo-tinted" id="sc04-photo9-tint"
+      data-start="2.74" data-duration="1.37" data-track-index="16"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:10; opacity:0;">
+    </div>
+
+    <!-- L14: Photo/Video_09 scaled (2.74-0.28s, scale kf) -->
+    <div class="photo-placeholder" id="sc04-photo9-scaled"
+      data-start="2.74" data-duration="0.28" data-track-index="17"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:11; opacity:0;">
+    </div>
+
+    <!-- L13: Magenta-Red Solid with Fill (2.74-0.7s, opacity kf) -->
+    <div class="color-solid" id="sc04-magenta"
+      data-start="2.74" data-duration="0.7" data-track-index="18"
+      style="background:#ff3333; z-index:12; opacity:0;">
+    </div>
+
+    <!-- L11: text_11 "trendy" sub-comp (2.74-0.7s, Fill) -->
+    <div id="sc04-text11"
+      data-composition-id="text-11" data-composition-src="compositions/text-11.html"
+      data-start="2.74" data-duration="0.7" data-track-index="19"
+      data-width="1920" data-height="114"
+      style="position:absolute; left:0; top:420px; z-index:13;">
+    </div>
+
+    <!-- L12: text_11 duplicate (2.74-0.37s) -->
+    <div id="sc04-text11-dup"
+      data-composition-id="text-11" data-composition-src="compositions/text-11.html"
+      data-start="2.74" data-duration="0.37" data-track-index="20"
+      data-width="1920" data-height="114"
+      style="position:absolute; left:0; top:560px; z-index:14;">
+    </div>
+
+    <!-- L1: Shape Layer 7 — Venetian Blinds + Fill (3.54-0.88s) -->
+    <div class="venetian-blinds" id="sc04-venetian2"
+      data-start="3.54" data-duration="0.88" data-track-index="21"
+      style="z-index:15; opacity:0;">
+      <div class="blind-strip" id="sc04-vb2-1"></div>
+      <div class="blind-strip" id="sc04-vb2-2"></div>
+      <div class="blind-strip" id="sc04-vb2-3"></div>
+      <div class="blind-strip" id="sc04-vb2-4"></div>
+      <div class="blind-strip" id="sc04-vb2-5"></div>
+      <div class="blind-strip" id="sc04-vb2-6"></div>
+    </div>
+
+    <!-- L2: Shape Layer 8 — Venetian Blinds + Fill, mirrored (3.54-0.88s) -->
+    <div class="venetian-blinds shape-mirrored" id="sc04-venetian3"
+      data-start="3.54" data-duration="0.88" data-track-index="22"
+      style="z-index:15; opacity:0;">
+      <div class="blind-strip" id="sc04-vb3-1"></div>
+      <div class="blind-strip" id="sc04-vb3-2"></div>
+      <div class="blind-strip" id="sc04-vb3-3"></div>
+      <div class="blind-strip" id="sc04-vb3-4"></div>
+      <div class="blind-strip" id="sc04-vb3-5"></div>
+      <div class="blind-strip" id="sc04-vb3-6"></div>
+    </div>
+
+    <!-- L4/L6: text_12 "THANKS FOR WATCHING" (4.4-0.88s, scale kf, Fill) -->
+    <div id="sc04-text12"
+      data-composition-id="text-12" data-composition-src="compositions/text-12.html"
+      data-start="4.4" data-duration="0.88" data-track-index="23"
+      data-width="2062" data-height="142"
+      style="position:absolute; left:-71px; top:400px; z-index:17;">
+    </div>
+    <div id="sc04-text12-dup"
+      data-composition-id="text-12" data-composition-src="compositions/text-12.html"
+      data-start="4.4" data-duration="0.88" data-track-index="24"
+      data-width="2062" data-height="142"
+      style="position:absolute; left:-71px; top:540px; z-index:16; opacity:0.3;">
+    </div>
+
+    <!-- L8: Photo/Video_10 (4.9s, final photo) -->
+    <div class="photo-placeholder" id="sc04-photo10"
+      data-start="4.9" data-duration="0.45" data-track-index="25"
+      style="left:0; top:0; width:1920px; height:1080px; z-index:18; opacity:0;">
+      <span style="z-index:1;">Photo/Video_10</span>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* L26: Photo/Video_08 background reveal */
+      tl.fromTo("#sc04-photo8",
+        { clipPath: "inset(0 50% 0 50%)" },
+        { clipPath: "inset(0 0% 0 0%)", duration: 0.5, ease: "power3.inOut" },
+        0.0
+      );
+
+      /* L28/L30: Tinted overlays */
+      tl.to("#sc04-photo8-tint-a", { opacity: 0.5, duration: 0.3, ease: "power2.out" }, 0.1);
+      tl.to("#sc04-photo8-tint-b", { opacity: 0.5, duration: 0.3, ease: "power2.out" }, 0.15);
+      tl.to("#sc04-photo8-tint-a", { opacity: 0, duration: 0.3 }, 1.07);
+      tl.to("#sc04-photo8-tint-b", { opacity: 0, duration: 0.3 }, 1.07);
+
+      /* L27/L29: White strips slide in */
+      tl.fromTo("#sc04-strip1",
+        { scaleX: 0, opacity: 1 },
+        { scaleX: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "left center" },
+        0.33
+      );
+      tl.fromTo("#sc04-strip2",
+        { scaleX: 0, opacity: 1 },
+        { scaleX: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "right center" },
+        0.38
+      );
+      tl.to("#sc04-strip1", { opacity: 0, duration: 0.2 }, 1.16);
+      tl.to("#sc04-strip2", { opacity: 0, duration: 0.2 }, 1.16);
+
+      /* L25: White photo frame */
+      tl.fromTo("#sc04-frame",
+        { scale: 0.8, opacity: 0 },
+        { scale: 1, opacity: 0.9, duration: 0.35, ease: "power3.out" },
+        0.67
+      );
+      tl.to("#sc04-frame", { opacity: 0, scale: 1.05, duration: 0.3 }, 2.47);
+
+      /* L20/L22: Cross strips */
+      tl.fromTo("#sc04-strip3",
+        { scaleX: 0, opacity: 1 },
+        { scaleX: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "center center" },
+        0.67
+      );
+      tl.fromTo("#sc04-strip4",
+        { scaleY: 0, opacity: 1 },
+        { scaleY: 1, opacity: 1, duration: 0.3, ease: "power3.out", transformOrigin: "center center" },
+        0.72
+      );
+      tl.to("#sc04-strip3", { opacity: 0, duration: 0.2 }, 1.7);
+      tl.to("#sc04-strip4", { opacity: 0, duration: 0.2 }, 1.7);
+
+      /* L17/L18: Shape Layers 3 & 4 (symmetric, one mirrored) */
+      tl.fromTo("#sc04-shape3",
+        { scale: 0, opacity: 0 },
+        { scale: 1, opacity: 0.7, duration: 0.4, ease: "back.out(1.5)" },
+        0.83
+      );
+      tl.fromTo("#sc04-shape4",
+        { scale: 0, opacity: 0 },
+        { scale: 1, opacity: 0.7, duration: 0.4, ease: "back.out(1.5)" },
+        0.88
+      );
+      tl.to("#sc04-shape3", { rotation: 45, duration: 1.2, ease: "power1.inOut" }, 1.0);
+      tl.to("#sc04-shape4", { rotation: 45, duration: 1.2, ease: "power1.inOut" }, 1.0);
+      tl.to("#sc04-shape3", { opacity: 0, duration: 0.2 }, 2.57);
+      tl.to("#sc04-shape4", { opacity: 0, duration: 0.2 }, 2.57);
+
+      /* L23: text_09 "change" — 3 scale keyframes */
+      tl.fromTo("#sc04-text09",
+        { scale: 0.4, opacity: 0 },
+        { scale: 1.1, opacity: 1, duration: 0.2, ease: "power3.out" },
+        0.83
+      );
+      tl.to("#sc04-text09", { scale: 0.95, duration: 0.1, ease: "power1.inOut" }, 1.03);
+      tl.to("#sc04-text09", { scale: 1.0, duration: 0.1, ease: "power1.out" }, 1.13);
+      tl.to("#sc04-text09", { opacity: 0, duration: 0.2, ease: "power2.in" }, 1.7);
+
+      /* L21: text_10 "media files" — 3 scale keyframes */
+      tl.fromTo("#sc04-text10",
+        { scale: 0.4, opacity: 0 },
+        { scale: 1.08, opacity: 1, duration: 0.2, ease: "power3.out" },
+        0.83
+      );
+      tl.to("#sc04-text10", { scale: 0.96, duration: 0.1, ease: "power1.inOut" }, 1.03);
+      tl.to("#sc04-text10", { scale: 1.0, duration: 0.1, ease: "power1.out" }, 1.13);
+      tl.to("#sc04-text10", { opacity: 0, duration: 0.2, ease: "power2.in" }, 1.7);
+
+      /* L19: Cyan solid flash */
+      tl.to("#sc04-cyan", { opacity: 0.7, duration: 0.15, ease: "power2.out" }, 0.93);
+      tl.to("#sc04-cyan", { opacity: 0, duration: 0.4, ease: "power2.in" }, 1.23);
+
+      /* L15/L16: Shape Layers 1 & 2 (symmetric) */
+      tl.fromTo("#sc04-shape1",
+        { scale: 0, opacity: 0 },
+        { scale: 1, opacity: 0.6, duration: 0.35, ease: "back.out(1.5)" },
+        1.33
+      );
+      tl.fromTo("#sc04-shape2",
+        { scale: 0, opacity: 0 },
+        { scale: 1, opacity: 0.6, duration: 0.35, ease: "back.out(1.5)" },
+        1.38
+      );
+      tl.to("#sc04-shape1", { opacity: 0, duration: 0.2 }, 2.56);
+      tl.to("#sc04-shape2", { opacity: 0, duration: 0.2 }, 2.56);
+
+      /* L24: Shape Layer 5 — Venetian Blinds (1.87s) */
+      tl.set("#sc04-venetian", { opacity: 1 }, 1.87);
+      var vb1 = ["#sc04-vb1","#sc04-vb2","#sc04-vb3","#sc04-vb4","#sc04-vb5","#sc04-vb6"];
+      for (var i = 0; i < vb1.length; i++) {
+        tl.fromTo(vb1[i], { scaleY: 0 }, { scaleY: 1, duration: 0.25, ease: "power2.inOut" }, 1.87 + i * 0.05);
+      }
+      for (var j = 0; j < vb1.length; j++) {
+        tl.to(vb1[j], { scaleY: 0, duration: 0.2, ease: "power2.in", transformOrigin: "bottom center" }, 2.37 + j * 0.04);
+      }
+
+      /* Photo/Video_08 fades out */
+      tl.to("#sc04-photo8", { opacity: 0, duration: 0.3 }, 2.47);
+
+      /* L10: Photo/Video_09 tint (2.74s) */
+      tl.fromTo("#sc04-photo9-tint",
+        { opacity: 0 },
+        { opacity: 0.8, duration: 0.4, ease: "power2.out" },
+        2.74
+      );
+
+      /* L14: Photo/Video_09 scaled flash (2.74s, 0.28s duration) */
+      tl.fromTo("#sc04-photo9-scaled",
+        { opacity: 0, scale: 1.3 },
+        { opacity: 1, scale: 1.0, duration: 0.2, ease: "power3.out" },
+        2.74
+      );
+      tl.to("#sc04-photo9-scaled", { opacity: 0, duration: 0.08 }, 2.94);
+
+      /* L13: Magenta-Red solid — opacity keyframes */
+      tl.to("#sc04-magenta", { opacity: 0.4, duration: 0.2, ease: "power2.out" }, 2.74);
+      tl.to("#sc04-magenta", { opacity: 0, duration: 0.3, ease: "power2.in" }, 3.14);
+
+      /* L11: text_11 "trendy" */
+      tl.fromTo("#sc04-text11",
+        { scale: 0.5, opacity: 0 },
+        { scale: 1.0, opacity: 1, duration: 0.3, ease: "power3.out" },
+        2.74
+      );
+      tl.to("#sc04-text11", { opacity: 0, duration: 0.2 }, 3.24);
+
+      /* L12: text_11 duplicate */
+      tl.fromTo("#sc04-text11-dup",
+        { scale: 0.5, opacity: 0 },
+        { scale: 1.0, opacity: 0.4, duration: 0.2, ease: "power3.out" },
+        2.74
+      );
+      tl.to("#sc04-text11-dup", { opacity: 0, duration: 0.15 }, 2.96);
+
+      /* Photo/Video_09 tint fades */
+      tl.to("#sc04-photo9-tint", { opacity: 0, duration: 0.3 }, 3.81);
+
+      /* L1/L2: Shape Layer 7 & 8 — Venetian Blinds + Fill (3.54s) */
+      tl.set("#sc04-venetian2", { opacity: 1 }, 3.54);
+      var vb2 = ["#sc04-vb2-1","#sc04-vb2-2","#sc04-vb2-3","#sc04-vb2-4","#sc04-vb2-5","#sc04-vb2-6"];
+      for (var k = 0; k < vb2.length; k++) {
+        tl.fromTo(vb2[k], { scaleY: 0 }, { scaleY: 1, duration: 0.2, ease: "power2.inOut" }, 3.54 + k * 0.04);
+      }
+      tl.set("#sc04-venetian3", { opacity: 1 }, 3.54);
+      var vb3 = ["#sc04-vb3-1","#sc04-vb3-2","#sc04-vb3-3","#sc04-vb3-4","#sc04-vb3-5","#sc04-vb3-6"];
+      for (var m = 0; m < vb3.length; m++) {
+        tl.fromTo(vb3[m], { scaleY: 0 }, { scaleY: 1, duration: 0.2, ease: "power2.inOut" }, 3.54 + m * 0.04);
+      }
+      /* Blinds wipe out */
+      for (var n = 0; n < vb2.length; n++) {
+        tl.to(vb2[n], { scaleY: 0, duration: 0.15, ease: "power2.in", transformOrigin: "bottom center" }, 4.0 + n * 0.03);
+      }
+      for (var p = 0; p < vb3.length; p++) {
+        tl.to(vb3[p], { scaleY: 0, duration: 0.15, ease: "power2.in", transformOrigin: "bottom center" }, 4.0 + p * 0.03);
+      }
+
+      /* L4/L6: text_12 "THANKS FOR WATCHING" — scale keyframes (4.4s) */
+      tl.fromTo("#sc04-text12",
+        { scale: 0.3, opacity: 0 },
+        { scale: 1.05, opacity: 1, duration: 0.3, ease: "power3.out" },
+        4.4
+      );
+      tl.to("#sc04-text12", { scale: 1.0, duration: 0.15, ease: "power1.out" }, 4.7);
+
+      tl.fromTo("#sc04-text12-dup",
+        { scale: 0.3, opacity: 0 },
+        { scale: 1.05, opacity: 0.3, duration: 0.3, ease: "power3.out" },
+        4.4
+      );
+
+      /* L8: Photo/Video_10 final reveal (4.9s) */
+      tl.fromTo("#sc04-photo10",
+        { opacity: 0, scale: 1.1 },
+        { opacity: 1, scale: 1.0, duration: 0.35, ease: "power2.out" },
+        4.9
+      );
+
+      window.__timelines["scene-04"] = tl;
+    </script>
+  </div>
+</template>

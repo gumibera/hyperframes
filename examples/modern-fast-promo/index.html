@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <style>@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap');</style>
+</head>
+<body>
+  <div data-composition-id="render" data-start="0" data-duration="22.79" data-width="1920" data-height="1080">
+    <!-- L1: Color Control solid — dark background (0.0-22.79s) -->
+    <div id="ae-render-bg" data-start="0" data-duration="22.79" data-track-index="0"
+      style="position:absolute;left:0;top:0;width:1920px;height:1080px;background:#111111;z-index:0;">
+    </div>
+
+    <!-- L5: Scene_01 (0.0-6.57s) -->
+    <div id="ae-render-scene01" data-composition-id="scene-01" data-composition-src="compositions/scene-01.html"
+      data-start="0" data-duration="6.57" data-track-index="1" data-width="1920" data-height="1080" style="z-index:1;"></div>
+
+    <!-- L4: Scene_02 (5.87-3.14s, overlaps with Scene_01 end) -->
+    <div id="ae-render-scene02" data-composition-id="scene-02" data-composition-src="compositions/scene-02.html"
+      data-start="5.87" data-duration="3.14" data-track-index="2" data-width="1920" data-height="1080" style="z-index:2;"></div>
+
+    <!-- L3: Scene_03 (8.64-4.13s) -->
+    <div id="ae-render-scene03" data-composition-id="scene-03" data-composition-src="compositions/scene-03.html"
+      data-start="8.64" data-duration="4.13" data-track-index="3" data-width="1920" data-height="1080" style="z-index:3;"></div>
+
+    <!-- L2: Scene_04 (15.45-5.35s, effective duration from last layer outPoint) -->
+    <div id="ae-render-scene04" data-composition-id="scene-04" data-composition-src="compositions/scene-04.html"
+      data-start="15.45" data-duration="5.35" data-track-index="4" data-width="1920" data-height="1080" style="z-index:4;"></div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+      window.__timelines["render"] = tl;
+    </script>
+  </div>
+</body>
+</html>
