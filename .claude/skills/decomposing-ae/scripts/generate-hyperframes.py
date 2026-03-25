@@ -157,7 +157,7 @@ def layer_to_html(layer: dict, comp: dict, comp_idx: int, layer_idx: int) -> tup
         f"width:{w}px",
         f"height:{h}px",
         f"transform-origin:{transform_origin}",
-        f"opacity:{round(op, 4)}",
+        f"visibility:hidden",  # framework mounts via data-start; GSAP shows via tween
     ]
     if abs(sx - 1) > 0.001 or abs(sy - 1) > 0.001:
         style_parts.append(f"transform:scale({round(sx, 4)},{round(sy, 4)})")
@@ -250,6 +250,16 @@ def layer_to_html(layer: dict, comp: dict, comp_idx: int, layer_idx: int) -> tup
         f'data-duration="{round(dur, 4)}" data-track-index="{layer_idx}" '
         f'style="{style}">{inner}</div>'
     )
+
+    # Mount/unmount via GSAP (framework not running — we control visibility)
+    if ltype != "null":
+        gsap_lines.append(
+            f'      tl.set("{f"#{el_id}"}", {{ visibility: "visible", opacity: {round(op, 4)} }}, {round(in_pt, 4)});'
+        )
+        if dur > 0:
+            gsap_lines.append(
+                f'      tl.set("{f"#{el_id}"}", {{ visibility: "hidden" }}, {round(in_pt + dur, 4)});'
+            )
 
     # Generate GSAP tweens from keyframes
     for prop_name in ["scale", "opacity", "rotation", "position"]:
