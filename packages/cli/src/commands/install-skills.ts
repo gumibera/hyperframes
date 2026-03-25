@@ -141,10 +141,16 @@ function installSkillsFromDir(
 // Programmatic API — used by init command
 // ---------------------------------------------------------------------------
 
-export async function installAllSkills(): Promise<{ count: number; targets: string[] }> {
+export { TARGETS };
+
+export async function installAllSkills(
+  targetNames?: string[],
+): Promise<{ count: number; targets: string[] }> {
   if (!hasGit()) return { count: 0, targets: [] };
 
-  const targets = TARGETS.filter((t) => t.defaultEnabled);
+  const targets = targetNames
+    ? TARGETS.filter((t) => targetNames.includes(t.flag))
+    : TARGETS.filter((t) => t.defaultEnabled);
   let totalCount = 0;
 
   // Fetch sources

@@ -21,11 +21,38 @@ import { trackInitTemplate } from "../telemetry/events.js";
 // ---------------------------------------------------------------------------
 
 async function installSkills(interactive: boolean): Promise<void> {
-  const spin = interactive ? clack.spinner() : null;
-  spin?.start("Installing AI coding skills...");
   try {
-    const { installAllSkills } = await import("./install-skills.js");
-    const result = await installAllSkills();
+    const { installAllSkills, TARGETS } = await import("./install-skills.js");
+
+    let selectedTargets: string[] | undefined;
+
+    if (interactive) {
+      const choices = await clack.multiselect({
+        message: "Install AI coding skills for:",
+        options: TARGETS.map((t) => ({
+          value: t.flag,
+          label: t.name,
+          hint: t.dir,
+        })),
+        initialValues: TARGETS.filter((t) => t.defaultEnabled).map((t) => t.flag),
+        required: false,
+      });
+
+      if (clack.isCancel(choices)) {
+        return;
+      }
+
+      selectedTargets = choices as string[];
+      if (selectedTargets.length === 0) {
+        clack.log.info(c.dim("Skipping skills installation"));
+        return;
+      }
+    }
+
+    const spin = interactive ? clack.spinner() : null;
+    spin?.start("Installing AI coding skills...");
+
+    const result = await installAllSkills(selectedTargets);
     if (result.count > 0) {
       const msg = `${result.count} AI skills installed (${result.targets.join(", ")})`;
       if (spin) {
@@ -37,7 +64,9 @@ async function installSkills(interactive: boolean): Promise<void> {
       spin?.stop(c.dim("No skills installed"));
     }
   } catch {
-    spin?.stop(c.dim("Skills install skipped (no git or network)"));
+    if (interactive) {
+      clack.log.warn(c.dim("Skills install skipped (no git or network)"));
+    }
   }
 }
 
