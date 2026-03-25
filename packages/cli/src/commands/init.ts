@@ -16,6 +16,19 @@ import { c } from "../ui/colors.js";
 import { TEMPLATES, type TemplateId } from "../templates/generators.js";
 import { trackInitTemplate } from "../telemetry/events.js";
 
+// ---------------------------------------------------------------------------
+// Install skills silently after scaffolding
+// ---------------------------------------------------------------------------
+
+async function installSkills(): Promise<void> {
+  try {
+    const skillsCmd = await import("./install-skills.js").then((m) => m.default);
+    await runCommand(skillsCmd, { rawArgs: [] });
+  } catch {
+    // Skills install is best-effort — don't block project creation
+  }
+}
+
 const ALL_TEMPLATE_IDS = TEMPLATES.map((t) => t.id);
 
 interface VideoMeta {
@@ -388,6 +401,7 @@ export default defineCommand({
 
       scaffoldProject(destDir, basename(destDir), templateId, localVideoName);
       trackInitTemplate(templateId);
+      await installSkills();
 
       console.log(c.success(`\nCreated ${c.accent(name + "/")}`));
       for (const f of readdirSync(destDir)) {
@@ -508,6 +522,9 @@ export default defineCommand({
     // 4. Copy template and patch
     scaffoldProject(destDir, name, templateId, localVideoName);
     trackInitTemplate(templateId);
+
+    // 5. Install AI coding skills
+    await installSkills();
 
     const files = readdirSync(destDir);
     clack.note(files.map((f) => c.accent(f)).join("\n"), c.success(`Created ${name}/`));
