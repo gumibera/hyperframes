@@ -229,6 +229,44 @@ function patchVideoSrc(dir: string, videoFilename: string | undefined): void {
   }
 }
 
+function patchTranscript(dir: string, transcriptPath: string): void {
+  // Read the whisper transcript and normalize to [{text, start, end}]
+  const raw = JSON.parse(readFileSync(transcriptPath, "utf-8"));
+  const words: { text: string; start: number; end: number }[] = [];
+  for (const seg of raw.transcription ?? []) {
+    for (const token of seg.tokens ?? []) {
+      const text = (token.text ?? "").trim();
+      if (!text) continue;
+      words.push({
+        text,
+        start: Math.round((token.offsets.from / 1000) * 1000) / 1000,
+        end: Math.round((token.offsets.to / 1000) * 1000) / 1000,
+      });
+    }
+  }
+
+  if (words.length === 0) return;
+
+  const wordsJson = JSON.stringify(words, null, 10)
+    .replace(/^\[/, "[")
+    .replace(/\n {10}/g, "\n          ");
+
+  // Find captions HTML files and replace the hardcoded script array
+  const htmlFiles = readdirSync(dir, { withFileTypes: true, recursive: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".html"))
+    .map((e) => join(e.parentPath ?? e.path, e.name));
+
+  for (const file of htmlFiles) {
+    let content = readFileSync(file, "utf-8");
+    // Match: const script = [ ... ]; (the hardcoded word array in captions)
+    const match = content.match(/const script = \[[\s\S]*?\];/);
+    if (match) {
+      content = content.replace(match[0], `const script = ${wordsJson};`);
+      writeFileSync(file, content, "utf-8");
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // handleVideoFile — probe, check codec, optionally transcode, copy to destDir
 // ---------------------------------------------------------------------------
@@ -446,6 +484,10 @@ export default defineCommand({
 
       scaffoldProject(destDir, basename(destDir), templateId, localVideoName);
       trackInitTemplate(templateId);
+      const nonInteractiveTranscript = resolve(destDir, "transcript.json");
+      if (existsSync(nonInteractiveTranscript)) {
+        patchTranscript(destDir, nonInteractiveTranscript);
+      }
       if (!skipSkills) {
         await installSkills(false);
       }
@@ -574,12 +616,12 @@ export default defineCommand({
 
           spin.message("Transcribing audio...");
           const { transcribe: runTranscribe } = await import("../whisper/transcribe.js");
-          const result = await runTranscribe(sourceFilePath, destDir, {
+          const transcribeResult = await runTranscribe(sourceFilePath, destDir, {
             onProgress: (msg) => spin.message(msg),
           });
           spin.stop(
             c.success(
-              `Transcribed ${result.wordCount} words (${result.durationSeconds.toFixed(1)}s)`,
+              `Transcribed ${transcribeResult.wordCount} words (${transcribeResult.durationSeconds.toFixed(1)}s)`,
             ),
           );
         } catch (err) {
@@ -608,6 +650,12 @@ export default defineCommand({
     // 4. Copy template and patch
     scaffoldProject(destDir, name, templateId, localVideoName);
     trackInitTemplate(templateId);
+
+    // 4b. Patch captions with transcript if available
+    const transcriptFile = resolve(destDir, "transcript.json");
+    if (existsSync(transcriptFile)) {
+      patchTranscript(destDir, transcriptFile);
+    }
 
     // 5. Install AI coding skills
     if (!skipSkills) {

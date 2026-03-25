@@ -1,0 +1,1277 @@
+<template id="stats-template">
+  <div
+    data-composition-id="stats"
+    data-width="1920"
+    data-height="1080"
+    data-duration="30.72"
+  >
+    <div id="stats-container">
+      <!-- Moment 1: 47% NEED MOTION GRAPHICS -->
+      <div id="moment-1" class="moment" style="opacity: 0; transform: scale(0) rotate(8deg)">
+        <div class="sticker-stack">
+          <div class="sticker-bg blue-bg"></div>
+          <div class="sticker-content white-bg blue-border">
+            <div class="stat-number blue-text">47%</div>
+            <div class="stat-label blue-text">NEED MOTION GRAPHICS</div>
+          </div>
+        </div>
+        <!-- Decorative shapes -->
+        <div
+          class="shape circle pink-bg"
+          style="top: -40px; left: -40px; width: 80px; height: 80px"
+        ></div>
+        <div
+          class="shape pill lime-bg"
+          style="bottom: -30px; right: -50px; width: 120px; height: 40px; transform: rotate(-15deg)"
+        ></div>
+      </div>
+
+      <!-- Moment 2: 62% STRUGGLE WITH STATIC CONTENT -->
+      <div id="moment-2" class="moment" style="opacity: 0; transform: scale(0) rotate(-5deg)">
+        <div class="sticker-stack">
+          <div class="sticker-bg white-bg"></div>
+          <div class="sticker-content blue-bg white-border">
+            <div class="stat-number white-text">62%</div>
+            <div class="stat-label white-text">STRUGGLE WITH STATIC CONTENT</div>
+          </div>
+        </div>
+        <!-- Decorative shapes -->
+        <div
+          class="shape blob yellow-bg"
+          style="
+            top: -50px;
+            right: -30px;
+            width: 100px;
+            height: 100px;
+            border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+          "
+        ></div>
+        <div
+          class="shape circle pink-bg"
+          style="bottom: -20px; left: -40px; width: 60px; height: 60px"
+        ></div>
+      </div>
+
+      <!-- Moment 3: 75% LACK EDITING SKILLS -->
+      <div id="moment-3" class="moment" style="opacity: 0; transform: scale(0) rotate(3deg)">
+        <div class="sticker-stack">
+          <div class="sticker-bg pink-bg"></div>
+          <div class="sticker-content white-bg pink-border">
+            <div class="stat-number pink-text">75%</div>
+            <div class="stat-label pink-text">LACK EDITING SKILLS</div>
+          </div>
+        </div>
+        <!-- Decorative shapes -->
+        <div
+          class="shape pill blue-bg"
+          style="
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%) rotate(5deg);
+            width: 150px;
+            height: 45px;
+          "
+        ></div>
+        <div
+          class="shape circle yellow-bg"
+          style="bottom: -40px; right: -20px; width: 90px; height: 90px"
+        ></div>
+      </div>
+    </div>
+
+    <style>
+      [data-composition-id="stats"] {
+        width: 1920px;
+        height: 1080px;
+        position: relative;
+        font-family: "Nunito", sans-serif;
+        overflow: hidden;
+      }
+
+      [data-composition-id="stats"] #stats-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      [data-composition-id="stats"] .moment {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        z-index: 100;
+      }
+
+      /* Layout Positions */
+      [data-composition-id="stats"] #moment-1 {
+        top: 200px;
+        right: 150px; /* Right side when A-roll is Left */
+        width: 600px;
+      }
+
+      [data-composition-id="stats"] #moment-2 {
+        top: 250px;
+        left: 100px; /* Left side when A-roll is Right */
+        width: 700px;
+      }
+
+      [data-composition-id="stats"] #moment-3 {
+        bottom: 100px; /* Below A-roll when centered */
+        left: 50%;
+        transform: translateX(-50%);
+        width: 800px;
+      }
+
+      /* Sticker Stack Effect */
+      [data-composition-id="stats"] .sticker-stack {
+        position: relative;
+        width: 100%;
+        padding: 40px;
+        filter: drop-shadow(0 15px 0 rgba(0, 87, 255, 0.2));
+      }
+
+      [data-composition-id="stats"] .sticker-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 40px;
+        z-index: -1;
+        transform: rotate(-2deg);
+      }
+
+      [data-composition-id="stats"] .sticker-content {
+        position: relative;
+        padding: 40px;
+        border-radius: 35px;
+        border: 8px solid currentColor;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      /* Colors */
+      [data-composition-id="stats"] .blue-bg {
+        background-color: #0057ff;
+      }
+      [data-composition-id="stats"] .pink-bg {
+        background-color: #ff2d8a;
+      }
+      [data-composition-id="stats"] .lime-bg {
+        background-color: #7fff00;
+      }
+      [data-composition-id="stats"] .yellow-bg {
+        background-color: #ffe500;
+      }
+      [data-composition-id="stats"] .white-bg {
+        background-color: #ffffff;
+      }
+
+      [data-composition-id="stats"] .blue-text {
+        color: #0057ff;
+      }
+      [data-composition-id="stats"] .white-text {
+        color: #ffffff;
+      }
+      [data-composition-id="stats"] .pink-text {
+        color: #ff2d8a;
+      }
+
+      [data-composition-id="stats"] .blue-border {
+        border-color: #0057ff;
+      }
+      [data-composition-id="stats"] .white-border {
+        border-color: #ffffff;
+      }
+      [data-composition-id="stats"] .pink-border {
+        border-color: #ff2d8a;
+      }
+
+      /* Typography */
+      [data-composition-id="stats"] .stat-number {
+        font-size: 180px;
+        font-weight: 900;
+        line-height: 1;
+        margin-bottom: 10px;
+      }
+
+      [data-composition-id="stats"] .stat-label {
+        font-size: 48px;
+        font-weight: 900;
+        line-height: 1.1;
+        max-width: 500px;
+      }
+
+      /* Shapes */
+      [data-composition-id="stats"] .shape {
+        position: absolute;
+        z-index: -2;
+        border-radius: 50%;
+      }
+      [data-composition-id="stats"] .pill {
+        border-radius: 100px;
+      }
+    </style>
+
+    <script>
+      (function () {
+        const TRANSCRIPT = [
+          {
+                    "text": "H",
+                    "start": 0.09,
+                    "end": 0.25
+          },
+          {
+                    "text": "ola!",
+                    "start": 0.25,
+                    "end": 1
+          },
+          {
+                    "text": "H",
+                    "start": 1.09,
+                    "end": 1.14
+          },
+          {
+                    "text": "aha!",
+                    "start": 1.14,
+                    "end": 1.96
+          },
+          {
+                    "text": "What",
+                    "start": 2.09,
+                    "end": 2.22
+          },
+          {
+                    "text": "are",
+                    "start": 2.22,
+                    "end": 2.34
+          },
+          {
+                    "text": "you",
+                    "start": 2.54,
+                    "end": 2.54
+          },
+          {
+                    "text": "doing?",
+                    "start": 2.72,
+                    "end": 2.96
+          },
+          {
+                    "text": "I",
+                    "start": 3.06,
+                    "end": 3.06
+          },
+          {
+                    "text": "'m",
+                    "start": 3.09,
+                    "end": 3.18
+          },
+          {
+                    "text": "not",
+                    "start": 3.18,
+                    "end": 3.35
+          },
+          {
+                    "text": "going",
+                    "start": 3.35,
+                    "end": 3.37
+          },
+          {
+                    "text": "to",
+                    "start": 3.72,
+                    "end": 3.78
+          },
+          {
+                    "text": "tell",
+                    "start": 3.78,
+                    "end": 3.96
+          },
+          {
+                    "text": "you",
+                    "start": 4.13,
+                    "end": 4.19
+          },
+          {
+                    "text": "what",
+                    "start": 4.19,
+                    "end": 4.44
+          },
+          {
+                    "text": "'s",
+                    "start": 4.44,
+                    "end": 4.48
+          },
+          {
+                    "text": "going",
+                    "start": 4.64,
+                    "end": 4.86
+          },
+          {
+                    "text": "on",
+                    "start": 4.86,
+                    "end": 5
+          },
+          {
+                    "text": "today,",
+                    "start": 5,
+                    "end": 5.68
+          },
+          {
+                    "text": "but",
+                    "start": 5.69,
+                    "end": 6
+          },
+          {
+                    "text": "I",
+                    "start": 6,
+                    "end": 6.01
+          },
+          {
+                    "text": "'m",
+                    "start": 6.07,
+                    "end": 6.11
+          },
+          {
+                    "text": "not",
+                    "start": 6.12,
+                    "end": 6.2
+          },
+          {
+                    "text": "going",
+                    "start": 6.25,
+                    "end": 6.44
+          },
+          {
+                    "text": "to",
+                    "start": 6.44,
+                    "end": 6.52
+          },
+          {
+                    "text": "tell",
+                    "start": 6.52,
+                    "end": 6.68
+          },
+          {
+                    "text": "you",
+                    "start": 6.68,
+                    "end": 6.8
+          },
+          {
+                    "text": "what",
+                    "start": 6.8,
+                    "end": 7
+          },
+          {
+                    "text": "'s",
+                    "start": 7,
+                    "end": 7
+          },
+          {
+                    "text": "going",
+                    "start": 7.09,
+                    "end": 7.33
+          },
+          {
+                    "text": "on",
+                    "start": 7.33,
+                    "end": 7.36
+          },
+          {
+                    "text": "today.",
+                    "start": 7.72,
+                    "end": 7.96
+          },
+          {
+                    "text": "I",
+                    "start": 8.05,
+                    "end": 8.05
+          },
+          {
+                    "text": "'m",
+                    "start": 8.09,
+                    "end": 8.15
+          },
+          {
+                    "text": "going",
+                    "start": 8.15,
+                    "end": 8.36
+          },
+          {
+                    "text": "to",
+                    "start": 8.51,
+                    "end": 8.51
+          },
+          {
+                    "text": "tell",
+                    "start": 8.72,
+                    "end": 8.72
+          },
+          {
+                    "text": "you",
+                    "start": 8.72,
+                    "end": 8.82
+          },
+          {
+                    "text": "what",
+                    "start": 8.89,
+                    "end": 8.96
+          },
+          {
+                    "text": "'s",
+                    "start": 9.1,
+                    "end": 9.18
+          },
+          {
+                    "text": "going",
+                    "start": 9.18,
+                    "end": 9.44
+          },
+          {
+                    "text": "on",
+                    "start": 9.44,
+                    "end": 9.52
+          },
+          {
+                    "text": "today.",
+                    "start": 9.64,
+                    "end": 10
+          },
+          {
+                    "text": "I",
+                    "start": 10.05,
+                    "end": 10.05
+          },
+          {
+                    "text": "'m",
+                    "start": 10.09,
+                    "end": 10.15
+          },
+          {
+                    "text": "going",
+                    "start": 10.15,
+                    "end": 10.36
+          },
+          {
+                    "text": "to",
+                    "start": 10.51,
+                    "end": 10.51
+          },
+          {
+                    "text": "tell",
+                    "start": 10.72,
+                    "end": 10.72
+          },
+          {
+                    "text": "you",
+                    "start": 10.72,
+                    "end": 10.82
+          },
+          {
+                    "text": "what",
+                    "start": 10.89,
+                    "end": 10.96
+          },
+          {
+                    "text": "'s",
+                    "start": 11.1,
+                    "end": 11.18
+          },
+          {
+                    "text": "going",
+                    "start": 11.18,
+                    "end": 11.44
+          },
+          {
+                    "text": "on",
+                    "start": 11.44,
+                    "end": 11.52
+          },
+          {
+                    "text": "today.",
+                    "start": 11.64,
+                    "end": 12
+          },
+          {
+                    "text": "I",
+                    "start": 12.02,
+                    "end": 12.02
+          },
+          {
+                    "text": "'m",
+                    "start": 12.07,
+                    "end": 12.07
+          },
+          {
+                    "text": "going",
+                    "start": 12.09,
+                    "end": 12.2
+          },
+          {
+                    "text": "to",
+                    "start": 12.2,
+                    "end": 12.25
+          },
+          {
+                    "text": "tell",
+                    "start": 12.25,
+                    "end": 12.34
+          },
+          {
+                    "text": "you",
+                    "start": 12.34,
+                    "end": 12.37
+          },
+          {
+                    "text": "what",
+                    "start": 12.52,
+                    "end": 12.52
+          },
+          {
+                    "text": "'s",
+                    "start": 12.52,
+                    "end": 12.57
+          },
+          {
+                    "text": "going",
+                    "start": 12.7,
+                    "end": 12.7
+          },
+          {
+                    "text": "on",
+                    "start": 12.72,
+                    "end": 12.75
+          },
+          {
+                    "text": "today.",
+                    "start": 12.75,
+                    "end": 12.96
+          },
+          {
+                    "text": "I",
+                    "start": 13.02,
+                    "end": 13.02
+          },
+          {
+                    "text": "'m",
+                    "start": 13.07,
+                    "end": 13.07
+          },
+          {
+                    "text": "going",
+                    "start": 13.09,
+                    "end": 13.2
+          },
+          {
+                    "text": "to",
+                    "start": 13.2,
+                    "end": 13.25
+          },
+          {
+                    "text": "tell",
+                    "start": 13.25,
+                    "end": 13.34
+          },
+          {
+                    "text": "you",
+                    "start": 13.34,
+                    "end": 13.37
+          },
+          {
+                    "text": "what",
+                    "start": 13.52,
+                    "end": 13.52
+          },
+          {
+                    "text": "'s",
+                    "start": 13.52,
+                    "end": 13.57
+          },
+          {
+                    "text": "going",
+                    "start": 13.7,
+                    "end": 13.7
+          },
+          {
+                    "text": "on",
+                    "start": 13.72,
+                    "end": 13.75
+          },
+          {
+                    "text": "today.",
+                    "start": 13.75,
+                    "end": 13.96
+          },
+          {
+                    "text": "I",
+                    "start": 14.05,
+                    "end": 14.05
+          },
+          {
+                    "text": "'m",
+                    "start": 14.09,
+                    "end": 14.15
+          },
+          {
+                    "text": "going",
+                    "start": 14.15,
+                    "end": 14.36
+          },
+          {
+                    "text": "to",
+                    "start": 14.51,
+                    "end": 14.51
+          },
+          {
+                    "text": "tell",
+                    "start": 14.72,
+                    "end": 14.72
+          },
+          {
+                    "text": "you",
+                    "start": 14.72,
+                    "end": 14.82
+          },
+          {
+                    "text": "what",
+                    "start": 14.89,
+                    "end": 14.96
+          },
+          {
+                    "text": "'s",
+                    "start": 15.1,
+                    "end": 15.18
+          },
+          {
+                    "text": "going",
+                    "start": 15.18,
+                    "end": 15.44
+          },
+          {
+                    "text": "on",
+                    "start": 15.44,
+                    "end": 15.52
+          },
+          {
+                    "text": "today.",
+                    "start": 15.64,
+                    "end": 16
+          },
+          {
+                    "text": "I",
+                    "start": 16.02,
+                    "end": 16.02
+          },
+          {
+                    "text": "'m",
+                    "start": 16.07,
+                    "end": 16.07
+          },
+          {
+                    "text": "going",
+                    "start": 16.09,
+                    "end": 16.2
+          },
+          {
+                    "text": "to",
+                    "start": 16.2,
+                    "end": 16.25
+          },
+          {
+                    "text": "tell",
+                    "start": 16.25,
+                    "end": 16.34
+          },
+          {
+                    "text": "you",
+                    "start": 16.34,
+                    "end": 16.37
+          },
+          {
+                    "text": "what",
+                    "start": 16.52,
+                    "end": 16.52
+          },
+          {
+                    "text": "'s",
+                    "start": 16.52,
+                    "end": 16.57
+          },
+          {
+                    "text": "going",
+                    "start": 16.7,
+                    "end": 16.7
+          },
+          {
+                    "text": "on",
+                    "start": 16.72,
+                    "end": 16.75
+          },
+          {
+                    "text": "today.",
+                    "start": 16.75,
+                    "end": 16.96
+          },
+          {
+                    "text": "I",
+                    "start": 17.02,
+                    "end": 17.02
+          },
+          {
+                    "text": "'m",
+                    "start": 17.07,
+                    "end": 17.07
+          },
+          {
+                    "text": "going",
+                    "start": 17.09,
+                    "end": 17.2
+          },
+          {
+                    "text": "to",
+                    "start": 17.2,
+                    "end": 17.25
+          },
+          {
+                    "text": "tell",
+                    "start": 17.25,
+                    "end": 17.34
+          },
+          {
+                    "text": "you",
+                    "start": 17.34,
+                    "end": 17.37
+          },
+          {
+                    "text": "what",
+                    "start": 17.52,
+                    "end": 17.52
+          },
+          {
+                    "text": "'s",
+                    "start": 17.52,
+                    "end": 17.57
+          },
+          {
+                    "text": "going",
+                    "start": 17.7,
+                    "end": 17.7
+          },
+          {
+                    "text": "on",
+                    "start": 17.72,
+                    "end": 17.75
+          },
+          {
+                    "text": "today.",
+                    "start": 17.75,
+                    "end": 17.96
+          },
+          {
+                    "text": "I",
+                    "start": 18.02,
+                    "end": 18.02
+          },
+          {
+                    "text": "'m",
+                    "start": 18.07,
+                    "end": 18.07
+          },
+          {
+                    "text": "going",
+                    "start": 18.09,
+                    "end": 18.2
+          },
+          {
+                    "text": "to",
+                    "start": 18.2,
+                    "end": 18.25
+          },
+          {
+                    "text": "tell",
+                    "start": 18.25,
+                    "end": 18.34
+          },
+          {
+                    "text": "you",
+                    "start": 18.34,
+                    "end": 18.37
+          },
+          {
+                    "text": "what",
+                    "start": 18.52,
+                    "end": 18.52
+          },
+          {
+                    "text": "'s",
+                    "start": 18.52,
+                    "end": 18.57
+          },
+          {
+                    "text": "going",
+                    "start": 18.7,
+                    "end": 18.7
+          },
+          {
+                    "text": "on",
+                    "start": 18.72,
+                    "end": 18.75
+          },
+          {
+                    "text": "today.",
+                    "start": 18.75,
+                    "end": 18.96
+          },
+          {
+                    "text": "I",
+                    "start": 19.02,
+                    "end": 19.02
+          },
+          {
+                    "text": "'m",
+                    "start": 19.07,
+                    "end": 19.07
+          },
+          {
+                    "text": "going",
+                    "start": 19.09,
+                    "end": 19.2
+          },
+          {
+                    "text": "to",
+                    "start": 19.2,
+                    "end": 19.25
+          },
+          {
+                    "text": "tell",
+                    "start": 19.25,
+                    "end": 19.34
+          },
+          {
+                    "text": "you",
+                    "start": 19.34,
+                    "end": 19.37
+          },
+          {
+                    "text": "what",
+                    "start": 19.52,
+                    "end": 19.52
+          },
+          {
+                    "text": "'s",
+                    "start": 19.52,
+                    "end": 19.57
+          },
+          {
+                    "text": "going",
+                    "start": 19.7,
+                    "end": 19.7
+          },
+          {
+                    "text": "on",
+                    "start": 19.72,
+                    "end": 19.75
+          },
+          {
+                    "text": "today.",
+                    "start": 19.75,
+                    "end": 19.96
+          },
+          {
+                    "text": "I",
+                    "start": 20.02,
+                    "end": 20.02
+          },
+          {
+                    "text": "'m",
+                    "start": 20.07,
+                    "end": 20.07
+          },
+          {
+                    "text": "going",
+                    "start": 20.09,
+                    "end": 20.2
+          },
+          {
+                    "text": "to",
+                    "start": 20.2,
+                    "end": 20.25
+          },
+          {
+                    "text": "tell",
+                    "start": 20.25,
+                    "end": 20.34
+          },
+          {
+                    "text": "you",
+                    "start": 20.34,
+                    "end": 20.37
+          },
+          {
+                    "text": "what",
+                    "start": 20.52,
+                    "end": 20.52
+          },
+          {
+                    "text": "'s",
+                    "start": 20.52,
+                    "end": 20.57
+          },
+          {
+                    "text": "going",
+                    "start": 20.7,
+                    "end": 20.7
+          },
+          {
+                    "text": "on",
+                    "start": 20.72,
+                    "end": 20.75
+          },
+          {
+                    "text": "today.",
+                    "start": 20.75,
+                    "end": 20.96
+          },
+          {
+                    "text": "I",
+                    "start": 21.02,
+                    "end": 21.02
+          },
+          {
+                    "text": "'m",
+                    "start": 21.07,
+                    "end": 21.07
+          },
+          {
+                    "text": "going",
+                    "start": 21.09,
+                    "end": 21.2
+          },
+          {
+                    "text": "to",
+                    "start": 21.2,
+                    "end": 21.25
+          },
+          {
+                    "text": "tell",
+                    "start": 21.25,
+                    "end": 21.34
+          },
+          {
+                    "text": "you",
+                    "start": 21.34,
+                    "end": 21.37
+          },
+          {
+                    "text": "what",
+                    "start": 21.52,
+                    "end": 21.52
+          },
+          {
+                    "text": "'s",
+                    "start": 21.52,
+                    "end": 21.57
+          },
+          {
+                    "text": "going",
+                    "start": 21.7,
+                    "end": 21.7
+          },
+          {
+                    "text": "on",
+                    "start": 21.72,
+                    "end": 21.75
+          },
+          {
+                    "text": "today.",
+                    "start": 21.75,
+                    "end": 21.96
+          },
+          {
+                    "text": "I",
+                    "start": 22.02,
+                    "end": 22.02
+          },
+          {
+                    "text": "'m",
+                    "start": 22.07,
+                    "end": 22.07
+          },
+          {
+                    "text": "going",
+                    "start": 22.09,
+                    "end": 22.2
+          },
+          {
+                    "text": "to",
+                    "start": 22.2,
+                    "end": 22.25
+          },
+          {
+                    "text": "tell",
+                    "start": 22.25,
+                    "end": 22.34
+          },
+          {
+                    "text": "you",
+                    "start": 22.34,
+                    "end": 22.37
+          },
+          {
+                    "text": "what",
+                    "start": 22.52,
+                    "end": 22.52
+          },
+          {
+                    "text": "'s",
+                    "start": 22.52,
+                    "end": 22.57
+          },
+          {
+                    "text": "going",
+                    "start": 22.7,
+                    "end": 22.7
+          },
+          {
+                    "text": "on",
+                    "start": 22.72,
+                    "end": 22.75
+          },
+          {
+                    "text": "today.",
+                    "start": 22.75,
+                    "end": 22.96
+          },
+          {
+                    "text": "I",
+                    "start": 23.09,
+                    "end": 23.21
+          },
+          {
+                    "text": "'m",
+                    "start": 23.21,
+                    "end": 23.36
+          },
+          {
+                    "text": "going",
+                    "start": 23.72,
+                    "end": 24.68
+          },
+          {
+                    "text": "to",
+                    "start": 24.68,
+                    "end": 25.09
+          },
+          {
+                    "text": "tell",
+                    "start": 25.09,
+                    "end": 25.94
+          },
+          {
+                    "text": "you",
+                    "start": 25.94,
+                    "end": 26.57
+          },
+          {
+                    "text": "what",
+                    "start": 26.57,
+                    "end": 27.41
+          },
+          {
+                    "text": "'s",
+                    "start": 27.41,
+                    "end": 27.83
+          },
+          {
+                    "text": "going",
+                    "start": 27.83,
+                    "end": 28.86
+          },
+          {
+                    "text": "on",
+                    "start": 28.93,
+                    "end": 29.3
+          },
+          {
+                    "text": "today.",
+                    "start": 29.3,
+                    "end": 31
+          },
+          {
+                    "text": "I",
+                    "start": 31.09,
+                    "end": 31.18
+          },
+          {
+                    "text": "'m",
+                    "start": 31.18,
+                    "end": 31.36
+          },
+          {
+                    "text": "going",
+                    "start": 31.72,
+                    "end": 32.46
+          },
+          {
+                    "text": "to",
+                    "start": 32.63,
+                    "end": 32.82
+          },
+          {
+                    "text": "tell",
+                    "start": 32.82,
+                    "end": 33.46
+          },
+          {
+                    "text": "you",
+                    "start": 33.57,
+                    "end": 34.1
+          },
+          {
+                    "text": "what",
+                    "start": 34.1,
+                    "end": 34.83
+          },
+          {
+                    "text": "'s",
+                    "start": 34.83,
+                    "end": 35.19
+          },
+          {
+                    "text": "going",
+                    "start": 35.19,
+                    "end": 36.11
+          },
+          {
+                    "text": "on",
+                    "start": 36.11,
+                    "end": 36.47
+          },
+          {
+                    "text": "today.",
+                    "start": 36.47,
+                    "end": 37.99
+          }
+];
+        const tl = gsap.timeline({ paused: true });
+
+        // Helper to find word timing
+        function getWordTime(wordText) {
+          const word = TRANSCRIPT.find((w) =>
+            w.text
+              .toLowerCase()
+              .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+              .startsWith(wordText.toLowerCase()),
+          );
+          return word ? word.start : null;
+        }
+
+        // Timings from transcript
+        const t1 = getWordTime("Forty-seven") || 1.839;
+        const t2 = getWordTime("Sixty-two") || 4.659;
+        const t3 = getWordTime("three") || 8.88;
+
+        // Moment 1 Animation (approx 5s)
+        tl.to(
+          "#moment-1",
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.8,
+            ease: "elastic.out(1, 0.6)",
+            onStart: () => gsap.set("#moment-1", { transformOrigin: "center center" }),
+          },
+          t1,
+        );
+
+        // Moment 1 Exit (before Moment 2)
+        tl.to(
+          "#moment-1",
+          {
+            opacity: 0,
+            scale: 0.5,
+            duration: 0.3,
+            ease: "back.in(1.7)",
+          },
+          t2 - 0.4,
+        );
+
+        // Moment 2 Animation (approx 9s)
+        tl.to(
+          "#moment-2",
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.8,
+            ease: "elastic.out(1, 0.6)",
+            onStart: () => gsap.set("#moment-2", { transformOrigin: "center center" }),
+          },
+          t2,
+        );
+
+        // Moment 2 Exit (before Moment 3)
+        tl.to(
+          "#moment-2",
+          {
+            opacity: 0,
+            scale: 0.5,
+            duration: 0.3,
+            ease: "back.in(1.7)",
+          },
+          t3 - 0.4,
+        );
+
+        // Moment 3 Animation (approx 13s)
+        tl.to(
+          "#moment-3",
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.8,
+            ease: "elastic.out(1, 0.6)",
+            onStart: () => gsap.set("#moment-3", { transformOrigin: "center center" }),
+          },
+          t3,
+        );
+
+        // Moment 3 Exit: 3 words before 'Hyperframes'
+        // 'Editor' is at 15.079. 3 words before is 'So' at 14.239.
+        tl.to(
+          "#moment-3",
+          {
+            opacity: 0,
+            scale: 0.5,
+            duration: 0.3,
+            ease: "back.in(1.7)",
+          },
+          14.239,
+        );
+
+        // Ambient Motion (Finite)
+        const totalDuration = 16.04;
+        gsap.utils.toArray(".shape").forEach((shape, i) => {
+          const stepDuration = 2 + i * 0.2;
+          const steps = Math.ceil(totalDuration / stepDuration);
+          for (let s = 0; s < steps; s++) {
+            tl.to(
+              shape,
+              {
+                y: s % 2 === 0 ? 15 : -15,
+                rotation: s % 2 === 0 ? 5 : -5,
+                duration: stepDuration,
+                ease: "sine.inOut",
+              },
+              s * stepDuration,
+            );
+          }
+        });
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["stats"] = tl;
+      })();
+    </script>
+  </div>
+</template>
