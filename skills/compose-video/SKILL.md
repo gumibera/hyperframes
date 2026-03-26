@@ -18,6 +18,8 @@ Before writing HTML, think at a high level:
 
 For small edits (fix a color, adjust timing, add one element), skip straight to the rules.
 
+When no `visual-style.md` or animation direction is provided, follow [house-style.md](./house-style.md) for motion defaults, sizing, and color palettes.
+
 ## Data Attributes
 
 ### All Clips
