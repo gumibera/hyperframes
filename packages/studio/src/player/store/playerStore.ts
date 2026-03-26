@@ -11,16 +11,9 @@ export interface TimelineElement {
   volume?: number;
   /** Path from data-composition-src — identifies sub-composition elements */
   compositionSrc?: string;
-  /** Agent that created/last edited this element */
-  agentId?: string;
-  /** Agent's color for ownership visualization */
-  agentColor?: string;
 }
 
-/** Map of elementId → agentColor for clips currently being edited */
-export interface ActiveEdits {
-  [elementId: string]: { agentId: string; agentColor: string };
-}
+export type ZoomMode = "fit" | "manual";
 
 interface PlayerState {
   isPlaying: boolean;
@@ -29,9 +22,15 @@ interface PlayerState {
   timelineReady: boolean;
   elements: TimelineElement[];
   selectedElementId: string | null;
-  /** Clips currently being edited by agents — for glow animation */
-  activeEdits: ActiveEdits;
   playbackRate: number;
+  /** Timeline zoom: 'fit' auto-scales to viewport, 'manual' uses pixelsPerSecond */
+  zoomMode: ZoomMode;
+  /** Pixels per second when in manual zoom mode */
+  pixelsPerSecond: number;
+  /** Edit range selection */
+  editRangeStart: number | null;
+  editRangeEnd: number | null;
+  editMode: boolean;
 
   setIsPlaying: (playing: boolean) => void;
   setCurrentTime: (time: number) => void;
@@ -40,8 +39,17 @@ interface PlayerState {
   setTimelineReady: (ready: boolean) => void;
   setElements: (elements: TimelineElement[]) => void;
   setSelectedElementId: (id: string | null) => void;
-  setActiveEdits: (edits: ActiveEdits) => void;
+  setEditRange: (start: number | null, end: number | null) => void;
+  setEditMode: (active: boolean) => void;
   updateElementStart: (elementId: string, newStart: number) => void;
+  updateElementDuration: (elementId: string, newDuration: number) => void;
+  updateElementTrack: (elementId: string, newTrack: number) => void;
+  updateElement: (
+    elementId: string,
+    updates: Partial<Pick<TimelineElement, "start" | "duration" | "track">>,
+  ) => void;
+  setZoomMode: (mode: ZoomMode) => void;
+  setPixelsPerSecond: (pps: number) => void;
   reset: () => void;
 }
 
@@ -65,20 +73,41 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   timelineReady: false,
   elements: [],
   selectedElementId: null,
-  activeEdits: {},
   playbackRate: 1,
+  zoomMode: "fit",
+  pixelsPerSecond: 100,
+  editRangeStart: null,
+  editRangeEnd: null,
+  editMode: false,
 
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
-  setCurrentTime: (time) => set({ currentTime: time }),
-  setDuration: (duration) => set({ duration }),
+  setZoomMode: (mode) => set({ zoomMode: mode }),
+  setPixelsPerSecond: (pps) => set({ pixelsPerSecond: Math.max(10, pps) }),
+  setCurrentTime: (time) => set({ currentTime: Number.isFinite(time) ? time : 0 }),
+  setDuration: (duration) => set({ duration: Number.isFinite(duration) ? duration : 0 }),
   setTimelineReady: (ready) => set({ timelineReady: ready }),
   setElements: (elements) => set({ elements }),
   setSelectedElementId: (id) => set({ selectedElementId: id }),
-  setActiveEdits: (edits) => set({ activeEdits: edits }),
+  setEditRange: (start, end) => set({ editRangeStart: start, editRangeEnd: end }),
+  setEditMode: (active) => set({ editMode: active, editRangeStart: null, editRangeEnd: null }),
   updateElementStart: (elementId, newStart) =>
     set((state) => ({
       elements: state.elements.map((el) => (el.id === elementId ? { ...el, start: newStart } : el)),
+    })),
+  updateElementDuration: (elementId, newDuration) =>
+    set((state) => ({
+      elements: state.elements.map((el) =>
+        el.id === elementId ? { ...el, duration: newDuration } : el,
+      ),
+    })),
+  updateElementTrack: (elementId, newTrack) =>
+    set((state) => ({
+      elements: state.elements.map((el) => (el.id === elementId ? { ...el, track: newTrack } : el)),
+    })),
+  updateElement: (elementId, updates) =>
+    set((state) => ({
+      elements: state.elements.map((el) => (el.id === elementId ? { ...el, ...updates } : el)),
     })),
   reset: () =>
     set({
@@ -88,6 +117,5 @@ export const usePlayerStore = create<PlayerState>((set) => ({
       timelineReady: false,
       elements: [],
       selectedElementId: null,
-      activeEdits: {},
     }),
 }));
