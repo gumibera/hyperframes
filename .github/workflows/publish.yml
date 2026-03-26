@@ -49,20 +49,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish hyperframes (CLI)
-<<<<<<< HEAD
         continue-on-error: true
         run: npm --workspace packages/cli publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-=======
-        run: |
-          cd packages/cli
-          TMPDIR=$(mktemp -d)
-          cp -r . "$TMPDIR/"
-          cd "$TMPDIR"
-          npm pkg set name=hyperframes
-          pnpm publish --access public --provenance --no-git-checks
->>>>>>> b75181d (fix(ci): publish CLI from temp copy to avoid workspace mutation)
 
       - name: Create GitHub Release
         continue-on-error: true
