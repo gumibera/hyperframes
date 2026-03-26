@@ -39,7 +39,9 @@ const TARGETS: Target[] = [
   {
     name: "Cursor",
     flag: "cursor",
-    dir: join(process.cwd(), ".cursor", "skills"),
+    get dir() {
+      return join(process.cwd(), ".cursor", "skills");
+    },
     defaultEnabled: false,
   },
 ];
@@ -122,6 +124,7 @@ function fetchRepo(source: SkillSource): string {
 interface InstalledSkill {
   name: string;
   source: string;
+  overwritten: boolean;
 }
 
 function installSkillsFromDir(
@@ -139,10 +142,11 @@ function installSkillsFromDir(
     if (!existsSync(skillFile)) continue;
 
     const destDir = join(targetDir, entry.name);
-    if (existsSync(destDir)) rmSync(destDir, { recursive: true, force: true });
+    const overwritten = existsSync(destDir);
+    if (overwritten) rmSync(destDir, { recursive: true, force: true });
     mkdirSync(destDir, { recursive: true });
     cpSync(join(sourceDir, entry.name), destDir, { recursive: true });
-    installed.push({ name: entry.name, source: sourceName });
+    installed.push({ name: entry.name, source: sourceName, overwritten });
   }
   return installed;
 }

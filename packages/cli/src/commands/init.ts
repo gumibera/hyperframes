@@ -411,10 +411,12 @@ export default defineCommand({
       alias: "t",
     },
     video: { type: "string", description: "Path to a source video file", alias: "V" },
+    "skip-skills": { type: "boolean", description: "Skip AI skills installation" },
   },
   async run({ args }) {
     const templateFlag = args.template;
     const videoFlag = args.video;
+    const skipSkills = args["skip-skills"] === true;
 
     // -----------------------------------------------------------------------
     // Non-interactive mode: flags provided
@@ -450,7 +452,9 @@ export default defineCommand({
 
       scaffoldProject(destDir, basename(destDir), templateId, localVideoName);
       trackInitTemplate(templateId);
-      await installSkills(false);
+      if (!skipSkills) {
+        await installSkills(false);
+      }
 
       console.log(c.success(`\nCreated ${c.accent(name + "/")}`));
       for (const f of readdirSync(destDir)) {
@@ -573,7 +577,9 @@ export default defineCommand({
     trackInitTemplate(templateId);
 
     // 5. Install AI coding skills
-    await installSkills(true);
+    if (!skipSkills) {
+      await installSkills(true);
+    }
 
     const files = readdirSync(destDir);
     clack.note(files.map((f) => c.accent(f)).join("\n"), c.success(`Created ${name}/`));
