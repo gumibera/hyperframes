@@ -12,7 +12,7 @@
     "studio": "bun run --filter @hyperframes/studio dev",
     "build:hyperframes-runtime": "bun run --filter @hyperframes/core build:hyperframes-runtime",
     "build:hyperframes-runtime:modular": "bun run --filter @hyperframes/core build:hyperframes-runtime:modular",
-    "prepare:publish-manifests": "tsx scripts/prepare-publish-manifests.ts",
+    "verify:packed-manifests": "node scripts/verify-packed-manifests.mjs",
     "set-version": "tsx scripts/set-version.ts",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",

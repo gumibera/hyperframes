@@ -23,7 +23,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - run: bun run prepare:publish-manifests
+      - run: bun run verify:packed-manifests
 
       - name: Publish @hyperframes/core
         continue-on-error: true

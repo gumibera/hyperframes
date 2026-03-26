@@ -15,7 +15,9 @@
     "build:studio": "cd ../studio && bun run build",
     "build:runtime": "tsx scripts/build-runtime.ts",
     "build:copy": "mkdir -p dist/studio dist/docs dist/templates && cp -r ../studio/dist/* dist/studio/ && cp -r src/templates/blank src/templates/warm-grain src/templates/play-mode src/templates/swiss-grid src/templates/vignelli dist/templates/ && (cp src/docs/*.md dist/docs/ 2>/dev/null || true)",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "node ../../scripts/prepare-package-manifest-for-publish.mjs",
+    "postpack": "node ../../scripts/restore-package-manifest-after-pack.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.8.0",
