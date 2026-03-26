@@ -244,16 +244,17 @@ function patchTranscript(dir: string, transcriptPath: string): void {
 
       // Merge punctuation with the previous word
       const isPunctuation = /^[.,!?;:'")\]}>…–—-]+$/.test(text);
-      if (isPunctuation && words.length > 0) {
-        words[words.length - 1].text += text;
-        words[words.length - 1].end = Math.round((token.offsets.to / 1000) * 1000) / 1000;
+      const lastWord = words[words.length - 1];
+      if (isPunctuation && lastWord) {
+        lastWord.text += text;
+        lastWord.end = Math.round(((token.offsets?.to ?? 0) / 1000) * 1000) / 1000;
         continue;
       }
 
       words.push({
         text,
-        start: Math.round((token.offsets.from / 1000) * 1000) / 1000,
-        end: Math.round((token.offsets.to / 1000) * 1000) / 1000,
+        start: Math.round(((token.offsets?.from ?? 0) / 1000) * 1000) / 1000,
+        end: Math.round(((token.offsets?.to ?? 0) / 1000) * 1000) / 1000,
       });
     }
   }
