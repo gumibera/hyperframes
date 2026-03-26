@@ -50,22 +50,15 @@ Don't copy the same combination across compositions. Each composition should fee
 ### Choreography
 
 - **Combined transforms** — animate 2–3 properties together (position + scale, rotation + opacity), not one at a time.
-- **Coordinated entry** — when a new element enters, existing elements react. Anchor moves, follower tracks:
-  ```js
-  tl.to(anchor, { y: -100, ease: "power3.out" }).to(
-    follower,
-    { y: -100, ease: "power3.out" },
-    "<0.05",
-  );
-  ```
-- **Viewport scale** — subtle 1.05–1.1 camera push on a container adds life:
-  ```js
-  tl.to(container, { scale: 1.08, ease: "power1.inOut", duration: 2 }, 0);
-  ```
-- **End emphasis** — final zoom as punctuation:
-  ```js
-  tl.to(container, { scale: 1.12, ease: "power2.out", duration: 0.4 }, "-=0.4");
-  ```
+- **Coordinated entry** — when a new element enters, existing elements react. Anchor moves, follower tracks.
+- **Ambient motion** — keep the composition alive during holds. Don't default to zoom-in every time. Pick one per composition:
+  - Slow pan (x or y drift on a container)
+  - Subtle rotation (0.5–2deg over several seconds)
+  - Scale push or pull (zoom in OR out — both work)
+  - Parallax layers (background moves slower than foreground)
+  - Color/opacity shift on an accent element
+  - No ambient motion at all — stillness can be powerful
+- **End with intention** — don't always zoom at the end. Options: snap to black, fade to stillness, final element snaps into place, a hard cut. Vary this across compositions.
 
 ### Scene Pacing
 
