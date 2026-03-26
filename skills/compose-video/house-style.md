@@ -86,7 +86,7 @@ Flat single-color backgrounds look digital. Avoid pure solid backgrounds — add
 
 Beyond choosing a typeface:
 
-- **Weight contrast** — pair a heavy weight (700-900) headline with a light weight (300-400) body. Don't use the same weight on everything.
+- **Weight contrast** — pair a heavy weight (700-900) headline with a light weight (300-400) body. Always use at least two explicit font-weight values — even with display fonts that look bold by default, set labels or secondary text to a lighter weight.
 - **Case deliberately** — ALL CAPS for labels and short text (under 5 words). Sentence case for longer text. Don't uppercase paragraphs.
 - **Tracking** — tight tracking (-0.02em) on large headlines. Normal or wide tracking on small labels.
 - **One typeface, two weights** — don't mix typefaces unless you have a reason. One family at two weights creates more hierarchy than two families at one weight each.

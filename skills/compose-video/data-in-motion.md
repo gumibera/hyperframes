@@ -51,6 +51,10 @@ Instead of a line chart showing months, reveal each month's value sequentially â
 
 Higher values physically higher on screen. Growth on the right, decline on the left. The viewer reads spatial position without any legend.
 
+### Vary Number Placement
+
+Don't put the hero number in the same position every scene. Options: centered dominant, top-right with fill below, bottom-left with visual above, right-aligned with context left, embedded in a sentence, revealed at the END of the visual (fill completes first, then number snaps in). Alternate positions across scenes.
+
 ### Color Reinforces Emotion
 
 Animate background color or accent element colors during data reveals â€” this is one of the most powerful techniques and should be used in most data scenes. The color shift happens WITH the data reveal, not separately:
