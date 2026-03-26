@@ -137,6 +137,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - From sub-compositions, use `../` to reference root files
 
 For PiP, title cards, and slide show patterns, see [patterns.md](./patterns.md).
+For data, stats, and infographics, see [data-in-motion.md](./data-in-motion.md).
 
 ## Output Checklist
 
