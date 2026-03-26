@@ -53,19 +53,20 @@ Higher values physically higher on screen. Growth on the right, decline on the l
 
 ### Color Reinforces Emotion
 
-Use color shifts to amplify what the data means:
+Animate background color or accent element colors during data reveals — this is one of the most powerful techniques and should be used in most data scenes. The color shift happens WITH the data reveal, not separately:
 
-- Growth → warm colors intensifying (accent color fills expanding)
-- Decline → desaturation, shift toward cooler tones
-- Achievement → accent color flash on hit
-- Danger/warning → background shifts toward red tones
+- Growth → background warms (shift toward accent color) as the fill expands
+- Decline → background desaturates or cools as the value shrinks
+- Achievement → brief flash of accent color when a target is hit
+- Danger/warning → background shifts toward deep red
+- Comparison → the winning side's color intensifies while the losing side dims
 
 ## Techniques
 
 These are descriptions, not templates. Implement them differently each time — the LLM knows GSAP well enough to build any of these from the description alone.
 
 - **Count-up** — animate a number from 0 to its final value using GSAP's `onUpdate` callback with `snap`. Pair it with a visual that grows simultaneously.
-- **Proportional fill** — a shape fills to represent the value. The unfilled space is just as meaningful. Use width, height, clip-path, or scale — don't always use the same property.
+- **Proportional fill** — a shape fills to represent the value. The unfilled space is just as meaningful. Use width, height, or clip-path — don't default to scale for everything.
 - **Reduction** — start full, shrink to the actual value. Powerful for small percentages or losses. The viewer watches something disappear.
 - **Threshold hit** — show where the target is, then animate the actual value toward it. The moment of reaching (or missing) the target is the drama.
 - **Sequential comparison** — show value A with a fill, hold, then show value B in the same space. The viewer compares to their memory. More dramatic than side-by-side.
