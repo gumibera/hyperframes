@@ -13,7 +13,15 @@
  * full context, and failures produce a diagnostic summary.
  */
 
-import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync, copyFileSync, appendFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+  copyFileSync,
+  appendFileSync,
+} from "fs";
 import {
   type EngineConfig,
   resolveConfig,
@@ -281,7 +289,11 @@ export function createRenderJob(config: RenderConfig): RenderJob {
  * Wraps a <template>-based sub-composition into a standalone HTML document
  * that can be rendered independently by the producer.
  */
-function wrapSubCompositionAsStandalone(templateHtml: string, compositionId: string, _srcPath: string): string {
+function wrapSubCompositionAsStandalone(
+  templateHtml: string,
+  compositionId: string,
+  _srcPath: string,
+): string {
   // Extract the inner content from the <template> wrapper
   const templateMatch = templateHtml.match(/<template[^>]*>([\s\S]*)<\/template>/i);
   const inner = templateMatch?.[1]?.trim() ?? templateHtml;
@@ -311,7 +323,7 @@ function wrapSubCompositionAsStandalone(templateHtml: string, compositionId: str
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #000; overflow: hidden; width: ${width}px; height: ${height}px; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"><\/script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script>
 </head>
 <body>
 <div id="main-comp" data-composition-id="${compositionId}" data-start="0"${dataDuration} data-width="${width}" data-height="${height}" style="position:relative;width:${width}px;height:${height}px;overflow:hidden;">
@@ -319,7 +331,7 @@ ${withoutScripts}
 <script>
 window.__timelines = window.__timelines || {};
 ${scripts.map((s) => s.replace(/<\/?script[^>]*>/gi, "")).join("\n")}
-<\/script>
+</script>
 </div>
 </body>
 </html>`;
@@ -454,10 +466,15 @@ export async function executeRenderJob(
       if (composition.duration <= 0) {
         const discoveredDuration = await getCompositionDuration(probeSession);
         assertNotAborted();
-        log.info("Probed composition duration from browser", { discoveredDuration, staticDuration: compiled.staticDuration });
+        log.info("Probed composition duration from browser", {
+          discoveredDuration,
+          staticDuration: compiled.staticDuration,
+        });
         composition.duration = discoveredDuration;
       } else {
-        log.info("Using static duration from data-duration attribute", { duration: composition.duration });
+        log.info("Using static duration from data-duration attribute", {
+          duration: composition.duration,
+        });
       }
 
       // Resolve unresolved composition durations via window.__timelines
