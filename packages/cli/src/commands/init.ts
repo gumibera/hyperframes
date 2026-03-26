@@ -277,10 +277,13 @@ function patchTranscript(dir: string, transcriptPath: string): void {
 
   for (const file of htmlFiles) {
     let content = readFileSync(file, "utf-8");
-    // Match: const script = [ ... ]; (the hardcoded word array in captions)
-    const match = content.match(/const script = \[[\s\S]*?\];/);
+    // Match: const script = [...] or const TRANSCRIPT = [...] (hardcoded word arrays in captions)
+    const scriptMatch = content.match(/const script = \[[\s\S]*?\];/);
+    const transcriptMatch = content.match(/const TRANSCRIPT = \[[\s\S]*?\];/);
+    const match = scriptMatch ?? transcriptMatch;
     if (match) {
-      content = content.replace(match[0], `const script = ${wordsJson};`);
+      const varName = scriptMatch ? "script" : "TRANSCRIPT";
+      content = content.replace(match[0], `const ${varName} = ${wordsJson};`);
       writeFileSync(file, content, "utf-8");
     }
   }
