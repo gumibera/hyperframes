@@ -10,13 +10,12 @@ export {
   PlayerControls,
   Timeline,
   PreviewPanel,
-  AgentActivityTrack,
   useTimelinePlayer,
   usePlayerStore,
   liveTime,
   formatTime,
 } from "./player";
-export type { AgentActivity, TimelineElement, ActiveEdits } from "./player";
+export type { TimelineElement, ZoomMode } from "./player";
 
 // Editor
 export { SourceEditor } from "./components/editor/SourceEditor";
