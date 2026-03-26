@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { existsSync, mkdirSync, readdirSync, rmSync, cpSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import * as clack from "@clack/prompts";
 import { c } from "../ui/colors.js";
 
@@ -79,7 +79,7 @@ const SOURCES: SkillSource[] = [
 
 function hasGit(): boolean {
   try {
-    execSync("git --version", { stdio: "ignore", timeout: 5000 });
+    execFileSync("git", ["--version"], { stdio: "ignore", timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -89,30 +89,36 @@ function hasGit(): boolean {
 // Suppress git credential prompts — fail fast instead of hanging
 const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
 
+function gitClone(repo: string, dest: string): void {
+  execFileSync("git", ["clone", "--depth", "1", repo, dest], {
+    stdio: "ignore",
+    timeout: 60_000,
+    env: GIT_ENV,
+  });
+}
+
 function fetchRepo(source: SkillSource): string {
   if (existsSync(source.cache)) {
     try {
-      execSync("git pull --ff-only", {
+      execFileSync("git", ["pull", "--ff-only"], {
         cwd: source.cache,
         stdio: "ignore",
         timeout: 30_000,
         env: GIT_ENV,
       });
     } catch {
+      // Pull failed — use stale cache if valid
+      const skillsDir = join(source.cache, source.skillsPath);
+      if (existsSync(skillsDir)) {
+        return skillsDir;
+      }
+      // Cache is broken — re-clone
       rmSync(source.cache, { recursive: true, force: true });
-      execSync(`git clone --depth 1 ${source.repo} ${source.cache}`, {
-        stdio: "ignore",
-        timeout: 60_000,
-        env: GIT_ENV,
-      });
+      gitClone(source.repo, source.cache);
     }
   } else {
     mkdirSync(dirname(source.cache), { recursive: true });
-    execSync(`git clone --depth 1 ${source.repo} ${source.cache}`, {
-      stdio: "ignore",
-      timeout: 60_000,
-      env: GIT_ENV,
-    });
+    gitClone(source.repo, source.cache);
   }
   return join(source.cache, source.skillsPath);
 }
@@ -183,12 +189,19 @@ export async function installAllSkills(
     }
   }
 
-  // Install to each target
-  for (const target of targets) {
+  // Install to first target and count, then install to remaining targets
+  const [firstTarget, ...remainingTargets] = targets;
+  if (firstTarget) {
+    mkdirSync(firstTarget.dir, { recursive: true });
+    for (const { skillsDir, source } of fetched) {
+      const skills = installSkillsFromDir(skillsDir, firstTarget.dir, source.name);
+      totalCount += skills.length;
+    }
+  }
+  for (const target of remainingTargets) {
     mkdirSync(target.dir, { recursive: true });
     for (const { skillsDir, source } of fetched) {
-      const skills = installSkillsFromDir(skillsDir, target.dir, source.name);
-      if (target === targets[0]) totalCount += skills.length;
+      installSkillsFromDir(skillsDir, target.dir, source.name);
     }
   }
 
@@ -240,6 +253,7 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
   // 2. Install to each target
   const allInstalled: InstalledSkill[] = [];
 
+  let counted = false;
   for (const target of targets) {
     const spinner = clack.spinner();
     spinner.start(`Installing to ${target.name}...`);
@@ -250,8 +264,9 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
     for (const { source, skillsDir } of fetched) {
       const skills = installSkillsFromDir(skillsDir, target.dir, source.name);
       count += skills.length;
-      if (target === targets[0]) allInstalled.push(...skills);
+      if (!counted) allInstalled.push(...skills);
     }
+    counted = true;
 
     spinner.stop(c.success(`${count} skills → ${target.name} ${c.dim(target.dir)}`));
   }
