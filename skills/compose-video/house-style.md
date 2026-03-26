@@ -67,6 +67,16 @@ Don't copy the same combination across compositions. Each composition should fee
   tl.to(container, { scale: 1.12, ease: "power2.out", duration: 0.4 }, "-=0.4");
   ```
 
+### Scene Pacing
+
+Structure compositions in three phases — don't front-load everything:
+
+- **Build (0–30%)** — elements enter. Stagger arrivals so there's a sequence, not a simultaneous dump.
+- **Breathe (30–70%)** — content is visible. Keep it alive with subtle motion: slow camera push, gentle drift, a color shift, a pulsing accent. Static holds feel dead.
+- **Resolve (70–100%)** — elements exit or the composition punctuates. Exits are faster than entrances. End with intention — a final zoom, a fade to black, a snap to stillness.
+
+Don't crowd the build phase. If you have 6 elements, let 2-3 enter, breathe, then bring in the rest. Layers of reveals beat a single wave.
+
 ## Sizing
 
 - **Text scale contrast** — headings at 3–5x body size, not 1.5x. Big contrast reads as cinematic.
