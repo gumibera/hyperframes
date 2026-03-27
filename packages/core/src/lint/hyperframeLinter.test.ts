@@ -133,4 +133,61 @@ describe("lintHyperframeHtml", () => {
     const mismatch = result.findings.find((f) => f.code === "timeline_id_mismatch");
     expect(mismatch).toBeUndefined();
   });
+
+  it("reports error when timeline assignment has no init guard", () => {
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["main"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "timeline_registry_missing_init");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+    expect(finding?.message).toContain("without initializing");
+  });
+
+  it("does not flag timeline assignment when init guard is present", () => {
+    const result = lintHyperframeHtml(validComposition);
+    const finding = result.findings.find((f) => f.code === "timeline_registry_missing_init");
+    expect(finding).toBeUndefined();
+  });
+
+  it("reports error for hallucinated @hyperframe/ script src", () => {
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script src="https://unpkg.com/@hyperframe/player@latest/dist/player.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "hallucinated_script_src");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+    expect(finding?.message).toContain("@hyperframe/player");
+  });
+
+  it("reports error for hallucinated @hyperframe/ on jsdelivr", () => {
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@hyperframe/renderer/dist/index.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "hallucinated_script_src");
+    expect(finding).toBeDefined();
+  });
+
+  it("does not flag valid @hyperframes/core script src", () => {
+    const result = lintHyperframeHtml(validComposition);
+    const finding = result.findings.find((f) => f.code === "hallucinated_script_src");
+    expect(finding).toBeUndefined();
+  });
 });

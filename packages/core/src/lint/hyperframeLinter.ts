@@ -102,6 +102,45 @@ export function lintHyperframeHtml(
     });
   }
 
+  // Timeline assignment without initialization guard — causes silent failure
+  // when the runtime script hasn't loaded yet (window.__timelines is undefined).
+  if (
+    TIMELINE_REGISTRY_ASSIGN_PATTERN.test(source) &&
+    !TIMELINE_REGISTRY_INIT_PATTERN.test(source)
+  ) {
+    pushFinding({
+      code: "timeline_registry_missing_init",
+      severity: "error",
+      message:
+        "`window.__timelines[…] = …` is used without initializing `window.__timelines` first.",
+      fixHint:
+        "Add `window.__timelines = window.__timelines || {};` before any timeline assignment.",
+    });
+  }
+
+  // External scripts referencing non-existent or hallucinated npm packages.
+  const KNOWN_BAD_SCRIPT_PATTERNS = [
+    /unpkg\.com\/@hyperframe\//i,
+    /cdn\.jsdelivr\.net\/npm\/@hyperframe\//i,
+  ];
+  for (const tag of tags) {
+    if (tag.name !== "script") continue;
+    const src = readAttr(tag.raw, "src");
+    if (!src) continue;
+    for (const pattern of KNOWN_BAD_SCRIPT_PATTERNS) {
+      if (pattern.test(src)) {
+        pushFinding({
+          code: "hallucinated_script_src",
+          severity: "error",
+          message: `External script "${src}" references a non-existent package. This will 404 and break rendering.`,
+          fixHint:
+            "Remove this script tag. The runtime is injected automatically by the backend — do not load it manually.",
+          snippet: truncateSnippet(tag.raw),
+        });
+      }
+    }
+  }
+
   // Check for timeline ID mismatches: data-composition-id vs window.__timelines["X"] keys.
   {
     const htmlCompIds = new Set<string>();
