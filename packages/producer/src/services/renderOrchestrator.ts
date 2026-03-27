@@ -22,6 +22,7 @@ import {
   copyFileSync,
   appendFileSync,
 } from "fs";
+import { parseHTML } from "linkedom";
 import {
   type EngineConfig,
   resolveConfig,
@@ -282,6 +283,10 @@ export function createRenderJob(config: RenderConfig): RenderJob {
   };
 }
 
+function normalizeCompositionSrcPath(srcPath: string): string {
+  return srcPath.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
 /**
  * Main render pipeline
  */
@@ -335,6 +340,46 @@ ${scripts.map((s) => s.replace(/<\/?script[^>]*>/gi, "")).join("\n")}
 </div>
 </body>
 </html>`;
+}
+
+export function extractStandaloneEntryFromIndex(
+  indexHtml: string,
+  entryFile: string,
+): string | null {
+  const normalizedEntryFile = normalizeCompositionSrcPath(entryFile);
+  const { document } = parseHTML(indexHtml);
+  const body = document.querySelector("body");
+  if (!body) return null;
+
+  const hosts = Array.from(document.querySelectorAll("[data-composition-src]")) as Element[];
+  const host = hosts.find(
+    (candidate) =>
+      normalizeCompositionSrcPath(candidate.getAttribute("data-composition-src") || "") ===
+      normalizedEntryFile,
+  );
+  if (!host) return null;
+
+  const root =
+    (Array.from(body.children) as Element[]).find((candidate) =>
+      candidate.hasAttribute("data-composition-id"),
+    ) ?? null;
+  if (!root) return null;
+
+  const hostClone = host.cloneNode(true) as Element;
+  hostClone.setAttribute("data-start", "0");
+
+  body.innerHTML = "";
+
+  if (root === host) {
+    body.appendChild(hostClone);
+    return document.toString();
+  }
+
+  const rootClone = root.cloneNode(false) as Element;
+  rootClone.appendChild(hostClone);
+  body.appendChild(rootClone);
+
+  return document.toString();
 }
 
 export async function executeRenderJob(
@@ -394,10 +439,26 @@ export async function executeRenderJob(
     if (entryFile !== "index.html" && rawEntry.trimStart().startsWith("<template")) {
       const wrapperPath = join(workDir, "standalone-entry.html");
       const compositionId = entryFile.replace(/^compositions\//, "").replace(/\.html$/, "");
-      const standaloneHtml = wrapSubCompositionAsStandalone(rawEntry, compositionId, entryFile);
+      const projectIndexPath = join(projectDir, "index.html");
+      const extractedHtml = existsSync(projectIndexPath)
+        ? extractStandaloneEntryFromIndex(readFileSync(projectIndexPath, "utf-8"), entryFile)
+        : null;
+      const standaloneHtml =
+        extractedHtml ?? wrapSubCompositionAsStandalone(rawEntry, compositionId, entryFile);
       writeFileSync(wrapperPath, standaloneHtml, "utf-8");
       htmlPath = wrapperPath;
-      log.info("Wrapped sub-composition as standalone document", { entryFile, compositionId });
+      if (extractedHtml) {
+        log.info("Extracted standalone entry from index.html host context", {
+          entryFile,
+          compositionId,
+        });
+      } else {
+        log.info("Wrapped sub-composition as standalone document", {
+          entryFile,
+          compositionId,
+          fallback: true,
+        });
+      }
     }
 
     // ── Stage 1: Compile ─────────────────────────────────────────────────
