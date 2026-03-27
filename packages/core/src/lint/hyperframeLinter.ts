@@ -102,6 +102,31 @@ export function lintHyperframeHtml(
     });
   }
 
+  // Check for timeline ID mismatches: data-composition-id vs window.__timelines["X"] keys.
+  {
+    const htmlCompIds = new Set<string>();
+    const timelineRegKeys = new Set<string>();
+    const compIdRe = /data-composition-id\s*=\s*["']([^"']+)["']/gi;
+    const tlKeyRe = /window\.__timelines\[\s*["']([^"']+)["']\s*\]/g;
+    let m: RegExpExecArray | null;
+    while ((m = compIdRe.exec(source)) !== null) {
+      if (m[1]) htmlCompIds.add(m[1]);
+    }
+    while ((m = tlKeyRe.exec(source)) !== null) {
+      if (m[1]) timelineRegKeys.add(m[1]);
+    }
+    for (const key of timelineRegKeys) {
+      if (!htmlCompIds.has(key)) {
+        pushFinding({
+          code: "timeline_id_mismatch",
+          severity: "error",
+          message: `Timeline registered as "${key}" but no element has data-composition-id="${key}". The runtime cannot auto-nest this timeline.`,
+          fixHint: `Change window.__timelines["${key}"] to match the data-composition-id attribute, or vice versa.`,
+        });
+      }
+    }
+  }
+
   if (INVALID_SCRIPT_CLOSE_PATTERN.test(source)) {
     pushFinding({
       code: "invalid_inline_script_syntax",

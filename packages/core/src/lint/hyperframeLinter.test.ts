@@ -110,4 +110,27 @@ describe("lintHyperframeHtml", () => {
     const uniqueCodes = [...new Set(codes)];
     expect(codes.length).toBe(uniqueCodes.length);
   });
+
+  it("detects timeline ID mismatch", () => {
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080">
+    <div data-composition-id="intro" data-start="0" data-duration="3"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+    window.__timelines["intro-anim"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const mismatch = result.findings.find((f) => f.code === "timeline_id_mismatch");
+    expect(mismatch).toBeDefined();
+    expect(mismatch?.message).toContain("intro-anim");
+  });
+
+  it("does not flag matching timeline IDs", () => {
+    const result = lintHyperframeHtml(validComposition);
+    const mismatch = result.findings.find((f) => f.code === "timeline_id_mismatch");
+    expect(mismatch).toBeUndefined();
+  });
 });
