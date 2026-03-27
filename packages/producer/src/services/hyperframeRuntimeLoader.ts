@@ -10,6 +10,10 @@ const MODULE_RELATIVE_MANIFEST_PATH = resolve(
   "../../../core/dist/hyperframe.manifest.json",
 );
 const CWD_RELATIVE_MANIFEST_PATHS = [
+  // When bundled to a single file (dist/public-server.js), the manifest
+  // is copied as a sibling by build.mjs
+  resolve(PRODUCER_DIR, "hyperframe.manifest.json"),
+  resolve(process.cwd(), "packages/core/dist/hyperframe.manifest.json"),
   resolve(process.cwd(), "../core/dist/hyperframe.manifest.json"),
   resolve(process.cwd(), "core/dist/hyperframe.manifest.json"),
 ];

@@ -13,7 +13,16 @@
  * full context, and failures produce a diagnostic summary.
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync, copyFileSync, appendFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+  copyFileSync,
+  appendFileSync,
+} from "fs";
+import { parseHTML } from "linkedom";
 import {
   type EngineConfig,
   resolveConfig,
@@ -93,6 +102,8 @@ export interface RenderConfig {
   workers?: number;
   useGpu?: boolean;
   debug?: boolean;
+  /** Entry HTML file relative to projectDir. Defaults to "index.html". */
+  entryFile?: string;
   /** Full producer config. When provided, env vars are not read. */
   producerConfig?: EngineConfig;
   /** Custom logger. Defaults to console-based defaultLogger. */
@@ -272,9 +283,54 @@ export function createRenderJob(config: RenderConfig): RenderJob {
   };
 }
 
+function normalizeCompositionSrcPath(srcPath: string): string {
+  return srcPath.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
 /**
  * Main render pipeline
  */
+
+export function extractStandaloneEntryFromIndex(
+  indexHtml: string,
+  entryFile: string,
+): string | null {
+  const normalizedEntryFile = normalizeCompositionSrcPath(entryFile);
+  const { document } = parseHTML(indexHtml);
+  const body = document.querySelector("body");
+  if (!body) return null;
+
+  const hosts = Array.from(document.querySelectorAll("[data-composition-src]")) as Element[];
+  const host = hosts.find(
+    (candidate) =>
+      normalizeCompositionSrcPath(candidate.getAttribute("data-composition-src") || "") ===
+      normalizedEntryFile,
+  );
+  if (!host) return null;
+
+  const root =
+    (Array.from(body.children) as Element[]).find((candidate) =>
+      candidate.hasAttribute("data-composition-id"),
+    ) ?? null;
+  if (!root) return null;
+
+  const hostClone = host.cloneNode(true) as Element;
+  hostClone.setAttribute("data-start", "0");
+
+  body.innerHTML = "";
+
+  if (root === host) {
+    body.appendChild(hostClone);
+    return document.toString();
+  }
+
+  const rootClone = root.cloneNode(false) as Element;
+  rootClone.appendChild(hostClone);
+  body.appendChild(rootClone);
+
+  return document.toString();
+}
+
 export async function executeRenderJob(
   job: RenderJob,
   projectDir: string,
@@ -319,8 +375,40 @@ export async function executeRenderJob(
       restoreLogger = installDebugLogger(logPath, log);
     }
 
-    const htmlPath = join(projectDir, "index.html");
+    const entryFile = job.config.entryFile || "index.html";
+    let htmlPath = join(projectDir, entryFile);
+    if (!existsSync(htmlPath)) {
+      throw new Error(`Entry file not found: ${htmlPath}`);
+    }
     assertNotAborted();
+
+    // If entryFile is a sub-composition (<template> wrapper), reuse the real
+    // index.html shell and isolate the matching host instead of fabricating
+    // a new standalone document.
+    const rawEntry = readFileSync(htmlPath, "utf-8");
+    if (entryFile !== "index.html" && rawEntry.trimStart().startsWith("<template")) {
+      const wrapperPath = join(workDir, "standalone-entry.html");
+      const projectIndexPath = join(projectDir, "index.html");
+      if (!existsSync(projectIndexPath)) {
+        throw new Error(
+          `Template entry file "${entryFile}" requires a project index.html to extract its render shell.`,
+        );
+      }
+      const standaloneHtml = extractStandaloneEntryFromIndex(
+        readFileSync(projectIndexPath, "utf-8"),
+        entryFile,
+      );
+      if (!standaloneHtml) {
+        throw new Error(
+          `Entry file "${entryFile}" is not mounted from index.html via data-composition-src, so it cannot be rendered independently.`,
+        );
+      }
+      writeFileSync(wrapperPath, standaloneHtml, "utf-8");
+      htmlPath = wrapperPath;
+      log.info("Extracted standalone entry from index.html host context", {
+        entryFile,
+      });
+    }
 
     // ── Stage 1: Compile ─────────────────────────────────────────────────
     const stage1Start = Date.now();
@@ -331,6 +419,15 @@ export async function executeRenderJob(
     assertNotAborted();
     perfStages.compileOnlyMs = Date.now() - compileStart;
     writeCompiledArtifacts(compiled, workDir, Boolean(job.config.debug));
+
+    log.info("Compiled composition metadata", {
+      entryFile,
+      staticDuration: compiled.staticDuration,
+      width: compiled.width,
+      height: compiled.height,
+      videoCount: compiled.videos.length,
+      audioCount: compiled.audios.length,
+    });
 
     const composition: CompositionMetadata = {
       duration: compiled.staticDuration,
@@ -379,7 +476,15 @@ export async function executeRenderJob(
       if (composition.duration <= 0) {
         const discoveredDuration = await getCompositionDuration(probeSession);
         assertNotAborted();
+        log.info("Probed composition duration from browser", {
+          discoveredDuration,
+          staticDuration: compiled.staticDuration,
+        });
         composition.duration = discoveredDuration;
+      } else {
+        log.info("Using static duration from data-duration attribute", {
+          duration: composition.duration,
+        });
       }
 
       // Resolve unresolved composition durations via window.__timelines

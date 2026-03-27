@@ -69,6 +69,7 @@ interface RenderInput {
   workers?: number;
   useGpu: boolean;
   debug: boolean;
+  entryFile?: string;
 }
 
 interface PreparedRenderInput {
@@ -91,7 +92,12 @@ function parseRenderOptions(body: Record<string, unknown>): Omit<RenderInput, "p
         ? body.output
         : null;
 
-  return { outputPath, fps, quality, workers, useGpu, debug };
+  const entryFile =
+    typeof body.entryFile === "string" && body.entryFile.trim().length > 0
+      ? body.entryFile.trim()
+      : undefined;
+
+  return { outputPath, fps, quality, workers, useGpu, debug, entryFile };
 }
 
 async function prepareRenderBody(
@@ -104,8 +110,9 @@ async function prepareRenderBody(
     if (!existsSync(absProjectDir) || !statSync(absProjectDir).isDirectory()) {
       return { error: `Project directory not found: ${absProjectDir}` };
     }
-    if (!existsSync(resolve(absProjectDir, "index.html"))) {
-      return { error: `No index.html in project directory: ${absProjectDir}` };
+    const entry = options.entryFile || "index.html";
+    if (!existsSync(resolve(absProjectDir, entry))) {
+      return { error: `Entry file "${entry}" not found in project directory: ${absProjectDir}` };
     }
     return { prepared: { input: { projectDir: absProjectDir, ...options } } };
   }
@@ -317,6 +324,7 @@ export function createRenderHandlers(options: HandlerOptions = {}): RenderHandle
       workers: input.workers,
       useGpu: input.useGpu,
       debug: input.debug,
+      entryFile: input.entryFile,
       logger: log,
     });
 
@@ -428,6 +436,7 @@ export function createRenderHandlers(options: HandlerOptions = {}): RenderHandle
         workers: input.workers,
         useGpu: input.useGpu,
         debug: input.debug,
+        entryFile: input.entryFile,
         logger: log,
       });
       const abortController = new AbortController();

@@ -391,27 +391,23 @@ export function lintHyperframeHtml(
     }
   }
 
-  // #3.7: Fabricated inline base64 media — CRITICAL
-  // Inline base64 audio/video data is almost always fabricated garbage that
-  // won't play. Real audio files are 100KB+ when base64-encoded.
+  // #3.7: Inline base64 audio/video — PROHIBITED
+  // Base64 audio/video bloats file size and breaks rendering. Use URLs or relative paths.
   {
     const base64MediaRe =
-      /src\s*=\s*["'](data:(?:audio|video)\/[^;]+;base64,([A-Za-z0-9+/=]{100,}))["']/gi;
+      /src\s*=\s*["'](data:(?:audio|video)\/[^;]+;base64,([A-Za-z0-9+/=]{20,}))["']/gi;
     let b64Match: RegExpExecArray | null;
     while ((b64Match = base64MediaRe.exec(source)) !== null) {
-      // Check if it's suspiciously repetitive (fake data has long runs of repeated chars)
       const sample = (b64Match[2] || "").slice(0, 200);
       const uniqueChars = new Set(sample.replace(/[A-Za-z0-9+/=]/g, (c) => c)).size;
       const dataSize = Math.round(((b64Match[2] || "").length * 3) / 4);
       const isSuspicious = uniqueChars < 15 || (dataSize > 1000 && dataSize < 50000);
-      // Any embedded base64 audio is suspicious — real audio should be a file
       pushFinding({
-        code: "fabricated_inline_media",
-        severity: isSuspicious ? "error" : "warning",
-        message: isSuspicious
-          ? `Fabricated base64 media detected (${(dataSize / 1024).toFixed(0)} KB). This is almost certainly fake data that won't play.`
-          : `Embedded base64 audio/video detected (${(dataSize / 1024).toFixed(0)} KB). Consider using a file URL instead.`,
-        fixHint: "Remove the data: URI and use a real media file URL instead.",
+        code: "base64_media_prohibited",
+        severity: "error",
+        message: `Inline base64 audio/video detected (${(dataSize / 1024).toFixed(0)} KB)${isSuspicious ? " — likely fabricated data" : ""}. Base64 media is prohibited — it bloats file size and breaks rendering.`,
+        fixHint:
+          "Use a relative path (assets/music.mp3) or HTTPS URL for the audio/video src. Never embed media as base64.",
         snippet: truncateSnippet((b64Match[1] ?? "").slice(0, 80) + "..."),
       });
     }
