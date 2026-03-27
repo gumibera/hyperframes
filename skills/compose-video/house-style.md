@@ -7,7 +7,8 @@ Defaults when no `visual-style.md` or animation direction is provided. These rai
 1. **Interpret the prompt.** Generate real content for the topic — don't use the prompt text as body copy. A recipe lists real ingredients. A stats dashboard shows the actual numbers given. A product showcase names real features and specs. A sci-fi HUD has actual crosshairs and readouts, not a heading that says "sci-fi HUD."
 2. **Pick a palette.** First decide: does this content call for a light or dark canvas? Food, weddings, children, wellness, education, lifestyle, nature, and celebrations → light palette (Warm/Editorial, Clean/Corporate, Nature/Earth, Pastel/Soft). Tech, finance, cinema, nightlife, horror, gaming, and premium → dark palette. Then load the file and pick one palette. Declare your bg, fg, and accent colors before writing any code.
 3. **Pick a typeface.** Don't reach for Sora, Space Grotesk, Outfit, Playfair Display, Cormorant Garamond, or Bodoni Moda — they're overused. Explore the full range of Google Fonts. Serif for editorial, mono for technical, display for impact, handwritten for personal.
-4. **Pick your entrance patterns.** Plan how elements enter — never use the same entrance pattern twice in a composition.
+4. **Pick a layout approach.** Don't default to the same structure every time. Options: full-bleed centered hero, left-aligned editorial column, split-frame (content left / visual right or vice versa), scattered/asymmetric positioning, grid-based with uneven cells, stacked vertical sections. Vary this across compositions.
+5. **Pick your entrance patterns.** Plan how elements enter — never use the same entrance pattern twice in a composition.
 
 ## Motion
 
@@ -85,7 +86,7 @@ Flat single-color backgrounds look digital. Avoid pure solid backgrounds — add
 
 Beyond choosing a typeface:
 
-- **Weight contrast** — pair a heavy weight (700-900) headline with a light weight (300-400) body. Don't use the same weight on everything.
+- **Weight contrast** — pair a heavy weight (700-900) headline with a light weight (300-400) body. Always use at least two explicit font-weight values — even with display fonts that look bold by default, set labels or secondary text to a lighter weight.
 - **Case deliberately** — ALL CAPS for labels and short text (under 5 words). Sentence case for longer text. Don't uppercase paragraphs.
 - **Tracking** — tight tracking (-0.02em) on large headlines. Normal or wide tracking on small labels.
 - **One typeface, two weights** — don't mix typefaces unless you have a reason. One family at two weights creates more hierarchy than two families at one weight each.
