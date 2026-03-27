@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { lintHyperframeHtml } from "./hyperframeLinter.js";
+import { describe, it, expect, vi } from "vitest";
+import { lintHyperframeHtml, lintScriptUrls } from "./hyperframeLinter.js";
 
 describe("lintHyperframeHtml", () => {
   const validComposition = `
@@ -154,40 +154,67 @@ describe("lintHyperframeHtml", () => {
     const finding = result.findings.find((f) => f.code === "timeline_registry_missing_init");
     expect(finding).toBeUndefined();
   });
+});
 
-  it("reports error for hallucinated @hyperframe/ script src", () => {
+describe("lintScriptUrls", () => {
+  it("reports error for script URL returning non-2xx", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    vi.stubGlobal("fetch", mockFetch);
+
     const html = `<html><body>
   <div data-composition-id="main" data-width="1920" data-height="1080"></div>
   <script src="https://unpkg.com/@hyperframe/player@latest/dist/player.js"></script>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["main"] = gsap.timeline({ paused: true });
-  </script>
 </body></html>`;
-    const result = lintHyperframeHtml(html);
-    const finding = result.findings.find((f) => f.code === "hallucinated_script_src");
+    const findings = await lintScriptUrls(html);
+    const finding = findings.find((f) => f.code === "inaccessible_script_url");
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe("error");
-    expect(finding?.message).toContain("@hyperframe/player");
+    expect(finding?.message).toContain("404");
+
+    vi.unstubAllGlobals();
   });
 
-  it("reports error for hallucinated @hyperframe/ on jsdelivr", () => {
+  it("reports error for unreachable script URL", async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error("AbortError"));
+    vi.stubGlobal("fetch", mockFetch);
+
     const html = `<html><body>
   <div data-composition-id="main" data-width="1920" data-height="1080"></div>
-  <script src="https://cdn.jsdelivr.net/npm/@hyperframe/renderer/dist/index.js"></script>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["main"] = gsap.timeline({ paused: true });
-  </script>
+  <script src="https://example.invalid/nonexistent.js"></script>
 </body></html>`;
-    const result = lintHyperframeHtml(html);
-    const finding = result.findings.find((f) => f.code === "hallucinated_script_src");
+    const findings = await lintScriptUrls(html);
+    const finding = findings.find((f) => f.code === "inaccessible_script_url");
     expect(finding).toBeDefined();
+
+    vi.unstubAllGlobals();
   });
 
-  it("does not flag valid @hyperframes/core script src", () => {
-    const result = lintHyperframeHtml(validComposition);
-    const finding = result.findings.find((f) => f.code === "hallucinated_script_src");
-    expect(finding).toBeUndefined();
+  it("does not flag accessible script URLs", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</body></html>`;
+    const findings = await lintScriptUrls(html);
+    expect(findings.length).toBe(0);
+
+    vi.unstubAllGlobals();
+  });
+
+  it("skips inline scripts without src", async () => {
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script>console.log("inline")</script>
+</body></html>`;
+    const findings = await lintScriptUrls(html);
+    expect(findings.length).toBe(0);
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    vi.unstubAllGlobals();
   });
 });
