@@ -171,7 +171,7 @@ async function renderDocker(
   } catch (error: unknown) {
     trackRenderError({ fps: options.fps, quality: options.quality, docker: true });
     const message = error instanceof Error ? error.message : String(error);
-    errorBox("Render failed", message, "Try --docker for containerized rendering");
+    errorBox("Render failed", message, "Check Docker is running: docker info");
     process.exit(1);
   }
 

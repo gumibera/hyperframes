@@ -37,9 +37,11 @@ export default defineCommand({
   meta: { name: "dev", description: "Start the studio for local development" },
   args: {
     dir: { type: "positional", description: "Project directory", required: false },
+    port: { type: "string", description: "Port to run the dev server on", default: "3002" },
   },
   async run({ args }) {
     const dir = resolve(args.dir ?? ".");
+    const startPort = parseInt(args.port ?? "3002", 10);
 
     if (isDevMode()) {
       return runDevMode(dir);
@@ -50,7 +52,7 @@ export default defineCommand({
       return runLocalStudioMode(dir);
     }
 
-    const port = await findAvailablePort(3002);
+    const port = await findAvailablePort(startPort);
     return runEmbeddedMode(dir, port);
   },
 });

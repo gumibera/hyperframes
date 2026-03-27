@@ -1,1 +1,2 @@
-export const VERSION = "0.1.0";
+declare const __CLI_VERSION__: string;
+export const VERSION = __CLI_VERSION__;
