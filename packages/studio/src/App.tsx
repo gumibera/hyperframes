@@ -3,16 +3,12 @@ import { NLELayout } from "./components/nle/NLELayout";
 import { SourceEditor } from "./components/editor/SourceEditor";
 import { FileTree } from "./components/editor/FileTree";
 import { LeftSidebar } from "./components/sidebar/LeftSidebar";
+import { RenderQueue } from "./components/renders/RenderQueue";
+import { useRenderQueue } from "./components/renders/useRenderQueue";
 import { CompositionThumbnail } from "./player/components/CompositionThumbnail";
 import { VideoThumbnail } from "./player/components/VideoThumbnail";
 import type { TimelineElement } from "./player/store/playerStore";
-import {
-  XIcon,
-  CodeIcon,
-  WarningIcon,
-  CheckCircleIcon,
-  CaretRightIcon,
-} from "@phosphor-icons/react";
+import { XIcon, WarningIcon, CheckCircleIcon, CaretRightIcon } from "@phosphor-icons/react";
 
 interface EditingFile {
   path: string;
@@ -30,6 +26,152 @@ interface LintFinding {
   message: string;
   file?: string;
   fixHint?: string;
+}
+
+import { ExpandOnHover } from "./components/ui/ExpandOnHover";
+
+// ── Project Card with hover-to-preview ──
+
+function ExpandedPreviewIframe({ src }: { src: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [dims, setDims] = useState({ w: 1920, h: 1080 });
+  const [scale, setScale] = useState(1);
+
+  // Recalculate scale when container resizes or dims change
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const cw = el.clientWidth;
+      const ch = el.clientHeight;
+      // Fit the composition inside the container (contain, not cover)
+      const s = Math.min(cw / dims.w, ch / dims.h);
+      setScale(s);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [dims]);
+
+  // After iframe loads: detect composition dimensions, seek, and play
+  const handleLoad = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    let attempts = 0;
+    const interval = setInterval(() => {
+      try {
+        const doc = iframe.contentDocument;
+        if (doc) {
+          const comp = doc.querySelector("[data-composition-id]") as HTMLElement | null;
+          if (comp) {
+            const w = parseInt(comp.getAttribute("data-width") ?? "0", 10);
+            const h = parseInt(comp.getAttribute("data-height") ?? "0", 10);
+            if (w > 0 && h > 0) setDims({ w, h });
+          }
+        }
+        const win = iframe.contentWindow as Window & {
+          __player?: { seek: (t: number) => void; play: () => void };
+        };
+        if (win?.__player) {
+          win.__player.seek(2);
+          win.__player.play();
+          clearInterval(interval);
+        }
+      } catch {
+        /* cross-origin */
+      }
+      if (++attempts > 25) clearInterval(interval);
+    }, 200);
+  }, []);
+
+  // Center the scaled iframe
+  const offsetX = containerRef.current
+    ? (containerRef.current.clientWidth - dims.w * scale) / 2
+    : 0;
+  const offsetY = containerRef.current
+    ? (containerRef.current.clientHeight - dims.h * scale) / 2
+    : 0;
+
+  return (
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-black">
+      <iframe
+        ref={iframeRef}
+        src={src}
+        sandbox="allow-scripts allow-same-origin"
+        onLoad={handleLoad}
+        className="absolute border-none"
+        style={{
+          left: Math.max(0, offsetX),
+          top: Math.max(0, offsetY),
+          width: dims.w,
+          height: dims.h,
+          transformOrigin: "0 0",
+          transform: `scale(${scale})`,
+        }}
+      />
+    </div>
+  );
+}
+
+function ProjectCard({ project: p, onSelect }: { project: ProjectEntry; onSelect: () => void }) {
+  const thumbnailUrl = `/api/projects/${p.id}/thumbnail/index.html?t=0.5`;
+  const previewUrl = `/api/projects/${p.id}/preview`;
+
+  const card = (
+    <div className="rounded-xl overflow-hidden bg-neutral-900 border border-neutral-800/60 hover:border-[#3CE6AC]/30 hover:shadow-lg hover:shadow-[#3CE6AC]/5 transition-all duration-200 cursor-pointer">
+      <div className="aspect-video bg-neutral-950 relative overflow-hidden flex items-center justify-center">
+        <img
+          src={thumbnailUrl}
+          alt={p.title ?? p.id}
+          loading="lazy"
+          className="max-w-full max-h-full object-contain"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+          }}
+        />
+      </div>
+      <div className="px-3.5 py-3">
+        <div className="text-sm font-medium text-neutral-200 truncate">{p.title ?? p.id}</div>
+        <div className="text-[10px] text-neutral-600 font-mono truncate mt-0.5">{p.id}</div>
+      </div>
+    </div>
+  );
+
+  const expandedPreview = (
+    <div className="w-full h-full bg-neutral-950 rounded-[16px] overflow-hidden flex flex-col">
+      <div className="flex-1 min-h-0">
+        <ExpandedPreviewIframe src={previewUrl} />
+      </div>
+      <div className="px-5 py-3 bg-neutral-900 border-t border-neutral-800/50 flex items-center justify-between flex-shrink-0">
+        <div>
+          <div className="text-sm font-medium text-neutral-200">{p.title ?? p.id}</div>
+          <div className="text-[10px] text-neutral-600 font-mono mt-0.5">{p.id}</div>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors"
+        >
+          Open
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <ExpandOnHover
+      expandedContent={expandedPreview}
+      onClick={onSelect}
+      expandScale={0.6}
+      delay={400}
+    >
+      {card}
+    </ExpandOnHover>
+  );
 }
 
 // ── Project Picker ──
@@ -50,26 +192,75 @@ function ProjectPicker({ onSelect }: { onSelect: (id: string) => void }) {
 
   return (
     <div className="h-screen w-screen bg-neutral-950 overflow-y-auto">
-      <div className="max-w-lg w-full mx-auto px-4 py-12">
-        <h1 className="text-xl font-semibold text-neutral-200 mb-1">HyperFrames Studio</h1>
-        <p className="text-sm text-neutral-500 mb-6">Select a project to open</p>
+      {/* Header */}
+      <div className="max-w-4xl mx-auto px-6 pt-16 pb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <svg width="32" height="32" viewBox="0 0 512 512" className="flex-shrink-0">
+            <rect width="512" height="512" rx="115" fill="#1A1913" />
+            <g strokeLinecap="round" strokeLinejoin="round">
+              <polyline
+                points="156,176 76,256 156,336"
+                fill="none"
+                stroke="#7B7568"
+                strokeWidth="32"
+              />
+              <line x1="206" y1="346" x2="286" y2="166" stroke="#D8D3C5" strokeWidth="32" />
+              <polygon
+                points="336,176 436,256 336,336"
+                fill="#3CE6AC"
+                stroke="#3CE6AC"
+                strokeWidth="32"
+              />
+            </g>
+          </svg>
+          <h1 className="text-2xl font-bold text-neutral-100 tracking-tight">HyperFrames Studio</h1>
+        </div>
+        <p className="text-sm text-neutral-500 ml-11">Your projects</p>
+      </div>
+
+      {/* Project grid */}
+      <div className="max-w-4xl mx-auto px-6 pb-16">
         {loading ? (
-          <div className="text-sm text-neutral-600">Loading projects...</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="aspect-video rounded-xl bg-neutral-900 animate-pulse" />
+            ))}
+          </div>
         ) : projects.length === 0 ? (
-          <div className="text-sm text-neutral-600">No projects found.</div>
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <svg width="48" height="48" viewBox="0 0 512 512" className="opacity-20">
+              <rect width="512" height="512" rx="115" fill="#1A1913" />
+              <g strokeLinecap="round" strokeLinejoin="round">
+                <polyline
+                  points="156,176 76,256 156,336"
+                  fill="none"
+                  stroke="#7B7568"
+                  strokeWidth="32"
+                />
+                <line x1="206" y1="346" x2="286" y2="166" stroke="#D8D3C5" strokeWidth="32" />
+                <polygon
+                  points="336,176 436,256 336,336"
+                  fill="#3CE6AC"
+                  stroke="#3CE6AC"
+                  strokeWidth="32"
+                />
+              </g>
+            </svg>
+            <div className="text-center">
+              <p className="text-sm text-neutral-400 font-medium">No projects yet</p>
+              <p className="text-xs text-neutral-600 mt-1">
+                Run{" "}
+                <code className="px-1.5 py-0.5 rounded bg-neutral-800 text-[#3CE6AC] text-[11px]">
+                  hyperframes init
+                </code>{" "}
+                to create one
+              </p>
+            </div>
+          </div>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {projects.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => onSelect(p.id)}
-                className="text-left px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 hover:border-neutral-600 hover:bg-neutral-800/80 transition-all group"
-              >
-                <div className="text-sm text-neutral-200 truncate">{p.title ?? p.id}</div>
-                <div className="text-[11px] text-neutral-600 font-mono truncate mt-0.5 group-hover:text-neutral-500">
-                  {p.id}
-                </div>
-              </button>
+              <ProjectCard key={p.id} project={p} onSelect={() => onSelect(p.id)} />
             ))}
           </div>
         )}
@@ -147,7 +338,7 @@ function LintModal({ findings, onClose }: { findings: LintFinding[]; onClose: ()
             <button
               onClick={handleCopyToAgent}
               className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                copied ? "bg-green-600 text-white" : "bg-blue-600 hover:bg-blue-500 text-white"
+                copied ? "bg-green-600 text-white" : "bg-[#3CE6AC] hover:bg-[#3CE6AC]/80 text-white"
               }`}
             >
               {copied ? "Copied!" : "Copy to Agent"}
@@ -234,9 +425,11 @@ export function StudioApp() {
   }, []);
 
   const [editingFile, setEditingFile] = useState<EditingFile | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [rightTab, setRightTab] = useState<"code" | "renders">("code");
+  const [activeCompPath, setActiveCompPath] = useState<string | null>(null);
   const [fileTree, setFileTree] = useState<string[]>([]);
   const [compIdToSrc, setCompIdToSrc] = useState<Map<string, string>>(new Map());
+  const renderQueue = useRenderQueue(projectId);
 
   const renderClipContent = useCallback(
     (el: TimelineElement, style: { clip: string; label: string }): ReactNode => {
@@ -300,11 +493,6 @@ export function StudioApp() {
   const [lintModal, setLintModal] = useState<LintFinding[] | null>(null);
   const [linting, setLinting] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [renderState, setRenderState] = useState<"idle" | "rendering" | "complete" | "error">(
-    "idle",
-  );
-  const [renderProgress, setRenderProgress] = useState(0);
-  const [_renderError, setRenderError] = useState<string | null>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectIdRef = useRef(projectId);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -346,7 +534,6 @@ export function StudioApp() {
       .then((data: { content?: string }) => {
         if (data.content != null) {
           setEditingFile({ path, content: data.content });
-          setSidebarOpen(true);
         }
       })
       .catch(() => {});
@@ -485,53 +672,6 @@ export function StudioApp() {
     }
   }, []);
 
-  const handleRender = useCallback(async () => {
-    const pid = projectIdRef.current;
-    if (!pid || renderState === "rendering") return;
-    setRenderState("rendering");
-    setRenderProgress(0);
-    setRenderError(null);
-    try {
-      // Start render via studio backend
-      const res = await fetch(`/api/projects/${pid}/render`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) throw new Error(`Render failed: ${res.status}`);
-      const { jobId } = await res.json();
-
-      // Subscribe to progress via SSE
-      const eventSource = new EventSource(`/api/render/${jobId}/progress`);
-      eventSource.addEventListener("progress", (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          setRenderProgress(data.progress ?? 0);
-          if (data.status === "complete") {
-            setRenderState("complete");
-            eventSource.close();
-            // Auto-download
-            window.open(`/api/render/${jobId}/download`, "_blank");
-          } else if (data.status === "failed") {
-            setRenderState("error");
-            setRenderError(data.error || "Render failed");
-            eventSource.close();
-          }
-        } catch {
-          /* ignore */
-        }
-      });
-      eventSource.onerror = () => {
-        setRenderState("error");
-        setRenderError("Lost connection to render server");
-        eventSource.close();
-      };
-    } catch (err) {
-      setRenderState("error");
-      setRenderError(err instanceof Error ? err.message : "Render failed");
-    }
-  }, [renderState]);
-
   if (resolving) {
     return (
       <div className="h-screen w-screen bg-neutral-950 flex items-center justify-center">
@@ -550,123 +690,117 @@ export function StudioApp() {
   );
 
   return (
-    <div className="flex h-screen w-screen bg-neutral-950">
-      {/* Left sidebar: Compositions + Assets */}
-      <LeftSidebar
-        projectId={projectId}
-        compositions={compositions}
-        assets={assets}
-        activeComposition={editingFile?.path ?? null}
-        onSelectComposition={(comp) => {
-          setEditingFile({ path: comp, content: null });
-          fetch(`/api/projects/${projectId}/files/${comp}`)
-            .then((r) => r.json())
-            .then((data) => setEditingFile({ path: comp, content: data.content }))
-            .catch(() => {});
-        }}
-      />
-
-      {/* NLE: Preview + Timeline */}
-      <div className="flex-1 relative min-w-0">
-        <NLELayout
+    <div className="flex flex-col h-screen w-screen bg-neutral-950">
+      {/* Top row: sidebar + preview + right panel */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left sidebar: Compositions + Assets */}
+        <LeftSidebar
           projectId={projectId}
-          refreshKey={refreshKey}
-          renderClipContent={renderClipContent}
-          onCompIdToSrcChange={setCompIdToSrc}
-          onIframeRef={(iframe) => {
-            previewIframeRef.current = iframe;
+          compositions={compositions}
+          assets={assets}
+          activeComposition={editingFile?.path ?? null}
+          onSelectComposition={(comp) => {
+            // Set active composition for preview drill-down
+            setActiveCompPath(comp.startsWith("compositions/") ? comp : null);
+            // Force preview refresh to reload the iframe
+            setRefreshKey((k) => k + 1);
+            // Load file content for code editor
+            setEditingFile({ path: comp, content: null });
+            fetch(`/api/projects/${projectId}/files/${comp}`)
+              .then((r) => r.json())
+              .then((data) => setEditingFile({ path: comp, content: data.content }))
+              .catch(() => {});
           }}
         />
-      </div>
 
-      {/* Action buttons — positioned based on sidebar state */}
-      {!sidebarOpen && (
-        <div className="absolute top-3 right-3 z-50 flex items-center gap-1.5">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="h-8 px-3 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-500 hover:text-neutral-200 transition-colors flex items-center justify-center"
-            title="Source editor"
-          >
-            <CodeIcon size={16} />
-          </button>
-          <button
-            onClick={handleLint}
-            disabled={linting}
-            className="h-8 px-3 rounded-lg bg-neutral-900 border border-neutral-800 text-xs font-medium text-neutral-400 hover:text-amber-300 hover:border-amber-800/50 transition-colors disabled:opacity-40"
-          >
-            {linting ? "Linting..." : "Lint"}
-          </button>
-          <button
-            onClick={handleRender}
-            disabled={renderState === "rendering"}
-            className="h-8 px-3 rounded-lg text-xs font-semibold text-[#09090B] bg-gradient-to-br from-[#3CE6AC] to-[#2BBFA0] hover:brightness-110 active:scale-[0.97] transition-colors disabled:opacity-60 tabular-nums"
-          >
-            {renderState === "rendering"
-              ? `${Math.round(renderProgress)}%`
-              : renderState === "complete"
-                ? "Done!"
-                : "Export MP4"}
-          </button>
+        {/* Center: Preview */}
+        <div className="flex-1 relative min-w-0">
+          <NLELayout
+            projectId={projectId}
+            refreshKey={refreshKey}
+            activeCompositionPath={activeCompPath}
+            renderClipContent={renderClipContent}
+            onCompIdToSrcChange={setCompIdToSrc}
+            onIframeRef={(iframe) => {
+              previewIframeRef.current = iframe;
+            }}
+          />
+
+          {/* Lint button — top-right of preview */}
+          <div className="absolute top-3 right-3 z-50 flex items-center gap-1.5">
+            <button
+              onClick={handleLint}
+              disabled={linting}
+              className="h-8 px-3 rounded-lg bg-neutral-900 border border-neutral-800 text-xs font-medium text-neutral-400 hover:text-amber-300 hover:border-amber-800/50 transition-colors disabled:opacity-40"
+            >
+              {linting ? "Linting..." : "Lint"}
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* Source editor sidebar */}
-      {sidebarOpen && (
-        <div className="w-[420px] flex flex-col border-l border-neutral-800 bg-neutral-900">
-          <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800 gap-2">
-            <span className="text-xs font-medium text-neutral-500 truncate min-w-0 flex-1">
-              {editingFile?.path ?? "Source"}
-            </span>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button
-                onClick={handleLint}
-                disabled={linting}
-                className="px-2 py-1 rounded text-[11px] font-medium text-neutral-500 hover:text-amber-300 transition-colors disabled:opacity-40"
-              >
-                {linting ? "..." : "Lint"}
-              </button>
-              <button
-                onClick={handleRender}
-                disabled={renderState === "rendering"}
-                className="px-2 py-1 rounded text-[11px] font-semibold text-[#3CE6AC] hover:text-[#5EEFC0] transition-colors disabled:opacity-60 tabular-nums"
-              >
-                {renderState === "rendering" ? `${Math.round(renderProgress)}%` : "Export MP4"}
-              </button>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1 rounded text-neutral-600 hover:text-neutral-200 hover:bg-neutral-800 transition-colors"
-                title="Close source panel"
-              >
-                <XIcon size={14} />
-              </button>
-            </div>
+        {/* Right panel: Code + Renders tabs — always visible */}
+        <div className="w-[320px] flex flex-col border-l border-neutral-800 bg-neutral-900 flex-shrink-0">
+          {/* Tab bar */}
+          <div className="flex items-center border-b border-neutral-800 flex-shrink-0">
+            <button
+              onClick={() => setRightTab("code")}
+              className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
+                rightTab === "code"
+                  ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
+                  : "text-neutral-500 hover:text-neutral-400"
+              }`}
+            >
+              Code
+            </button>
+            <button
+              onClick={() => setRightTab("renders")}
+              className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
+                rightTab === "renders"
+                  ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
+                  : "text-neutral-500 hover:text-neutral-400"
+              }`}
+            >
+              Renders{renderQueue.jobs.length > 0 ? ` (${renderQueue.jobs.length})` : ""}
+            </button>
           </div>
 
-          {fileTree.length > 0 && (
-            <div className="border-b border-neutral-800 max-h-40 overflow-y-auto">
-              <FileTree
-                files={fileTree}
-                activeFile={editingFile?.path ?? null}
-                onSelectFile={handleFileSelect}
-              />
-            </div>
-          )}
-
-          <div className="flex-1 overflow-hidden">
-            {editingFile ? (
-              <SourceEditor
-                content={editingFile.content ?? ""}
-                filePath={editingFile.path}
-                onChange={handleContentChange}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-neutral-600 text-sm">
-                Select a file to edit
+          {/* Tab content */}
+          {rightTab === "code" ? (
+            <>
+              {fileTree.length > 0 && (
+                <div className="border-b border-neutral-800 max-h-32 overflow-y-auto">
+                  <FileTree
+                    files={fileTree}
+                    activeFile={editingFile?.path ?? null}
+                    onSelectFile={handleFileSelect}
+                  />
+                </div>
+              )}
+              <div className="flex-1 overflow-hidden">
+                {editingFile ? (
+                  <SourceEditor
+                    content={editingFile.content ?? ""}
+                    filePath={editingFile.path}
+                    onChange={handleContentChange}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-neutral-600 text-sm">
+                    Select a file to edit
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <RenderQueue
+              jobs={renderQueue.jobs}
+              onDelete={renderQueue.deleteRender}
+              onClearCompleted={renderQueue.clearCompleted}
+              onStartRender={() => renderQueue.startRender()}
+              isRendering={renderQueue.isRendering}
+            />
+          )}
         </div>
-      )}
+      </div>
 
       {/* Lint modal */}
       {lintModal !== null && <LintModal findings={lintModal} onClose={() => setLintModal(null)} />}

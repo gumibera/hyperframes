@@ -64,7 +64,7 @@ export const LeftSidebar = memo(function LeftSidebar({
           onClick={() => selectTab("compositions")}
           className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             tab === "compositions"
-              ? "text-neutral-200 border-b-2 border-blue-500"
+              ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
               : "text-neutral-500 hover:text-neutral-400"
           }`}
         >
@@ -75,7 +75,7 @@ export const LeftSidebar = memo(function LeftSidebar({
           onClick={() => selectTab("assets")}
           className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             tab === "assets"
-              ? "text-neutral-200 border-b-2 border-blue-500"
+              ? "text-neutral-200 border-b-2 border-[#3CE6AC]"
               : "text-neutral-500 hover:text-neutral-400"
           }`}
         >

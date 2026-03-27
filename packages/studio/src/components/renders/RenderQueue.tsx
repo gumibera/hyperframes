@@ -49,7 +49,7 @@ export const RenderQueue = memo(function RenderQueue({
           <button
             onClick={onStartRender}
             disabled={isRendering}
-            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded bg-[#3CE6AC] text-[#09090B] hover:brightness-110 transition-colors disabled:opacity-50"
           >
             {isRendering ? "Rendering..." : "Export MP4"}
           </button>

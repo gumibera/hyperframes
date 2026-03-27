@@ -39,7 +39,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({ job, onDelete }: 
         {/* Status indicator */}
         <div className="flex-shrink-0">
           {job.status === "rendering" && (
-            <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
           )}
           {job.status === "complete" && <div className="w-2 h-2 rounded-full bg-green-400" />}
           {job.status === "failed" && <div className="w-2 h-2 rounded-full bg-red-400" />}
@@ -61,7 +61,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({ job, onDelete }: 
           {job.status === "rendering" && (
             <div className="mt-1 w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                className="h-full bg-[#3CE6AC] rounded-full transition-all duration-300"
                 style={{ width: `${job.progress}%` }}
               />
             </div>

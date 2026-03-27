@@ -107,7 +107,11 @@ function devProjectApi(): Plugin {
             res.end(JSON.stringify({ error: "Project not found" }));
             return;
           }
-          const jobId = `${pid}-${Date.now()}`;
+          // Human-readable render name: project-name_2026-03-27_14-30-45
+          const now = new Date();
+          const datePart = now.toISOString().slice(0, 10);
+          const timePart = now.toTimeString().slice(0, 8).replace(/:/g, "-");
+          const jobId = `${pid}_${datePart}_${timePart}`;
           const outputDir = resolve(dataDir, "../renders");
           if (!existsSync(outputDir)) {
             const { mkdirSync: mk } = await import("fs");
