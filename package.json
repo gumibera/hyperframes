@@ -1,6 +1,10 @@
 {
   "name": "hyperframes-monorepo",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heygen-com/hyperframes"
+  },
   "workspaces": [
     "packages/*"
   ],

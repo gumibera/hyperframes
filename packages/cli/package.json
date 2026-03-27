@@ -2,6 +2,11 @@
   "name": "@hyperframes/cli",
   "version": "0.1.7",
   "description": "HyperFrames CLI — create, preview, and render HTML video compositions",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heygen-com/hyperframes",
+    "directory": "packages/cli"
+  },
   "bin": {
     "hyperframes": "./dist/cli.js"
   },
