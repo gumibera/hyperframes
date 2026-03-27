@@ -1,5 +1,10 @@
 import { defineConfig } from "tsup";
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf-8")) as {
+  version: string;
+};
 
 export default defineConfig({
   entry: ["src/cli.ts"],
@@ -44,6 +49,9 @@ const __dirname = __hf_dirname(__filename);`,
     "is-unicode-supported",
     "citty",
   ],
+  define: {
+    __CLI_VERSION__: JSON.stringify(pkg.version),
+  },
   esbuildOptions(options) {
     options.alias = {
       "@hyperframes/producer": resolve(__dirname, "../producer/src/index.ts"),
