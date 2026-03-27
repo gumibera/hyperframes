@@ -9,6 +9,7 @@ import {
   lstatSync,
   realpathSync,
   createReadStream,
+  unlinkSync,
 } from "node:fs";
 import { join, resolve, sep } from "node:path";
 
@@ -229,6 +230,50 @@ function devProjectApi(): Plugin {
           });
           const stream = createReadStream(jobState.outputPath);
           stream.pipe(res);
+          return;
+        }
+
+        // GET /api/projects/:id/renders — list render outputs for a project
+        const rendersMatch =
+          req.method === "GET" && req.url?.match(/^\/api\/projects\/([^/]+)\/renders/);
+        if (rendersMatch) {
+          const rendersDir = resolve(dataDir, "../renders");
+          if (!existsSync(rendersDir)) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ renders: [] }));
+            return;
+          }
+          const files = readdirSync(rendersDir)
+            .filter((f: string) => f.endsWith(".mp4"))
+            .map((f: string) => {
+              const fp = join(rendersDir, f);
+              const stat = statSync(fp);
+              return {
+                id: f.replace(".mp4", ""),
+                filename: f,
+                size: stat.size,
+                createdAt: stat.mtimeMs,
+              };
+            })
+            .sort((a: { createdAt: number }, b: { createdAt: number }) => b.createdAt - a.createdAt);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ renders: files }));
+          return;
+        }
+
+        // DELETE /api/render/:jobId — delete a render output
+        const deleteRenderMatch =
+          req.method === "DELETE" && req.url?.match(/^\/api\/render\/([^/]+)$/);
+        if (deleteRenderMatch) {
+          const jobId = deleteRenderMatch[1];
+          const rendersDir = resolve(dataDir, "../renders");
+          const fp = join(rendersDir, `${jobId}.mp4`);
+          if (existsSync(fp)) {
+            unlinkSync(fp);
+          }
+          renderJobs.delete(jobId);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ deleted: true }));
           return;
         }
 
