@@ -177,10 +177,15 @@
       }
     </style>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script>
-      (function () {
-        const compId = "nyt-chart";
+      (function initChart() {
+        
+        // Wait for DOM — the runtime may not have cloned the template content yet
+        const svg = document.querySelector(`[data-composition-id="nyt-chart"] .chart-svg`);
+        if (!svg) {
+          setTimeout(initChart, 50);
+          return;
+        }
         const tl = gsap.timeline({ paused: true });
 
         // Data
@@ -204,8 +209,7 @@
         const getLineY = (val) => startY - (val / maxConversion) * chartHeight;
         const getX = (i) => startX + spacing + i * (barWidth + spacing) + barWidth / 2;
 
-        // 1. Setup Elements
-        const svg = document.querySelector(`[data-composition-id="${compId}"] .chart-svg`);
+        // 1. Setup Elements (svg already found above)
         const gridGroup = svg.querySelector(".gridlines");
         const xAxisGroup = svg.querySelector(".x-axis-labels");
         const barsGroup = svg.querySelector(".bars-group");
@@ -279,7 +283,7 @@
 
         // 2. Headline & Subtitle (Draw on left-to-right)
         tl.to(
-          `[data-composition-id="${compId}"] .headline`,
+          `[data-composition-id="nyt-chart"] .headline`,
           {
             clipPath: "inset(0 0% 0 0)",
             duration: 1.2,
@@ -289,7 +293,7 @@
         );
 
         tl.to(
-          `[data-composition-id="${compId}"] .subtitle`,
+          `[data-composition-id="nyt-chart"] .subtitle`,
           {
             clipPath: "inset(0 0% 0 0)",
             duration: 1.2,
@@ -300,7 +304,7 @@
 
         // 3. Inline Key
         tl.to(
-          `[data-composition-id="${compId}"] .key`,
+          `[data-composition-id="nyt-chart"] .key`,
           {
             opacity: 1,
             duration: 0.4,
@@ -311,7 +315,7 @@
 
         // 4. Gridlines (Stagger bottom to top)
         tl.to(
-          `[data-composition-id="${compId}"] .grid-line`,
+          `[data-composition-id="nyt-chart"] .grid-line`,
           {
             opacity: 1,
             duration: 0.5,
@@ -430,7 +434,7 @@
 
         // 11. Source Line
         tl.to(
-          `[data-composition-id="${compId}"] .source`,
+          `[data-composition-id="nyt-chart"] .source`,
           {
             opacity: 1,
             duration: 0.5,
@@ -440,7 +444,7 @@
         );
 
         // Register timeline
-        window.__timelines[compId] = tl;
+        window.__timelines["nyt-chart"] = tl;
       })();
     </script>
   </div>

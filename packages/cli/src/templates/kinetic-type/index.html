@@ -2,12 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HyperFrames Promo</title>
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Kinetic Type</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,700;0,900;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=block"
       rel="stylesheet"
     />
     <style>
@@ -16,51 +17,45 @@
         margin: 0;
         padding: 0;
       }
-
+      html,
       body {
+        margin: 0;
         width: 1920px;
         height: 1080px;
         overflow: hidden;
-        background-color: #0a0a0f; /* Black canvas */
+        background-color: #0a0a0f;
         font-family:
           "Inter",
           -apple-system,
           sans-serif;
-        position: relative;
       }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
   </head>
   <body>
     <div
-      id="root-comp"
-      data-composition-id="promo-video"
+      id="root"
+      data-composition-id="main"
       data-start="0"
+      data-duration="15"
       data-width="1920"
       data-height="1080"
-      data-duration="14.72"
     >
-      <!-- The audio track -->
-      <audio
-        id="main-audio"
-        src="https://gen-os-static.s3.us-east-2.amazonaws.com/astral_assets/uploaded_assets/67cf5a05_e134ec83a57042b38776c952da595870.mp4"
-        data-start="0"
-        data-track-index="0"
-      ></audio>
-
       <div
         id="graphics-layer"
         data-composition-id="main-graphics"
         data-composition-src="compositions/main-graphics.html"
         data-start="0"
+        data-duration="15"
         data-track-index="1"
+        data-width="1920"
+        data-height="1080"
       ></div>
-
-      <script>
-        const tl = gsap.timeline({ paused: true });
-        window.__timelines = window.__timelines || {};
-        window.__timelines["promo-video"] = tl;
-      </script>
     </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["main"] = tl;
+    </script>
   </body>
 </html>

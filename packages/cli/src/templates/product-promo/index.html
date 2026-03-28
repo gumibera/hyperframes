@@ -2,30 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=1920, height=1080, initial-scale=1.0" />
-    <title>Figma Promo - Collaborate</title>
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Product Promo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=block"
       rel="stylesheet"
     />
     <style>
-      body,
-      html {
+      * {
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
         width: 1920px;
         height: 1080px;
         overflow: hidden;
         background: #0a0a0f;
         font-family: "Inter", sans-serif;
       }
-
-      [data-composition-id="root"] {
-        width: 1920px;
-        height: 1080px;
-        position: relative;
-      }
-
       .scene {
         position: absolute;
         top: 0;
@@ -33,28 +31,17 @@
         width: 100%;
         height: 100%;
       }
-
-      /* Lower Third Caption - Centered and Prominent */
-      [data-composition-id="captions"] {
+      .caption-text-wrapper {
         position: absolute;
-        top: 0;
+        bottom: 150px;
         left: 0;
-        width: 1920px;
-        height: 1080px;
-        z-index: 100;
+        right: 0;
         display: flex;
         justify-content: center;
-        align-items: flex-end;
-        padding-bottom: 150px;
         pointer-events: none;
-        box-sizing: border-box;
-      }
-
-      .caption-text-wrapper {
         overflow: hidden;
         padding: 10px 0;
       }
-
       .caption-line {
         color: white;
         font-size: 48px;
@@ -68,45 +55,62 @@
     </style>
   </head>
   <body>
-    <div data-composition-id="root" data-width="1920" data-height="1080" data-duration="20">
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+    >
       <!-- Scene 1: Logo Intro -->
       <div
         id="scene-1"
         class="scene"
+        data-composition-id="scene1"
         data-composition-src="compositions/scene1-logo-intro.html"
         data-start="0"
         data-duration="1.5"
         data-track-index="1"
+        data-width="1920"
+        data-height="1080"
       ></div>
 
       <!-- Scene 2-4: Continuous Canvas -->
       <div
         id="scene-2-4"
         class="scene"
+        data-composition-id="scene2-4"
         data-composition-src="compositions/scene2-4-canvas.html"
         data-start="1.5"
         data-duration="12.5"
         data-track-index="1"
+        data-width="1920"
+        data-height="1080"
       ></div>
 
       <!-- Scene 5: Logo Outro -->
       <div
         id="scene-5"
         class="scene"
+        data-composition-id="scene5"
         data-composition-src="compositions/scene5-logo-outro.html"
         data-start="14"
         data-duration="6"
         data-track-index="1"
-      ></div>
-
-      <!-- Captions Composition -->
-      <div
-        data-composition-id="captions"
         data-width="1920"
         data-height="1080"
+      ></div>
+
+      <!-- Captions -->
+      <div
+        id="captions-comp"
+        data-composition-id="captions"
         data-start="1.5"
         data-duration="12.5"
         data-track-index="2"
+        data-width="1920"
+        data-height="1080"
       >
         <div class="caption-text-wrapper">
           <div id="caption-text" class="caption-line">Starting with a blank canvas.</div>
@@ -117,15 +121,10 @@
             const tl = gsap.timeline({ paused: true });
             const text = document.querySelector("#caption-text");
 
-            // Scene 2 start - Slide up reveal
             tl.to(text, { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, 0);
-
-            // Scene 3 crossfade (at 3.5s into this comp, which is 5s total)
             tl.to(text, { opacity: 0, y: -20, duration: 0.3, ease: "power3.in" }, 3.2);
             tl.set(text, { innerText: "Three cursors. One file. Zero meetings.", y: 40 }, 3.5);
             tl.to(text, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 3.5);
-
-            // Scene 4 crossfade (at 8.0s into this comp, which is 9.5s total)
             tl.to(text, { opacity: 0, y: -20, duration: 0.3, ease: "power3.in" }, 7.7);
             tl.set(
               text,
@@ -133,8 +132,6 @@
               8.0,
             );
             tl.to(text, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 8.0);
-
-            // Exit
             tl.to(text, { opacity: 0, y: -20, duration: 0.4, ease: "power3.in" }, 12.1);
 
             window.__timelines = window.__timelines || {};
@@ -144,12 +141,10 @@
       </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script>
-      // Main orchestration timeline
+      window.__timelines = window.__timelines || {};
       const mainTl = gsap.timeline({ paused: true });
 
-      // Scene 2-4 transition effects (blur/scale)
       mainTl.set("#scene-2-4", { scale: 1, filter: "blur(0px)" }, 1.5);
       mainTl.to(
         "#scene-2-4",
@@ -157,8 +152,7 @@
         13.75,
       );
 
-      window.__timelines = window.__timelines || {};
-      window.__timelines["root"] = mainTl;
+      window.__timelines["main"] = mainTl;
     </script>
   </body>
 </html>
