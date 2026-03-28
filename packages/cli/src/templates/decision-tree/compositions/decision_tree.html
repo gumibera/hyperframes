@@ -348,6 +348,7 @@
         // 10. Cursor clicks. Selection border appears.
         tl.add(() => {
           const node = document.querySelector("#node-python");
+          if (!node) return;
           if (!node.querySelector(".selection-border")) {
             const border = document.createElement("div");
             border.className = "selection-border";
@@ -366,6 +367,7 @@
         tl.to("#cursor", { scale: 0.8, duration: 0.05, yoyo: true, repeat: 3 }, "hold4");
         tl.add(() => {
           const textEl = document.querySelector("#python-text");
+          if (!textEl) return;
           textEl.innerHTML = 'Start with <span class="text-highlight">Pythom</span>';
         }, "hold4+=0.1");
 
@@ -379,8 +381,8 @@
         words.forEach((word, i) => {
           tl.add(
             () => {
-              document.querySelector("#python-text").innerHTML =
-                `Start with <span class="text-highlight">${word}</span>`;
+              const el = document.querySelector("#python-text");
+              if (el) el.innerHTML = `Start with <span class="text-highlight">${word}</span>`;
             },
             typingStart + i * 0.05,
           );
@@ -389,7 +391,8 @@
         // Remove highlight and squiggle at the end of typing
         const typingEnd = typingStart + words.length * 0.05;
         tl.add(() => {
-          document.querySelector("#python-text").innerHTML = "Start with Python";
+          const pyEl = document.querySelector("#python-text");
+          if (pyEl) pyEl.innerHTML = "Start with Python";
           gsap.set(".squiggle-container", { opacity: 0 });
         }, typingEnd);
 
