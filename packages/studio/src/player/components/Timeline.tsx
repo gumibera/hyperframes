@@ -163,7 +163,6 @@ export const Timeline = memo(function Timeline({ onSeek, onDrillDown }: Timeline
   const timelineReady = usePlayerStore((s) => s.timelineReady);
   const selectedElementId = usePlayerStore((s) => s.selectedElementId);
   const setSelectedElementId = usePlayerStore((s) => s.setSelectedElementId);
-  const activeEdits = usePlayerStore((s) => s.activeEdits);
   const playheadRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredClip, setHoveredClip] = useState<string | null>(null);
@@ -348,8 +347,6 @@ export const Timeline = memo(function Timeline({ onSeek, onDrillDown }: Timeline
                   const isComposition = !!el.compositionSrc;
                   const clipKey = `${el.id}-${i}`;
                   const isHovered = hoveredClip === clipKey;
-                  const activeEdit = activeEdits[el.id];
-                  const isBeingEdited = !!activeEdit;
 
                   return (
                     <div
@@ -371,11 +368,9 @@ export const Timeline = memo(function Timeline({ onSeek, onDrillDown }: Timeline
                           : `1px solid rgba(255,255,255,${isHovered ? 0.3 : 0.15})`,
                         boxShadow: isSelected
                           ? `0 0 0 1px ${style.clip}, 0 2px 8px rgba(0,0,0,0.4)`
-                          : isBeingEdited
-                            ? `0 0 0 1px ${activeEdit.agentColor}80, 0 0 8px ${activeEdit.agentColor}40`
-                            : isHovered
-                              ? "0 1px 4px rgba(0,0,0,0.3)"
-                              : "none",
+                          : isHovered
+                            ? "0 1px 4px rgba(0,0,0,0.3)"
+                            : "none",
                         cursor: "pointer",
                         transition: "border-color 120ms, box-shadow 120ms, transform 80ms",
                         transform: isHovered && !isSelected ? "scaleY(1.04)" : "scaleY(1)",
@@ -400,59 +395,6 @@ export const Timeline = memo(function Timeline({ onSeek, onDrillDown }: Timeline
                         }
                       }}
                     >
-                      {/* Agent ownership dot */}
-                      {el.agentColor && (
-                        <div
-                          className="flex-shrink-0 w-1.5 h-1.5 rounded-full ml-1"
-                          style={{ backgroundColor: el.agentColor }}
-                          title={el.agentId ? `Agent: ${el.agentId}` : undefined}
-                        />
-                      )}
-                      {/* Editing glow pulse */}
-                      {/* Agent editing indicator — cursor on the clip */}
-                      {isBeingEdited && (
-                        <>
-                          <div
-                            className="absolute inset-0 rounded-[5px] animate-pulse pointer-events-none"
-                            style={{ boxShadow: `inset 0 0 0 1px ${activeEdit.agentColor}60` }}
-                          />
-                          {/* Agent name badge above clip */}
-                          <div
-                            className="absolute pointer-events-none flex items-center gap-1"
-                            style={{
-                              top: -16,
-                              left: 2,
-                              zIndex: 30,
-                            }}
-                          >
-                            {/* Mini cursor arrow */}
-                            <svg
-                              width="8"
-                              height="10"
-                              viewBox="0 0 12 16"
-                              fill="none"
-                              style={{ flexShrink: 0 }}
-                            >
-                              <path
-                                d="M1 1L11 7L6 8L4 14L1 1Z"
-                                fill={activeEdit.agentColor}
-                                stroke="white"
-                                strokeWidth="0.8"
-                              />
-                            </svg>
-                            <span
-                              className="text-[8px] font-semibold px-1 py-px rounded whitespace-nowrap"
-                              style={{
-                                backgroundColor: activeEdit.agentColor,
-                                color: "white",
-                                boxShadow: `0 1px 4px ${activeEdit.agentColor}40`,
-                              }}
-                            >
-                              {activeEdit.agentId}
-                            </span>
-                          </div>
-                        </>
-                      )}
                       <span
                         className="text-[10px] font-semibold truncate px-1.5 leading-none"
                         style={{ color: style.label }}
