@@ -196,6 +196,19 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
         };
       })
       .sort((a, b) => b.createdAt - a.createdAt);
+    // Register on-disk renders that aren't in the current session's job map
+    // so they remain downloadable after a server restart.
+    for (const file of files) {
+      if (!renderJobs.has(file.id)) {
+        renderJobs.set(file.id, {
+          id: file.id,
+          status: file.status,
+          progress: 100,
+          outputPath: join(rendersDir, file.filename),
+          createdAt: file.createdAt,
+        } as RenderJobState & { createdAt: number });
+      }
+    }
     return c.json({ renders: files });
   });
 }
