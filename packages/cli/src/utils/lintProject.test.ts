@@ -67,7 +67,9 @@ describe("lintProject", () => {
     expect(totalErrors).toBe(0);
     expect(totalWarnings).toBe(0);
     expect(results).toHaveLength(1);
-    expect(results[0].file).toBe("index.html");
+    const first = results[0];
+    expect(first).toBeDefined();
+    expect(first?.file).toBe("index.html");
   });
 
   it("detects errors in index.html", () => {
@@ -75,7 +77,9 @@ describe("lintProject", () => {
     const { totalErrors, results } = lintProject(project);
 
     expect(totalErrors).toBeGreaterThan(0);
-    const mediaFinding = results[0].result.findings.find((f) => f.code === "media_missing_id");
+    const first = results[0];
+    expect(first).toBeDefined();
+    const mediaFinding = first?.result.findings.find((f) => f.code === "media_missing_id");
     expect(mediaFinding).toBeDefined();
   });
 
@@ -86,9 +90,11 @@ describe("lintProject", () => {
     const { totalErrors, results } = lintProject(project);
 
     expect(results).toHaveLength(2);
-    expect(results[1].file).toBe("compositions/captions.html");
+    const second = results[1];
+    expect(second).toBeDefined();
+    expect(second?.file).toBe("compositions/captions.html");
     expect(totalErrors).toBeGreaterThan(0);
-    const subFindings = results[1].result.findings;
+    const subFindings = second?.result.findings ?? [];
     expect(subFindings.some((f) => f.code === "media_missing_id")).toBe(true);
   });
 
@@ -99,9 +105,13 @@ describe("lintProject", () => {
     const { totalErrors, results } = lintProject(project);
 
     expect(results).toHaveLength(2);
+    const first = results[0];
+    const second = results[1];
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
     // Both files have media_missing_id errors
-    const rootErrors = results[0].result.errorCount;
-    const subErrors = results[1].result.errorCount;
+    const rootErrors = first?.result.errorCount ?? 0;
+    const subErrors = second?.result.errorCount ?? 0;
     expect(totalErrors).toBe(rootErrors + subErrors);
   });
 
@@ -113,7 +123,9 @@ describe("lintProject", () => {
 
     expect(results).toHaveLength(2);
     expect(totalWarnings).toBeGreaterThan(0);
-    const preloadWarning = results[1].result.findings.find((f) => f.code === "media_preload_none");
+    const second = results[1];
+    expect(second).toBeDefined();
+    const preloadWarning = second?.result.findings.find((f) => f.code === "media_preload_none");
     expect(preloadWarning).toBeDefined();
   });
 
