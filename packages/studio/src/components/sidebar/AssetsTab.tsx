@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, useRef } from "react";
 import { ExpandOnHover } from "../ui/ExpandOnHover";
+import { ExpandedVideoPreview } from "../ui/ExpandedVideoPreview";
 
 interface AssetsTabProps {
   projectId: string;
@@ -112,21 +113,32 @@ function ExpandedAssetPreview({
   isAudio: boolean;
   onCopy: () => void;
 }) {
+  if (isVideo) {
+    return (
+      <ExpandedVideoPreview
+        src={serveUrl}
+        name={name}
+        subtitle={asset}
+        action={
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+            className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors flex-shrink-0"
+          >
+            Copy Path
+          </button>
+        }
+      />
+    );
+  }
+
   return (
     <div className="w-full h-full bg-neutral-950 rounded-[16px] overflow-hidden flex flex-col">
       <div className="flex-1 min-h-0 flex items-center justify-center bg-black p-4">
         {isImage && (
           <img src={serveUrl} alt={name} className="max-w-full max-h-full object-contain rounded" />
-        )}
-        {isVideo && (
-          <video
-            src={serveUrl}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="max-w-full max-h-full object-contain rounded"
-          />
         )}
         {isAudio && (
           <div className="flex flex-col items-center gap-4">

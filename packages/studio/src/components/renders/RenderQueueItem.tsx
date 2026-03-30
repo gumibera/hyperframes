@@ -1,4 +1,6 @@
 import { memo, useCallback, useState, useEffect, useRef } from "react";
+import { ExpandOnHover } from "../ui/ExpandOnHover";
+import { ExpandedVideoPreview } from "../ui/ExpandedVideoPreview";
 import type { RenderJob } from "./useRenderQueue";
 
 interface RenderQueueItemProps {
@@ -91,16 +93,15 @@ export const RenderQueueItem = memo(function RenderQueueItem({
     [job.id, job.filename],
   );
 
-  const isClickable = job.status === "complete";
+  const viewSrc = `/api/render/${job.id}/view`;
 
-  return (
+  const row = (
     <div
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
-      onClick={isClickable ? handleOpen : undefined}
       className={[
         "px-3 py-2.5 border-b border-neutral-800/30 last:border-0 transition-colors duration-150",
-        isClickable ? "cursor-pointer hover:bg-neutral-800/30" : "",
+        job.status === "complete" ? "cursor-pointer hover:bg-neutral-800/30" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -108,7 +109,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({
       <div className="flex items-center gap-2.5">
         {/* Thumbnail — matches CompCard sizing (w-20 h-[45px]) */}
         <div className="w-20 h-[45px] rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
-          {job.status === "complete" && <RenderThumbnail src={`/api/render/${job.id}/view`} />}
+          {job.status === "complete" && <RenderThumbnail src={viewSrc} />}
           {job.status === "rendering" && (
             <div className="w-full h-full flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
@@ -139,7 +140,6 @@ export const RenderQueueItem = memo(function RenderQueueItem({
             )}
           </div>
 
-          {/* Progress bar + percentage */}
           {job.status === "rendering" && (
             <div className="mt-1">
               <div className="flex items-center justify-between mb-0.5">
@@ -213,5 +213,46 @@ export const RenderQueueItem = memo(function RenderQueueItem({
         )}
       </div>
     </div>
+  );
+
+  // Completed renders: wrap in ExpandOnHover with shared ExpandedVideoPreview
+  // (same spring-expand pattern as AssetsTab video assets and CompositionsTab).
+  if (job.status !== "complete") {
+    return row;
+  }
+
+  const subtitle = [
+    job.durationMs ? formatDuration(job.durationMs) : null,
+    formatTimeAgo(job.createdAt),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <ExpandOnHover
+      expandedContent={
+        <ExpandedVideoPreview
+          src={viewSrc}
+          name={job.filename}
+          subtitle={subtitle}
+          action={
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpen();
+              }}
+              className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors flex-shrink-0"
+            >
+              Open
+            </button>
+          }
+        />
+      }
+      onClick={handleOpen}
+      expandScale={0.5}
+      delay={500}
+    >
+      {row}
+    </ExpandOnHover>
   );
 });
