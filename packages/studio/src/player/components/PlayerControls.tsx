@@ -8,11 +8,15 @@ const SPEED_OPTIONS = [0.25, 0.5, 1, 1.5, 2] as const;
 interface PlayerControlsProps {
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
+  timelineVisible?: boolean;
+  onToggleTimeline?: () => void;
 }
 
 export const PlayerControls = memo(function PlayerControls({
   onTogglePlay,
   onSeek,
+  timelineVisible,
+  onToggleTimeline,
 }: PlayerControlsProps) {
   // Subscribe to only the fields we render — each selector prevents cascading re-renders
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -224,6 +228,33 @@ export const PlayerControls = memo(function PlayerControls({
           </div>
         )}
       </div>
+
+      {/* Timeline toggle */}
+      {onToggleTimeline !== undefined && (
+        <button
+          onClick={onToggleTimeline}
+          className={`w-7 h-7 flex items-center justify-center rounded-md border transition-colors ${
+            timelineVisible
+              ? "text-[#3CE6AC] bg-[#3CE6AC]/10 border-[#3CE6AC]/30"
+              : "border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
+          }`}
+          title={timelineVisible ? "Hide timeline" : "Show timeline"}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <rect x="3" y="13" width="18" height="8" rx="1" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="3" y1="5" x2="21" y2="5" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 });

@@ -286,6 +286,7 @@ export function StudioApp() {
   const [rightWidth, setRightWidth] = useState(400);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(true);
+  const [timelineVisible, setTimelineVisible] = useState(false);
   const panelDragRef = useRef<{
     side: "left" | "right";
     startX: number;
@@ -576,6 +577,29 @@ export function StudioApp() {
             </svg>
           </button>
           <button
+            onClick={() => setTimelineVisible((v) => !v)}
+            className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors ${
+              timelineVisible
+                ? "text-[#3CE6AC] bg-[#3CE6AC]/10 border-[#3CE6AC]/30"
+                : "bg-transparent border-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
+            }`}
+            title={timelineVisible ? "Hide timeline" : "Show timeline"}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            >
+              <rect x="3" y="13" width="18" height="8" rx="1" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="3" y1="5" x2="21" y2="5" />
+            </svg>
+          </button>
+          <button
             onClick={() => setRightCollapsed((v) => !v)}
             className={`h-7 flex items-center gap-1.5 px-2.5 rounded-md text-[11px] font-medium border transition-colors ${
               !rightCollapsed
@@ -673,6 +697,8 @@ export function StudioApp() {
             onIframeRef={(iframe) => {
               previewIframeRef.current = iframe;
             }}
+            timelineVisible={timelineVisible}
+            onToggleTimeline={() => setTimelineVisible((v) => !v)}
           />
         </div>
 
