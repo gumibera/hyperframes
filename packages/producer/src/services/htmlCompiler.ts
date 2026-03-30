@@ -146,6 +146,12 @@ async function compileHtmlFile(
     compiledHtml = clampDurations(compiledHtml, clampList);
   }
 
+  // Strip crossorigin from video elements: the render pipeline replaces them with
+  // injected frame images, so the browser never needs to load the source.
+  // Without this, videos with crossorigin="anonymous" targeting CORS-restricted
+  // origins (e.g. S3 without CORS headers) keep readyState=0, blocking page setup.
+  compiledHtml = compiledHtml.replace(/(<video\b[^>]*)\s+crossorigin(?:=["'][^"']*["'])?/gi, "$1");
+
   return { html: compiledHtml, unresolvedCompositions };
 }
 
@@ -728,6 +734,28 @@ export async function compileForRender(
       .catch(() => {});
   }
 
+  // Persist auto-assigned IDs back into the HTML so the compiled file served
+  // to Puppeteer has matching element IDs. parseVideoElements uses parseHTML
+  // internally and sets el.id = "hf-video-N" on the JSDOM node, but that does
+  // not mutate the html string. We do one more DOM pass here to write those IDs
+  // into the document and re-serialize — only if there are any id-less videos.
+  const autoIdVideos = videos.filter((v) => v.id.startsWith("hf-video-"));
+  let htmlWithIds = html;
+  if (autoIdVideos.length > 0) {
+    const { document: idDoc } = parseHTML(html);
+    let changed = false;
+    for (const v of autoIdVideos) {
+      const el = idDoc.querySelector(`video[src="${v.src}"]:not([id])`);
+      if (el) {
+        el.id = v.id;
+        changed = true;
+      }
+    }
+    if (changed) {
+      htmlWithIds = idDoc.documentElement?.outerHTML ?? html;
+    }
+  }
+
   // Read dimensions from root composition element using DOM parser
   const { document } = parseHTML(html);
   const rootEl = document.querySelector("[data-composition-id]");
@@ -745,7 +773,7 @@ export async function compileForRender(
     : 0;
 
   return {
-    html,
+    html: htmlWithIds,
     subCompositions,
     videos,
     audios,

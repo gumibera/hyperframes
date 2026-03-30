@@ -1,6 +1,7 @@
 import { memo, useState, useCallback, useRef } from "react";
 import { ExpandOnHover } from "../ui/ExpandOnHover";
 import { ExpandedVideoPreview } from "../ui/ExpandedVideoPreview";
+import { VideoFrameThumbnail } from "../ui/VideoFrameThumbnail";
 
 interface AssetsTabProps {
   projectId: string;
@@ -39,22 +40,7 @@ function AssetThumbnail({
           }}
         />
       )}
-      {isVideo && (
-        <>
-          <video
-            src={serveUrl}
-            muted
-            playsInline
-            preload="metadata"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="white" className="opacity-80">
-              <polygon points="6,3 20,12 6,21" />
-            </svg>
-          </div>
-        </>
-      )}
+      {isVideo && <VideoFrameThumbnail src={serveUrl} />}
       {isAudio && (
         <div className="w-full h-full flex items-center justify-center bg-neutral-900">
           <svg
