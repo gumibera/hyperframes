@@ -1,5 +1,19 @@
 import { memo, useState, useCallback } from "react";
-import { Film, Music, Image, ChevronDown, ChevronRight } from "../../icons/SystemIcons";
+import {
+  FileHtml,
+  FileCss,
+  FileJs,
+  FileJsx,
+  FileTs,
+  FileTsx,
+  FileTxt,
+  FileCode,
+  File,
+  FilmStrip,
+  MusicNote,
+  Image as PhImage,
+} from "@phosphor-icons/react";
+import { ChevronDown, ChevronRight } from "../../icons/SystemIcons";
 
 interface FileTreeProps {
   files: string[];
@@ -7,65 +21,28 @@ interface FileTreeProps {
   onSelectFile: (path: string) => void;
 }
 
-/** VS Code–style language badge: colored rounded rect with a 2–3 letter label. */
-function Badge({ label, bg, text = "#fff" }: { label: string; bg: string; text?: string }) {
-  return (
-    <span
-      className="flex-shrink-0 inline-flex items-center justify-center rounded"
-      style={{
-        width: 16,
-        height: 16,
-        background: bg,
-        color: text,
-        fontSize: 7,
-        fontWeight: 700,
-        fontFamily: "monospace",
-        letterSpacing: "-0.02em",
-        lineHeight: 1,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
+const SZ = 14;
 
-/** Render a file-type icon for a given file path. */
 function FileIcon({ path }: { path: string }) {
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
-  // Language badges
-  if (ext === "html") return <Badge label="HTML" bg="#E44D26" />;
-  if (ext === "js" || ext === "mjs" || ext === "cjs")
-    return <Badge label="JS" bg="#F0DB4F" text="#323330" />;
-  if (ext === "ts" || ext === "mts") return <Badge label="TS" bg="#3178C6" />;
-  if (ext === "css") return <Badge label="CSS" bg="#264DE4" />;
-  if (ext === "json") return <Badge label="{}" bg="#1E7F34" />;
-  if (ext === "md" || ext === "mdx") return <Badge label="MD" bg="#555" />;
-  if (ext === "svg") return <Badge label="SVG" bg="#FF9900" />;
+  const d = { size: SZ, weight: "duotone" as const, className: "flex-shrink-0" };
+  if (ext === "html") return <FileHtml {...d} color="#E44D26" />;
+  if (ext === "css") return <FileCss {...d} color="#264DE4" />;
+  if (ext === "js" || ext === "mjs" || ext === "cjs") return <FileJs {...d} color="#F0DB4F" />;
+  if (ext === "jsx") return <FileJsx {...d} color="#61DAFB" />;
+  if (ext === "ts" || ext === "mts") return <FileTs {...d} color="#3178C6" />;
+  if (ext === "tsx") return <FileTsx {...d} color="#3178C6" />;
+  if (ext === "txt" || ext === "md" || ext === "mdx") return <FileTxt {...d} color="#9CA3AF" />;
+  if (ext === "json" || ext === "svg") return <FileCode {...d} color="#22C55E" />;
   if (ext === "wav" || ext === "mp3" || ext === "ogg" || ext === "m4a")
-    return <Music size={13} style={{ color: "#3CE6AC" }} className="flex-shrink-0" />;
+    return <MusicNote size={SZ} color="#3CE6AC" className="flex-shrink-0" />;
   if (ext === "mp4" || ext === "webm" || ext === "mov")
-    return <Film size={13} style={{ color: "#A855F7" }} className="flex-shrink-0" />;
+    return <FilmStrip size={SZ} color="#A855F7" className="flex-shrink-0" />;
   if (ext === "png" || ext === "jpg" || ext === "jpeg" || ext === "webp" || ext === "gif")
-    return <Image size={13} style={{ color: "#22C55E" }} className="flex-shrink-0" />;
+    return <PhImage size={SZ} color="#22C55E" className="flex-shrink-0" />;
   if (ext === "woff" || ext === "woff2" || ext === "ttf" || ext === "otf")
-    return <Badge label="Aa" bg="#525252" />;
-  if (ext === "txt") return <Badge label="TXT" bg="#4B5563" />;
-  // Generic document
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#6B7280"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      className="flex-shrink-0"
-    >
-      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-    </svg>
-  );
+    return <File size={SZ} weight="duotone" color="#6B7280" className="flex-shrink-0" />;
+  return <File size={SZ} weight="duotone" color="#6B7280" className="flex-shrink-0" />;
 }
 
 interface TreeNode {
