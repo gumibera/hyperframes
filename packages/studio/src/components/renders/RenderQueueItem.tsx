@@ -1,6 +1,4 @@
 import { memo, useCallback, useState, useEffect, useRef } from "react";
-import { ExpandOnHover } from "../ui/ExpandOnHover";
-import { ExpandedVideoPreview } from "../ui/ExpandedVideoPreview";
 import type { RenderJob } from "./useRenderQueue";
 
 interface RenderQueueItemProps {
@@ -21,7 +19,7 @@ function formatTimeAgo(timestamp: number): string {
   return `${Math.floor(diff / 3600000)}h ago`;
 }
 
-/** Extracts a single JPEG frame from a video URL using a hidden video + canvas. */
+/** Static frame extracted once via hidden video + canvas. */
 function RenderThumbnail({ src }: { src: string }) {
   const [frame, setFrame] = useState<string | null>(null);
   const didExtract = useRef(false);
@@ -44,7 +42,6 @@ function RenderThumbnail({ src }: { src: string }) {
     };
 
     video.addEventListener("loadedmetadata", () => {
-      // Seek to ~10% in so we get a representative non-black frame
       video.currentTime = Math.min(2, video.duration * 0.1 || 2);
     });
 
@@ -58,7 +55,6 @@ function RenderThumbnail({ src }: { src: string }) {
     });
 
     video.addEventListener("error", cleanup);
-
     video.src = src;
     video.load();
 
@@ -94,22 +90,45 @@ export const RenderQueueItem = memo(function RenderQueueItem({
   );
 
   const viewSrc = `/api/render/${job.id}/view`;
+  const isComplete = job.status === "complete";
 
-  const row = (
+  return (
     <div
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
+      onClick={isComplete ? handleOpen : undefined}
       className={[
         "px-3 py-2.5 border-b border-neutral-800/30 last:border-0 transition-colors duration-150",
-        job.status === "complete" ? "cursor-pointer hover:bg-neutral-800/30" : "",
+        isComplete ? "cursor-pointer hover:bg-neutral-800/30" : "",
       ]
         .filter(Boolean)
         .join(" ")}
     >
       <div className="flex items-center gap-2.5">
-        {/* Thumbnail — matches CompCard sizing (w-20 h-[45px]) */}
+        {/* Thumbnail — static frame; swaps to live video on hover */}
         <div className="w-20 h-[45px] rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
-          {job.status === "complete" && <RenderThumbnail src={viewSrc} />}
+          {isComplete && (
+            <>
+              {/* Live video — visible on hover */}
+              {hovered && (
+                <video
+                  src={viewSrc}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              )}
+              {/* Static frame — visible when not hovering */}
+              <div
+                className="absolute inset-0 transition-opacity duration-150"
+                style={{ opacity: hovered ? 0 : 1 }}
+              >
+                <RenderThumbnail src={viewSrc} />
+              </div>
+            </>
+          )}
           {job.status === "rendering" && (
             <div className="w-full h-full flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
@@ -167,7 +186,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({
         {/* Actions */}
         {hovered && (
           <div className="flex items-center gap-1 flex-shrink-0">
-            {job.status === "complete" && (
+            {isComplete && (
               <button
                 onClick={handleDownload}
                 className="p-1 rounded text-neutral-500 hover:text-green-400 transition-colors"
@@ -213,46 +232,5 @@ export const RenderQueueItem = memo(function RenderQueueItem({
         )}
       </div>
     </div>
-  );
-
-  // Completed renders: wrap in ExpandOnHover with shared ExpandedVideoPreview
-  // (same spring-expand pattern as AssetsTab video assets and CompositionsTab).
-  if (job.status !== "complete") {
-    return row;
-  }
-
-  const subtitle = [
-    job.durationMs ? formatDuration(job.durationMs) : null,
-    formatTimeAgo(job.createdAt),
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  return (
-    <ExpandOnHover
-      expandedContent={
-        <ExpandedVideoPreview
-          src={viewSrc}
-          name={job.filename}
-          subtitle={subtitle}
-          action={
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpen();
-              }}
-              className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors flex-shrink-0"
-            >
-              Open
-            </button>
-          }
-        />
-      }
-      onClick={handleOpen}
-      expandScale={0.5}
-      delay={500}
-    >
-      {row}
-    </ExpandOnHover>
   );
 });
