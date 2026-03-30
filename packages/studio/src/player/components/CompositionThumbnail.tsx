@@ -28,7 +28,7 @@ export const CompositionThumbnail = memo(function CompositionThumbnail({
   previewUrl,
   label,
   labelColor,
-  seekTime = 0.4,
+  seekTime = 2,
   duration = 5,
   width = 1920,
   height = 1080,
