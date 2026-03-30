@@ -1,6 +1,4 @@
 import { memo, useState, useCallback, useRef } from "react";
-import { ExpandOnHover } from "../ui/ExpandOnHover";
-import { ExpandedVideoPreview } from "../ui/ExpandedVideoPreview";
 import { VideoFrameThumbnail } from "../ui/VideoFrameThumbnail";
 
 interface AssetsTabProps {
@@ -14,6 +12,7 @@ const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|svg)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov)$/i;
 const AUDIO_EXT = /\.(mp3|wav|ogg|m4a)$/i;
 
+/** Inline thumbnail content — rendered inside the container div in AssetCard. */
 function AssetThumbnail({
   serveUrl,
   name,
@@ -28,7 +27,7 @@ function AssetThumbnail({
   isAudio: boolean;
 }) {
   return (
-    <div className="w-16 h-10 rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
+    <>
       {isImage && (
         <img
           src={serveUrl}
@@ -42,7 +41,7 @@ function AssetThumbnail({
       )}
       {isVideo && <VideoFrameThumbnail src={serveUrl} />}
       {isAudio && (
-        <div className="w-full h-full flex items-center justify-center bg-neutral-900">
+        <div className="w-full h-full flex items-center justify-center">
           <svg
             width="16"
             height="16"
@@ -59,7 +58,7 @@ function AssetThumbnail({
         </div>
       )}
       {!isImage && !isVideo && !isAudio && (
-        <div className="w-full h-full flex items-center justify-center bg-neutral-900">
+        <div className="w-full h-full flex items-center justify-center">
           <svg
             width="14"
             height="14"
@@ -78,89 +77,7 @@ function AssetThumbnail({
           </svg>
         </div>
       )}
-    </div>
-  );
-}
-
-function ExpandedAssetPreview({
-  serveUrl,
-  name,
-  asset,
-  isImage,
-  isVideo,
-  isAudio,
-  onCopy,
-}: {
-  serveUrl: string;
-  name: string;
-  asset: string;
-  isImage: boolean;
-  isVideo: boolean;
-  isAudio: boolean;
-  onCopy: () => void;
-}) {
-  if (isVideo) {
-    return (
-      <ExpandedVideoPreview
-        src={serveUrl}
-        name={name}
-        subtitle={asset}
-        action={
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onCopy();
-            }}
-            className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors flex-shrink-0"
-          >
-            Copy Path
-          </button>
-        }
-      />
-    );
-  }
-
-  return (
-    <div className="w-full h-full bg-neutral-950 rounded-[16px] overflow-hidden flex flex-col">
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-black p-4">
-        {isImage && (
-          <img src={serveUrl} alt={name} className="max-w-full max-h-full object-contain rounded" />
-        )}
-        {isAudio && (
-          <div className="flex flex-col items-center gap-4">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="text-purple-400"
-            >
-              <path d="M9 18V5l12-2v13" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="6" cy="18" r="3" />
-              <circle cx="18" cy="16" r="3" />
-            </svg>
-            <audio src={serveUrl} controls autoPlay className="w-64" />
-          </div>
-        )}
-      </div>
-      <div className="px-5 py-3 bg-neutral-900 border-t border-neutral-800/50 flex items-center justify-between flex-shrink-0">
-        <div>
-          <div className="text-sm font-medium text-neutral-200">{name}</div>
-          <div className="text-[10px] text-neutral-600 font-mono mt-0.5">{asset}</div>
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy();
-          }}
-          className="px-4 py-1.5 text-xs font-semibold text-[#09090B] bg-[#3CE6AC] rounded-lg hover:brightness-110 transition-colors"
-        >
-          Copy Path
-        </button>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -175,28 +92,42 @@ function AssetCard({
   onCopy: (path: string) => void;
   isCopied: boolean;
 }) {
+  const [hovered, setHovered] = useState(false);
   const name = asset.split("/").pop() ?? asset;
   const serveUrl = `/api/projects/${projectId}/preview/${asset}`;
-  const isImage = IMAGE_EXT.test(asset);
   const isVideo = VIDEO_EXT.test(asset);
-  const isAudio = AUDIO_EXT.test(asset);
-  const hasExpandablePreview = isImage || isVideo || isAudio;
 
-  const card = (
+  return (
     <div
+      onClick={() => onCopy(asset)}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors cursor-pointer ${
         isCopied
           ? "bg-[#3CE6AC]/10 border-l-2 border-[#3CE6AC]"
           : "border-l-2 border-transparent hover:bg-neutral-800/50"
       }`}
     >
-      <AssetThumbnail
-        serveUrl={serveUrl}
-        name={name}
-        isImage={isImage}
-        isVideo={isVideo}
-        isAudio={isAudio}
-      />
+      <div className="w-16 h-10 rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
+        <AssetThumbnail
+          serveUrl={serveUrl}
+          name={name}
+          isImage={IMAGE_EXT.test(asset)}
+          isVideo={isVideo}
+          isAudio={AUDIO_EXT.test(asset)}
+        />
+        {/* Inline video autoplay on hover — same pattern as renders */}
+        {isVideo && hovered && (
+          <video
+            src={serveUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+        )}
+      </div>
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium text-neutral-300 truncate block">{name}</span>
         {isCopied ? (
@@ -206,43 +137,6 @@ function AssetCard({
         )}
       </div>
     </div>
-  );
-
-  if (!hasExpandablePreview) {
-    return (
-      <button
-        type="button"
-        onClick={() => onCopy(asset)}
-        title="Click to copy path"
-        className="w-full"
-      >
-        {card}
-      </button>
-    );
-  }
-
-  return (
-    <ExpandOnHover
-      expandedContent={(closeExpand) => (
-        <ExpandedAssetPreview
-          serveUrl={serveUrl}
-          name={name}
-          asset={asset}
-          isImage={isImage}
-          isVideo={isVideo}
-          isAudio={isAudio}
-          onCopy={() => {
-            closeExpand();
-            onCopy(asset);
-          }}
-        />
-      )}
-      onClick={() => onCopy(asset)}
-      expandScale={0.45}
-      delay={500}
-    >
-      {card}
-    </ExpandOnHover>
   );
 }
 
