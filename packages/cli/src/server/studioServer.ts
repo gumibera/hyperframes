@@ -180,7 +180,7 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
             win.__timeline.seek(t);
           }
         }, opts.seekTime);
-        await page.waitForTimeout(300);
+        await new Promise((r) => setTimeout(r, 300));
         const screenshot = (await page.screenshot({ type: "jpeg", quality: 85 })) as Buffer;
         return screenshot;
       } catch {
