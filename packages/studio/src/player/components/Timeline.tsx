@@ -749,7 +749,7 @@ export const Timeline = memo(function Timeline({
 
       {/* Keyboard shortcut hint — always visible */}
       {!showPopover && !rangeSelection && (
-        <div className="absolute bottom-2 right-3 pointer-events-none">
+        <div className="absolute bottom-2 right-3 pointer-events-none z-20">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-neutral-800/50 border border-neutral-700/20">
             <kbd className="text-[9px] font-mono text-neutral-500 bg-neutral-700/40 px-1 py-0.5 rounded">
               Shift
