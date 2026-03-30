@@ -71,7 +71,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({
                   muted
                   loop
                   playsInline
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-contain"
                 />
               )}
               {/* Static frame — visible when not hovering */}

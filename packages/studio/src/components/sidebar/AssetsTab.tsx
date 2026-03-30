@@ -34,7 +34,7 @@ function AssetThumbnail({
           src={serveUrl}
           alt={name}
           loading="lazy"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = "none";
           }}
