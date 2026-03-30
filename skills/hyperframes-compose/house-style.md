@@ -5,9 +5,9 @@ Defaults when no `visual-style.md` or animation direction is provided. These rai
 ## Before Writing HTML
 
 1. **Interpret the prompt.** Generate real content for the topic — don't use the prompt text as body copy. A recipe lists real ingredients. A stats dashboard shows the actual numbers given. A product showcase names real features and specs. A sci-fi HUD has actual crosshairs and readouts, not a heading that says "sci-fi HUD."
-2. **Pick a palette.** First decide: does this content call for a light or dark canvas? Food, weddings, children, wellness, education, lifestyle, nature, and celebrations → light palette (Warm/Editorial, Clean/Corporate, Nature/Earth, Pastel/Soft). Tech, finance, cinema, nightlife, horror, gaming, and premium → dark palette. Then load the file and pick one palette. Declare your bg, fg, and accent colors before writing any code.
+2. **Pick a palette.** First decide: does this content call for a light or dark canvas? Then load the file most appropriate for the theme and pick one palette at random from the file. Declare your bg, fg, and accent colors before writing any code.
 3. **Pick a typeface.** Don't reach for Sora, Space Grotesk, Outfit, Playfair Display, Cormorant Garamond, or Bodoni Moda — they're overused. Explore the full range of Google Fonts. Serif for editorial, mono for technical, display for impact, handwritten for personal.
-4. **Pick a layout approach.** Don't default to the same structure every time. Options: full-bleed centered hero, left-aligned editorial column, split-frame (content left / visual right or vice versa), scattered/asymmetric positioning, grid-based with uneven cells, stacked vertical sections. Vary this across compositions.
+4. **Pick a layout approach.** Don't default to the same structure every time.
 5. **Pick your entrance patterns.** Plan how elements enter — never use the same entrance pattern twice in a composition.
 
 ## Motion

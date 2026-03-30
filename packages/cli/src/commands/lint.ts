@@ -27,7 +27,8 @@ export default defineCommand({
     }
 
     const fileCount = lintResult.results.length;
-    const fileLabel = fileCount === 1 ? lintResult.results[0]!.file : `${fileCount} files`;
+    const fileLabel =
+      fileCount === 1 ? (lintResult.results[0]?.file ?? "index.html") : `${fileCount} files`;
     console.log(`${c.accent("◆")}  Linting ${c.accent(project.name + "/" + fileLabel)}`);
     console.log();
 

@@ -67,7 +67,7 @@ describe("lintProject", () => {
     expect(totalErrors).toBe(0);
     expect(totalWarnings).toBe(0);
     expect(results).toHaveLength(1);
-    expect(results[0]!.file).toBe("index.html");
+    expect(results[0].file).toBe("index.html");
   });
 
   it("detects errors in index.html", () => {
@@ -75,7 +75,7 @@ describe("lintProject", () => {
     const { totalErrors, results } = lintProject(project);
 
     expect(totalErrors).toBeGreaterThan(0);
-    const mediaFinding = results[0]!.result.findings.find((f) => f.code === "media_missing_id");
+    const mediaFinding = results[0].result.findings.find((f) => f.code === "media_missing_id");
     expect(mediaFinding).toBeDefined();
   });
 
@@ -86,9 +86,9 @@ describe("lintProject", () => {
     const { totalErrors, results } = lintProject(project);
 
     expect(results).toHaveLength(2);
-    expect(results[1]!.file).toBe("compositions/captions.html");
+    expect(results[1].file).toBe("compositions/captions.html");
     expect(totalErrors).toBeGreaterThan(0);
-    const subFindings = results[1]!.result.findings;
+    const subFindings = results[1].result.findings;
     expect(subFindings.some((f) => f.code === "media_missing_id")).toBe(true);
   });
 
@@ -100,8 +100,8 @@ describe("lintProject", () => {
 
     expect(results).toHaveLength(2);
     // Both files have media_missing_id errors
-    const rootErrors = results[0]!.result.errorCount;
-    const subErrors = results[1]!.result.errorCount;
+    const rootErrors = results[0].result.errorCount;
+    const subErrors = results[1].result.errorCount;
     expect(totalErrors).toBe(rootErrors + subErrors);
   });
 
@@ -113,7 +113,7 @@ describe("lintProject", () => {
 
     expect(results).toHaveLength(2);
     expect(totalWarnings).toBeGreaterThan(0);
-    const preloadWarning = results[1]!.result.findings.find((f) => f.code === "media_preload_none");
+    const preloadWarning = results[1].result.findings.find((f) => f.code === "media_preload_none");
     expect(preloadWarning).toBeDefined();
   });
 
@@ -165,5 +165,13 @@ describe("shouldBlockRender", () => {
 
   it("--strict-all: does not block when clean", () => {
     expect(shouldBlockRender(true, true, 0, 0)).toBe(false);
+  });
+
+  it("--strict-all alone: blocks on errors", () => {
+    expect(shouldBlockRender(false, true, 1, 0)).toBe(true);
+  });
+
+  it("--strict-all alone: blocks on warnings", () => {
+    expect(shouldBlockRender(false, true, 0, 1)).toBe(true);
   });
 });

@@ -240,6 +240,28 @@ describe("lintHyperframeHtml", () => {
     expect(finding).toBeUndefined();
   });
 
+  it("reports error when GSAP targets a clip element with no id (class-only)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div class="clip scene-card" data-start="0" data-duration="5" data-track-index="0">
+      <p>Content</p>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to(".scene-card", { y: -50, duration: 0.4 }, 0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_animates_clip_element");
+    expect(finding).toBeDefined();
+    expect(finding?.selector).toBe(".scene-card");
+    expect(finding?.elementId).toBeUndefined();
+  });
+
   it("reports error for audio with data-start but no id", () => {
     const html = `
 <html><body>
