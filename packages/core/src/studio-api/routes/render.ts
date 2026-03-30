@@ -73,7 +73,8 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
       quality,
       jobId,
     });
-    renderJobs.set(jobId, { ...jobState, createdAt: Date.now() });
+    (jobState as RenderJobState & { createdAt: number }).createdAt = Date.now();
+    renderJobs.set(jobId, jobState as RenderJobState & { createdAt: number });
 
     // Restart cleanup timer if needed
     if (!cleanupTimer && typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
