@@ -66,7 +66,7 @@ export function registerPreviewRoutes(api: Hono, adapter: StudioApiAdapter): voi
     return c.html(html);
   });
 
-  // Static asset serving
+  // Static asset serving (with range request support for audio/video seeking)
   api.get("/projects/:id/preview/*", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));
     if (!project) return c.json({ error: "not found" }, 404);
@@ -79,9 +79,38 @@ export function registerPreviewRoutes(api: Hono, adapter: StudioApiAdapter): voi
     }
     const contentType = getMimeType(subPath);
     const isText = /\.(html|css|js|json|svg|txt|md)$/i.test(subPath);
-    const content = readFileSync(file, isText ? "utf-8" : undefined);
-    return new Response(content, {
-      headers: { "Content-Type": contentType },
+    const buffer: Buffer = isText
+      ? Buffer.from(readFileSync(file, "utf-8"), "utf-8")
+      : readFileSync(file);
+    const totalSize = buffer.length;
+
+    // Support byte-range requests so browsers can seek audio/video elements.
+    const rangeHeader = c.req.header("Range");
+    if (rangeHeader) {
+      const match = /bytes=(\d+)-(\d*)/.exec(rangeHeader);
+      if (match) {
+        const start = parseInt(match[1]!, 10);
+        const end = match[2] ? parseInt(match[2], 10) : totalSize - 1;
+        const safeEnd = Math.min(end, totalSize - 1);
+        const chunkSize = safeEnd - start + 1;
+        return new Response(new Uint8Array(buffer.slice(start, safeEnd + 1)), {
+          status: 206,
+          headers: {
+            "Content-Type": contentType,
+            "Content-Range": `bytes ${start}-${safeEnd}/${totalSize}`,
+            "Accept-Ranges": "bytes",
+            "Content-Length": String(chunkSize),
+          },
+        });
+      }
+    }
+
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": contentType,
+        "Accept-Ranges": "bytes",
+        "Content-Length": String(totalSize),
+      },
     });
   });
 }
