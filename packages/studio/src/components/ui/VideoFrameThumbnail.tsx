@@ -50,5 +50,5 @@ export function VideoFrameThumbnail({ src }: { src: string }) {
     return <div className="w-full h-full bg-neutral-800 animate-pulse" />;
   }
 
-  return <img src={frame} alt="" draggable={false} className="w-full h-full object-cover" />;
+  return <img src={frame} alt="" draggable={false} className="w-full h-full object-contain" />;
 }

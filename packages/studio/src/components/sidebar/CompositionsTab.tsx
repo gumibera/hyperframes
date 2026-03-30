@@ -162,7 +162,7 @@ function CompCard({
           src={thumbnailUrl}
           alt={name}
           loading="lazy"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           onError={(e) => {
             (e.target as HTMLImageElement).style.display = "none";
           }}
