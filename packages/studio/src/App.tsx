@@ -285,7 +285,7 @@ export function StudioApp() {
   const [leftWidth, setLeftWidth] = useState(240);
   const [rightWidth, setRightWidth] = useState(400);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(true);
   const panelDragRef = useRef<{
     side: "left" | "right";
     startX: number;

@@ -63,11 +63,8 @@ export const RenderQueue = memo(function RenderQueue({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800/50 flex-shrink-0">
-        <span className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider">
-          Renders ({jobs.length})
-        </span>
+      {/* Header — no title, already shown in header button */}
+      <div className="flex items-center justify-end px-3 py-2 border-b border-neutral-800/50 flex-shrink-0">
         <div className="flex items-center gap-1.5">
           {completedCount > 0 && (
             <button
