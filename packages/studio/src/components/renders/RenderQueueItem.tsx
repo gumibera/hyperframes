@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, useEffect, useRef } from "react";
 import type { RenderJob } from "./useRenderQueue";
 
 interface RenderQueueItemProps {
@@ -17,6 +17,57 @@ function formatTimeAgo(timestamp: number): string {
   if (diff < 60000) return "just now";
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   return `${Math.floor(diff / 3600000)}h ago`;
+}
+
+/** Extracts a single JPEG frame from a video URL using a hidden video + canvas. */
+function RenderThumbnail({ src }: { src: string }) {
+  const [frame, setFrame] = useState<string | null>(null);
+  const didExtract = useRef(false);
+
+  useEffect(() => {
+    if (didExtract.current) return;
+    didExtract.current = true;
+
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.preload = "metadata";
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const cleanup = () => {
+      video.src = "";
+      video.load();
+    };
+
+    video.addEventListener("loadedmetadata", () => {
+      // Seek to ~10% in so we get a representative non-black frame
+      video.currentTime = Math.min(2, video.duration * 0.1 || 2);
+    });
+
+    video.addEventListener("seeked", () => {
+      if (!ctx) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      setFrame(canvas.toDataURL("image/jpeg", 0.7));
+      cleanup();
+    });
+
+    video.addEventListener("error", cleanup);
+
+    video.src = src;
+    video.load();
+
+    return cleanup;
+  }, [src]);
+
+  if (!frame) {
+    return <div className="w-full h-full bg-neutral-800 animate-pulse rounded" />;
+  }
+
+  return <img src={frame} alt="" draggable={false} className="w-full h-full object-cover" />;
 }
 
 export const RenderQueueItem = memo(function RenderQueueItem({
@@ -54,15 +105,25 @@ export const RenderQueueItem = memo(function RenderQueueItem({
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="flex items-center gap-2">
-        {/* Status indicator */}
-        <div className="flex-shrink-0">
+      <div className="flex items-center gap-2.5">
+        {/* Thumbnail — matches CompCard sizing (w-20 h-[45px]) */}
+        <div className="w-20 h-[45px] rounded overflow-hidden bg-neutral-900 flex-shrink-0 relative">
+          {job.status === "complete" && <RenderThumbnail src={`/api/render/${job.id}/view`} />}
           {job.status === "rendering" && (
-            <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
+            </div>
           )}
-          {job.status === "complete" && <div className="w-2 h-2 rounded-full bg-green-400" />}
-          {job.status === "failed" && <div className="w-2 h-2 rounded-full bg-red-400" />}
-          {job.status === "cancelled" && <div className="w-2 h-2 rounded-full bg-neutral-600" />}
+          {job.status === "failed" && (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-red-400" />
+            </div>
+          )}
+          {job.status === "cancelled" && (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-2 h-2 rounded-full bg-neutral-600" />
+            </div>
+          )}
         </div>
 
         {/* Info */}
