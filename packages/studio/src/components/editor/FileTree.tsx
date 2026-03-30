@@ -1,13 +1,5 @@
 import { memo, useState, useCallback } from "react";
-import {
-  FileCode,
-  Image,
-  Film,
-  Music,
-  File,
-  ChevronDown,
-  ChevronRight,
-} from "../../icons/SystemIcons";
+import { Film, Music, Image, ChevronDown, ChevronRight } from "../../icons/SystemIcons";
 
 interface FileTreeProps {
   files: string[];
@@ -15,34 +7,65 @@ interface FileTreeProps {
   onSelectFile: (path: string) => void;
 }
 
-const FILE_ICONS: Record<string, { icon: typeof File; color: string }> = {
-  html: { icon: FileCode, color: "#3B82F6" },
-  css: { icon: FileCode, color: "#A855F7" },
-  js: { icon: FileCode, color: "#F59E0B" },
-  ts: { icon: FileCode, color: "#3B82F6" },
-  json: { icon: File, color: "#22C55E" },
-  md: { icon: File, color: "#737373" },
-  png: { icon: Image, color: "#22C55E" },
-  jpg: { icon: Image, color: "#22C55E" },
-  jpeg: { icon: Image, color: "#22C55E" },
-  webp: { icon: Image, color: "#22C55E" },
-  gif: { icon: Image, color: "#22C55E" },
-  svg: { icon: Image, color: "#F97316" },
-  mp4: { icon: Film, color: "#A855F7" },
-  webm: { icon: Film, color: "#A855F7" },
-  mov: { icon: Film, color: "#A855F7" },
-  mp3: { icon: Music, color: "#F59E0B" },
-  wav: { icon: Music, color: "#F59E0B" },
-  ogg: { icon: Music, color: "#F59E0B" },
-  m4a: { icon: Music, color: "#F59E0B" },
-  woff: { icon: File, color: "#525252" },
-  woff2: { icon: File, color: "#525252" },
-  ttf: { icon: File, color: "#525252" },
-};
+/** VS Code–style language badge: colored rounded rect with a 2–3 letter label. */
+function Badge({ label, bg, text = "#fff" }: { label: string; bg: string; text?: string }) {
+  return (
+    <span
+      className="flex-shrink-0 inline-flex items-center justify-center rounded"
+      style={{
+        width: 16,
+        height: 16,
+        background: bg,
+        color: text,
+        fontSize: 7,
+        fontWeight: 700,
+        fontFamily: "monospace",
+        letterSpacing: "-0.02em",
+        lineHeight: 1,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
 
-function getFileIcon(path: string) {
+/** Render a file-type icon for a given file path. */
+function FileIcon({ path }: { path: string }) {
   const ext = path.split(".").pop()?.toLowerCase() ?? "";
-  return FILE_ICONS[ext] ?? { icon: File, color: "#737373" };
+  // Language badges
+  if (ext === "html") return <Badge label="HTML" bg="#E44D26" />;
+  if (ext === "js" || ext === "mjs" || ext === "cjs")
+    return <Badge label="JS" bg="#F0DB4F" text="#323330" />;
+  if (ext === "ts" || ext === "mts") return <Badge label="TS" bg="#3178C6" />;
+  if (ext === "css") return <Badge label="CSS" bg="#264DE4" />;
+  if (ext === "json") return <Badge label="{}" bg="#1E7F34" />;
+  if (ext === "md" || ext === "mdx") return <Badge label="MD" bg="#555" />;
+  if (ext === "svg") return <Badge label="SVG" bg="#FF9900" />;
+  if (ext === "wav" || ext === "mp3" || ext === "ogg" || ext === "m4a")
+    return <Music size={13} style={{ color: "#3CE6AC" }} className="flex-shrink-0" />;
+  if (ext === "mp4" || ext === "webm" || ext === "mov")
+    return <Film size={13} style={{ color: "#A855F7" }} className="flex-shrink-0" />;
+  if (ext === "png" || ext === "jpg" || ext === "jpeg" || ext === "webp" || ext === "gif")
+    return <Image size={13} style={{ color: "#22C55E" }} className="flex-shrink-0" />;
+  if (ext === "woff" || ext === "woff2" || ext === "ttf" || ext === "otf")
+    return <Badge label="Aa" bg="#525252" />;
+  if (ext === "txt") return <Badge label="TXT" bg="#4B5563" />;
+  // Generic document
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#6B7280"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      className="flex-shrink-0"
+    >
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+    </svg>
+  );
 }
 
 interface TreeNode {
@@ -160,7 +183,6 @@ function TreeFile({
   activeFile: string | null;
   onSelectFile: (path: string) => void;
 }) {
-  const { icon: Icon, color } = getFileIcon(node.name);
   const isActive = node.fullPath === activeFile;
 
   return (
@@ -173,7 +195,7 @@ function TreeFile({
       }`}
       style={{ paddingLeft: `${8 + depth * 12 + 14}px` }}
     >
-      <Icon size={12} style={{ color }} className="flex-shrink-0" />
+      <FileIcon path={node.name} />
       <span className="truncate">{node.name}</span>
     </button>
   );
