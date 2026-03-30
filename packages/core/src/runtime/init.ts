@@ -707,6 +707,38 @@ export function initSandboxRuntimeModular(): void {
           };
         }
       }
+      // If the root composition declares an explicit data-duration that exceeds
+      // the captured GSAP timeline, pad the timeline so playback runs to the
+      // declared end rather than stopping when GSAP runs out.
+      const rootDeclaredDurAttr = rootCompositionNode?.getAttribute("data-duration");
+      if (rootDeclaredDurAttr) {
+        const rootDeclaredDur = parseFloat(rootDeclaredDurAttr);
+        if (
+          isUsableTimelineDuration(rootDeclaredDur) &&
+          isUsableTimelineDuration(rootDurationSeconds) &&
+          rootDeclaredDur > rootDurationSeconds
+        ) {
+          const paddedTimeline = createDurationFloorTimeline(rootDeclaredDur, rootTimeline);
+          const paddedDur = getTimelineDurationSeconds(paddedTimeline);
+          if (paddedTimeline && isUsableTimelineDuration(paddedDur)) {
+            return {
+              timeline: paddedTimeline,
+              selectedTimelineIds: [rootCompositionId],
+              selectedDurationSeconds: paddedDur,
+              mediaDurationFloorSeconds,
+              diagnostics: {
+                code: "root_timeline_padded_to_declared_duration",
+                details: {
+                  rootCompositionId,
+                  rootDurationSeconds,
+                  rootDeclaredDur,
+                  paddedDur,
+                },
+              },
+            };
+          }
+        }
+      }
       return {
         timeline: rootTimeline,
         selectedTimelineIds: [rootCompositionId],
