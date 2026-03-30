@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 /**
  * Extracts a representative JPEG frame from a video URL using a hidden
@@ -7,12 +7,8 @@ import { useState, useEffect, useRef } from "react";
  */
 export function VideoFrameThumbnail({ src }: { src: string }) {
   const [frame, setFrame] = useState<string | null>(null);
-  const didExtract = useRef(false);
 
   useEffect(() => {
-    if (didExtract.current) return;
-    didExtract.current = true;
-
     const video = document.createElement("video");
     video.crossOrigin = "anonymous";
     video.muted = true;

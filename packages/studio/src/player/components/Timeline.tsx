@@ -152,9 +152,6 @@ export function generateTicks(duration: number): { major: number[]; minor: numbe
   return { major, minor };
 }
 
-/** @deprecated Use formatTime from '../lib/time' instead */
-export const formatTick = formatTime;
-
 /* ── Component ──────────────────────────────────────────────────── */
 interface TimelineProps {
   /** Called when user seeks via ruler/track click or playhead drag */
@@ -170,11 +167,6 @@ interface TimelineProps {
   renderClipOverlay?: (element: import("../store/playerStore").TimelineElement) => ReactNode;
   /** Called when files are dropped onto the empty timeline */
   onFileDrop?: (files: File[]) => void;
-  /** Called when a clip is moved, resized, or changes track via drag */
-  onClipChange?: (
-    elementId: string,
-    updates: { start?: number; duration?: number; track?: number },
-  ) => void;
 }
 
 export const Timeline = memo(function Timeline({
@@ -642,7 +634,6 @@ export const Timeline = memo(function Timeline({
                         key={clipKey}
                         el={el}
                         pps={pps}
-                        trackH={TRACK_H}
                         clipY={CLIP_Y}
                         isSelected={isSelected}
                         isHovered={isHovered}

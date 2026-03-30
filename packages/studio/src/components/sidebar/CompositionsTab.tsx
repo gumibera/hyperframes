@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useRef, useState } from "react";
 
 interface CompositionsTabProps {
   projectId: string;
@@ -19,6 +19,17 @@ function CompCard({
   onSelect: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleEnter = () => {
+    hoverTimer.current = setTimeout(() => setHovered(true), 300);
+  };
+  const handleLeave = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setHovered(false);
+  };
   const name = comp.replace(/^compositions\//, "").replace(/\.html$/, "");
   const thumbnailUrl = `/api/projects/${projectId}/thumbnail/${comp}?t=2`;
   const previewUrl = `/api/projects/${projectId}/preview/comp/${comp}`;
@@ -26,8 +37,8 @@ function CompCard({
   return (
     <div
       onClick={onSelect}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
+      onPointerEnter={handleEnter}
+      onPointerLeave={handleLeave}
       className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors cursor-pointer ${
         isActive
           ? "bg-[#3CE6AC]/10 border-l-2 border-[#3CE6AC]"

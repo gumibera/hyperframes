@@ -1,4 +1,4 @@
-import { memo, useState, useRef } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { RenderQueueItem } from "./RenderQueueItem";
 import type { RenderJob } from "./useRenderQueue";
 
@@ -49,15 +49,14 @@ export const RenderQueue = memo(function RenderQueue({
   isRendering,
 }: RenderQueueProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const prevCount = useRef(jobs.length);
 
-  // Auto-scroll to bottom when new jobs are added (adjust during render)
-  if (jobs.length > prevCount.current && listRef.current) {
-    queueMicrotask(() => {
-      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-    });
-  }
-  prevCount.current = jobs.length;
+  // Auto-scroll to bottom when new jobs are added.
+  // Runs in an effect to avoid side effects during the render phase.
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [jobs.length]);
 
   const completedCount = jobs.filter((j) => j.status !== "rendering").length;
 

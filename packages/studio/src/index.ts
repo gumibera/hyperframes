@@ -9,7 +9,6 @@ export {
   Player,
   PlayerControls,
   Timeline,
-  PreviewPanel,
   VideoThumbnail,
   CompositionThumbnail,
   useTimelinePlayer,
@@ -28,8 +27,6 @@ export { FileTree } from "./components/editor/FileTree";
 export { StudioApp } from "./App";
 
 // Hooks
-export { useCodeEditor } from "./hooks/useCodeEditor";
-export type { OpenFile, UseCodeEditorReturn } from "./hooks/useCodeEditor";
 export { useElementPicker } from "./hooks/useElementPicker";
 export type { PickedElement } from "./hooks/useElementPicker";
 

@@ -6,7 +6,6 @@ import type { TimelineElement } from "../store/playerStore";
 interface TimelineClipProps {
   el: TimelineElement;
   pps: number;
-  trackH: number;
   clipY: number;
   isSelected: boolean;
   isHovered: boolean;

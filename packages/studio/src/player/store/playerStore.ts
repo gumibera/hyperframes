@@ -27,10 +27,6 @@ interface PlayerState {
   zoomMode: ZoomMode;
   /** Pixels per second when in manual zoom mode */
   pixelsPerSecond: number;
-  /** Edit range selection */
-  editRangeStart: number | null;
-  editRangeEnd: number | null;
-  editMode: boolean;
 
   setIsPlaying: (playing: boolean) => void;
   setCurrentTime: (time: number) => void;
@@ -39,11 +35,6 @@ interface PlayerState {
   setTimelineReady: (ready: boolean) => void;
   setElements: (elements: TimelineElement[]) => void;
   setSelectedElementId: (id: string | null) => void;
-  setEditRange: (start: number | null, end: number | null) => void;
-  setEditMode: (active: boolean) => void;
-  updateElementStart: (elementId: string, newStart: number) => void;
-  updateElementDuration: (elementId: string, newDuration: number) => void;
-  updateElementTrack: (elementId: string, newTrack: number) => void;
   updateElement: (
     elementId: string,
     updates: Partial<Pick<TimelineElement, "start" | "duration" | "track">>,
@@ -76,9 +67,6 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   playbackRate: 1,
   zoomMode: "fit",
   pixelsPerSecond: 100,
-  editRangeStart: null,
-  editRangeEnd: null,
-  editMode: false,
 
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setPlaybackRate: (rate) => set({ playbackRate: rate }),
@@ -89,26 +77,13 @@ export const usePlayerStore = create<PlayerState>((set) => ({
   setTimelineReady: (ready) => set({ timelineReady: ready }),
   setElements: (elements) => set({ elements }),
   setSelectedElementId: (id) => set({ selectedElementId: id }),
-  setEditRange: (start, end) => set({ editRangeStart: start, editRangeEnd: end }),
-  setEditMode: (active) => set({ editMode: active, editRangeStart: null, editRangeEnd: null }),
-  updateElementStart: (elementId, newStart) =>
-    set((state) => ({
-      elements: state.elements.map((el) => (el.id === elementId ? { ...el, start: newStart } : el)),
-    })),
-  updateElementDuration: (elementId, newDuration) =>
-    set((state) => ({
-      elements: state.elements.map((el) =>
-        el.id === elementId ? { ...el, duration: newDuration } : el,
-      ),
-    })),
-  updateElementTrack: (elementId, newTrack) =>
-    set((state) => ({
-      elements: state.elements.map((el) => (el.id === elementId ? { ...el, track: newTrack } : el)),
-    })),
   updateElement: (elementId, updates) =>
     set((state) => ({
       elements: state.elements.map((el) => (el.id === elementId ? { ...el, ...updates } : el)),
     })),
+  // Resets project-specific state when switching compositions.
+  // playbackRate, zoomMode, and pixelsPerSecond are intentionally preserved
+  // because they are user preferences that should survive project switches.
   reset: () =>
     set({
       isPlaying: false,

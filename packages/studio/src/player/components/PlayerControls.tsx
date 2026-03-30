@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, memo } from "react";
+import { useRef, useState, useCallback, useEffect, memo } from "react";
 import { useMountEffect } from "../../hooks/useMountEffect";
 import { formatTime } from "../lib/time";
 import { usePlayerStore, liveTime } from "../store/playerStore";
@@ -30,6 +30,8 @@ export const PlayerControls = memo(function PlayerControls({
   const progressThumbRef = useRef<HTMLDivElement>(null);
   const timeDisplayRef = useRef<HTMLSpanElement>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const speedMenuContainerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
   const currentTimeRef = useRef(0);
 
@@ -43,6 +45,7 @@ export const PlayerControls = memo(function PlayerControls({
       if (progressFillRef.current) progressFillRef.current.style.width = `${pct}%`;
       if (progressThumbRef.current) progressThumbRef.current.style.left = `${pct}%`;
       if (timeDisplayRef.current) timeDisplayRef.current.textContent = formatTime(t);
+      if (sliderRef.current) sliderRef.current.setAttribute("aria-valuenow", String(Math.round(t)));
     };
     const unsub = liveTime.subscribe(updateProgress);
     updateProgress(usePlayerStore.getState().currentTime);
@@ -63,6 +66,22 @@ export const PlayerControls = memo(function PlayerControls({
       clearInterval(interval);
     };
   });
+
+  useEffect(() => {
+    if (!showSpeedMenu) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (
+        speedMenuContainerRef.current &&
+        !speedMenuContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowSpeedMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [showSpeedMenu]);
 
   const seekFromClientX = useCallback(
     (clientX: number) => {
@@ -153,7 +172,10 @@ export const PlayerControls = memo(function PlayerControls({
 
       {/* Seek bar — teal progress fill */}
       <div
-        ref={seekBarRef}
+        ref={(el) => {
+          (seekBarRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+          (sliderRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        }}
         role="slider"
         tabIndex={0}
         aria-label="Seek"
@@ -188,7 +210,7 @@ export const PlayerControls = memo(function PlayerControls({
       </div>
 
       {/* Speed control */}
-      <div className="relative flex-shrink-0">
+      <div ref={speedMenuContainerRef} className="relative flex-shrink-0">
         <button
           type="button"
           onClick={() => setShowSpeedMenu((v) => !v)}
