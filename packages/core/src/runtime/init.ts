@@ -707,24 +707,40 @@ export function initSandboxRuntimeModular(): void {
           };
         }
       }
-      // If the root composition declares an explicit data-duration that exceeds
-      // the captured GSAP timeline, pad the timeline so playback runs to the
-      // declared end rather than stopping when GSAP runs out.
+      // If the root composition declares an explicit data-duration that meaningfully
+      // exceeds the captured GSAP timeline, extend the timeline in-place by placing
+      // a zero-duration no-op tween at the declared end position. This makes
+      // timeline.duration() report the declared length without creating a composite
+      // (which would double-count the original duration).
       const rootDeclaredDurAttr = rootCompositionNode?.getAttribute("data-duration");
       if (rootDeclaredDurAttr) {
         const rootDeclaredDur = parseFloat(rootDeclaredDurAttr);
         if (
           isUsableTimelineDuration(rootDeclaredDur) &&
           isUsableTimelineDuration(rootDurationSeconds) &&
-          rootDeclaredDur > rootDurationSeconds
+          // Only pad when the gap is meaningful (>= 0.5s) to avoid floating-point
+          // false positives on compositions whose GSAP duration is already close
+          // to data-duration.
+          rootDeclaredDur >= rootDurationSeconds + 0.5
         ) {
-          const paddedTimeline = createDurationFloorTimeline(rootDeclaredDur, rootTimeline);
-          const paddedDur = getTimelineDurationSeconds(paddedTimeline);
-          if (paddedTimeline && isUsableTimelineDuration(paddedDur)) {
+          const tlWithTo = rootTimeline as RuntimeTimelineLike & {
+            to?: (target: object, vars: { duration: number }, position: number) => unknown;
+          };
+          if (typeof tlWithTo.to === "function") {
+            try {
+              // Placing a zero-duration tween AT rootDeclaredDur extends
+              // timeline.duration() to exactly rootDeclaredDur.
+              tlWithTo.to({}, { duration: 0 }, rootDeclaredDur);
+            } catch {
+              // keep runtime resilient
+            }
+          }
+          const newDur = getTimelineDurationSeconds(rootTimeline);
+          if (isUsableTimelineDuration(newDur)) {
             return {
-              timeline: paddedTimeline,
+              timeline: rootTimeline,
               selectedTimelineIds: [rootCompositionId],
-              selectedDurationSeconds: paddedDur,
+              selectedDurationSeconds: newDur,
               mediaDurationFloorSeconds,
               diagnostics: {
                 code: "root_timeline_padded_to_declared_duration",
@@ -732,7 +748,7 @@ export function initSandboxRuntimeModular(): void {
                   rootCompositionId,
                   rootDurationSeconds,
                   rootDeclaredDur,
-                  paddedDur,
+                  newDur,
                 },
               },
             };
