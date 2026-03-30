@@ -52,7 +52,10 @@ export function parseVideoElements(html: string): VideoElement[] {
   const videos: VideoElement[] = [];
   const { document } = parseHTML(html);
 
-  const videoEls = document.querySelectorAll("video[id][src]");
+  const videoEls = Array.from(document.querySelectorAll("video[src][data-start]"));
+  videoEls.forEach((el, i) => {
+    if (!el.id) el.id = `hf-video-${i}`;
+  });
   for (const el of videoEls) {
     const id = el.getAttribute("id");
     const src = el.getAttribute("src");
