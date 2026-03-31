@@ -3,11 +3,15 @@
  *
  * Uses the shared studio API module from @hyperframes/core/studio-api,
  * providing a CLI-specific adapter for single-project, in-process rendering.
+ *
+ * Supports multi-project directories: when the target directory contains
+ * subdirectories with their own `index.html`, each is exposed as a separate
+ * project in the Studio UI.
  */
 
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync, statSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { createProjectWatcher, type ProjectWatcher } from "./fileWatcher.js";
 import {
@@ -108,14 +112,47 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
   const runtimePath = resolveRuntimePath();
   const watcher = createProjectWatcher(projectDir);
 
+  // ── Multi-project discovery ────────────────────────────────────────────
+  // Scan for sub-projects: immediate subdirectories containing index.html.
+  // Skips hidden dirs, node_modules, renders, and .thumbnails.
+
+  const SKIP_DIRS = new Set(["node_modules", "renders", ".thumbnails"]);
+
+  function discoverProjects(): ResolvedProject[] {
+    const projects: ResolvedProject[] = [];
+
+    // Root project (if index.html exists at the top level)
+    if (existsSync(join(projectDir, "index.html"))) {
+      projects.push({ id: projectId, dir: projectDir, title: projectId });
+    }
+
+    // Scan immediate subdirectories (1 level deep)
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = readdirSync(projectDir, { withFileTypes: true });
+    } catch {
+      return projects;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name.startsWith(".")) continue;
+      if (SKIP_DIRS.has(entry.name)) continue;
+      const subDir = join(projectDir, entry.name);
+      if (existsSync(join(subDir, "index.html"))) {
+        projects.push({ id: entry.name, dir: subDir, title: entry.name });
+      }
+    }
+
+    return projects;
+  }
+
   // ── CLI adapter for the shared studio API ──────────────────────────────
 
-  const project: ResolvedProject = { id: projectId, dir: projectDir, title: projectId };
-
   const adapter: StudioApiAdapter = {
-    listProjects: () => [project],
+    listProjects: () => discoverProjects(),
 
-    resolveProject: (id: string) => (id === projectId ? project : null),
+    resolveProject: (id: string) => discoverProjects().find((p) => p.id === id) ?? null,
 
     async bundle(dir: string): Promise<string | null> {
       try {
@@ -139,7 +176,7 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
 
     runtimeUrl: "/api/runtime.js",
 
-    rendersDir: () => join(projectDir, "renders"),
+    rendersDir: (project) => join(project.dir, "renders"),
 
     startRender(opts): RenderJobState {
       const state: RenderJobState = {

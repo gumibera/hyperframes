@@ -18,27 +18,36 @@ interface EditingFile {
   content: string | null;
 }
 
+interface ProjectInfo {
+  id: string;
+  title?: string;
+}
+
 // ── Main App ──
 
 export function StudioApp() {
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectList, setProjectList] = useState<ProjectInfo[]>([]);
   const [resolving, setResolving] = useState(true);
 
   useMountEffect(() => {
-    const hashMatch = window.location.hash.match(/^#project\/([^/]+)/);
-    if (hashMatch) {
-      setProjectId(hashMatch[1]);
-      setResolving(false);
-      return;
-    }
-    // No hash — auto-select first available project
     fetch("/api/projects")
       .then((r) => r.json())
       .then((data) => {
-        const first = (data.projects ?? [])[0];
-        if (first) {
-          setProjectId(first.id);
-          window.location.hash = `#project/${first.id}`;
+        const projects: ProjectInfo[] = data.projects ?? [];
+        setProjectList(projects);
+
+        // Honour hash-based project selection
+        const hashMatch = window.location.hash.match(/^#project\/([^/]+)/);
+        if (hashMatch && projects.some((p) => p.id === hashMatch[1])) {
+          setProjectId(hashMatch[1]);
+        } else {
+          // Auto-select first available project
+          const first = projects[0];
+          if (first) {
+            setProjectId(first.id);
+            window.location.hash = `#project/${first.id}`;
+          }
         }
       })
       .catch(() => {})
@@ -50,6 +59,17 @@ export function StudioApp() {
   const [fileTree, setFileTree] = useState<string[]>([]);
   const [compIdToSrc, setCompIdToSrc] = useState<Map<string, string>>(new Map());
   const renderQueue = useRenderQueue(projectId);
+
+  const handleSelectProject = useCallback((id: string) => {
+    setProjectId(id);
+    window.location.hash = `#project/${id}`;
+    // Reset editor and preview state when switching projects
+    setEditingFile(null);
+    setActiveCompPath(null);
+    setFileTree([]);
+    setCompIdToSrc(new Map());
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   // Resizable and collapsible panel widths
   const [leftWidth, setLeftWidth] = useState(240);
@@ -450,9 +470,23 @@ export function StudioApp() {
     <div className="flex flex-col h-screen w-screen bg-neutral-950">
       {/* Header bar */}
       <div className="flex items-center justify-between h-10 px-3 bg-neutral-900 border-b border-neutral-800 flex-shrink-0">
-        {/* Left: project name */}
+        {/* Left: project name / selector */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-medium text-neutral-400">{projectId}</span>
+          {projectList.length > 1 ? (
+            <select
+              value={projectId ?? ""}
+              onChange={(e) => handleSelectProject(e.target.value)}
+              className="text-[11px] font-medium text-neutral-300 bg-neutral-800 border border-neutral-700 rounded-md px-2 h-6 outline-none hover:border-neutral-600 focus:border-[#3CE6AC]/50 cursor-pointer"
+            >
+              {projectList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title ?? p.id}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-[11px] font-medium text-neutral-400">{projectId}</span>
+          )}
         </div>
         {/* Right: toolbar buttons */}
         <div className="flex items-center gap-1.5">
