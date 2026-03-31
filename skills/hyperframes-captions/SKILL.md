@@ -130,9 +130,102 @@ Break groups on sentence boundaries (`.` `?` `!`), pauses (>150ms gap), or max w
 - Use `position: absolute` — never relative (causes overflow)
 - One caption group visible at a time
 
+## Text Overflow Prevention
+
+Use `window.__hyperframes.fitCaptionFontSize()` to measure actual rendered text width and compute the correct font size. This replaces character-count heuristics with pixel-accurate measurement powered by [pretext](https://github.com/chenglou/pretext).
+
+**Usage in composition scripts:**
+
+```js
+GROUPS.forEach(function (group, gi) {
+  // Measure with text-transform applied (captions typically uppercase)
+  var result = window.__hyperframes.fitCaptionFontSize(group.text.toUpperCase(), {
+    fontFamily: "Outfit",
+    fontWeight: 900,
+    maxWidth: 1600,
+  });
+
+  // Apply computed font size to all word spans
+  wordEls.forEach(function (el) {
+    el.style.fontSize = result.fontSize + "px";
+  });
+
+  // If result.fits is false, text exceeds minFontSize — overflow: hidden catches it
+});
+```
+
+**Options:**
+
+| Option         | Default    | Description                                          |
+| -------------- | ---------- | ---------------------------------------------------- |
+| `maxWidth`     | `1600`     | Container width in px (1600 landscape, 900 portrait) |
+| `baseFontSize` | `78`       | Starting font size — used when text fits             |
+| `minFontSize`  | `42`       | Floor — never shrink below this                      |
+| `fontWeight`   | `900`      | Must match the CSS font-weight                       |
+| `fontFamily`   | `"Outfit"` | Must match the CSS font-family                       |
+| `step`         | `2`        | Decrement step in px per iteration                   |
+
+**Important:** The `fontWeight` and `fontFamily` options must match the CSS applied to the caption words exactly, or measurements will be inaccurate.
+
+**Safety nets (still required in CSS):**
+
+- `max-width: 1600px` (landscape) or `max-width: 900px` (portrait) on caption container
+- `overflow: hidden` as a fallback for `fits: false` edge cases
+- `position: absolute` on all caption elements
+- Explicit `height` on caption container (e.g., `200px`)
+
+## Caption Exit Guarantee
+
+Captions that stick on screen are the most common caption bug. Every caption group **must** have a hard kill after its exit animation.
+
+**The pattern:**
+
+```js
+// Animate exit (soft — can fail if tweens conflict)
+tl.to(groupEl, { opacity: 0, scale: 0.95, duration: 0.12, ease: "power2.in" }, group.end - 0.12);
+
+// Hard kill at group.end (belt-and-suspenders — guarantees invisible)
+tl.set(groupEl, { opacity: 0, visibility: "hidden" }, group.end);
+```
+
+**Why both?** The `tl.to` exit can fail to fully hide a group when:
+
+- Karaoke word-level tweens (`scale`, `color`) on child elements conflict with the parent exit tween
+- `fromTo` entrance tweens lock start/end values that override later tweens on the same property
+- Timeline scrubbing lands between the exit start and end
+
+The `tl.set` at `group.end` is a deterministic kill — it fires at an exact time, doesn't animate, and can't be overridden by other tweens at different times.
+
+**Self-lint rule:** After building the timeline, verify every caption group has a hard kill. Run this check before registering the timeline:
+
+```js
+// Caption lint: verify every group has a hard kill
+GROUPS.forEach(function (group, gi) {
+  var el = document.getElementById("cg-" + gi);
+  if (!el) return;
+  tl.seek(group.end + 0.01);
+  var computed = window.getComputedStyle(el);
+  if (computed.opacity !== "0" && computed.visibility !== "hidden") {
+    console.warn(
+      "[caption-lint] group " +
+        gi +
+        " ('" +
+        group.text +
+        "') still visible at t=" +
+        (group.end + 0.01).toFixed(2) +
+        "s",
+    );
+  }
+});
+tl.seek(0); // reset after lint
+```
+
+Place this **before** `window.__timelines[id] = tl` so it runs at composition init. Warnings appear in the browser console during `hyperframes dev`.
+
 ## Constraints
 
 - **Deterministic.** No `Math.random()`, no `Date.now()`.
 - **Sync to transcript timestamps.** Words appear when spoken.
 - **One group visible at a time.** No overlapping caption groups.
+- **Every caption group must have a hard `tl.set` kill at `group.end`.** Exit animations alone are not sufficient.
 - **Check project root** for font files before defaulting to Google Fonts.
