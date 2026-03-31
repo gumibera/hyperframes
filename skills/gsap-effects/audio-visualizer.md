@@ -1,6 +1,6 @@
 # Audio Visualizer
 
-Reactive audio visualizations for HyperFrames compositions. Pre-extracts amplitude and frequency data from an audio file, then drives Canvas 2D rendering from the GSAP timeline.
+Reactive audio visualizations for HyperFrames compositions. Pre-extracts amplitude and frequency data from an audio file, then drives rendering from the GSAP timeline.
 
 ## Why Pre-Extraction
 
@@ -13,7 +13,7 @@ python skills/gsap-effects/scripts/extract-audio-data.py audio.mp3 -o audio-data
 python skills/gsap-effects/scripts/extract-audio-data.py video.mp4 --fps 30 --bands 16 -o audio-data.json
 ```
 
-Requires ffmpeg. Optional: numpy (faster FFT, falls back to pure Python).
+Requires ffmpeg and numpy (`pip install numpy`).
 
 | Flag      | Default         | Description                                              |
 | --------- | --------------- | -------------------------------------------------------- |
@@ -52,63 +52,57 @@ The script uses a 4096-sample FFT window (not the per-frame sample count) to ens
 Embed the data in the composition so it's available when the timeline runs.
 
 ```js
-// Small files: inline as a variable
+// Option A: inline (small files, under ~500KB)
 const AUDIO_DATA = {
   /* paste audio-data.json contents */
 };
+setupTimeline(AUDIO_DATA);
 
-// Large files: fetch from the project root
-let AUDIO_DATA = null;
+// Option B: fetch (large files)
 fetch("audio-data.json")
   .then((r) => r.json())
-  .then((d) => {
-    AUDIO_DATA = d;
+  .then((data) => {
+    setupTimeline(data);
   });
-```
 
-The fetch approach works in both the studio (dev server) and the renderer (file server). The data is loaded before the first `tl.call()` fires because the renderer waits for `window.__hf` readiness before seeking.
-
-## Step 3: Drive Canvas from the Timeline
-
-The core pattern: register a `tl.call()` at every frame interval to redraw the canvas.
-
-```js
-const canvas = document.querySelector("#viz-canvas");
-const ctx = canvas.getContext("2d");
-const fps = AUDIO_DATA.fps;
-const totalFrames = AUDIO_DATA.totalFrames;
-
-for (let f = 0; f < totalFrames; f++) {
-  tl.call(
-    () => {
-      const frame = AUDIO_DATA.frames[f];
-      if (!frame) return;
-      draw(ctx, canvas.width, canvas.height, frame);
-    },
-    [],
-    f / fps,
-  );
+function setupTimeline(AUDIO_DATA) {
+  // Register tl.call() draws here — AUDIO_DATA is guaranteed to be loaded
+  for (let f = 0; f < AUDIO_DATA.totalFrames; f++) {
+    tl.call(
+      () => {
+        draw(AUDIO_DATA.frames[f]);
+      },
+      [],
+      f / AUDIO_DATA.fps,
+    );
+  }
 }
 ```
 
-This is deterministic and seekable — scrubbing in the studio works because each frame's draw is tied to a specific timeline position.
+With fetch, wrap all timeline setup inside the callback so `AUDIO_DATA` is available when the `for` loop reads `totalFrames`. The fetch completes before the renderer's first seek because it waits for `window.__hf` readiness.
+
+## Step 3: Drive Rendering from the Timeline
+
+Register a `tl.call()` at every frame interval. Each call reads the pre-computed data and renders. This is deterministic and seekable — scrubbing in the studio works because each frame's draw is tied to a specific timeline position.
 
 ## Rendering Approaches
 
-The data is framework-agnostic. Here's how to wire it up in each rendering approach HyperFrames supports.
+The data is framework-agnostic. Here's how to wire it up in each approach.
 
 ### Canvas 2D
 
 Best for: bars, waveforms, circles, gradients, particles. Most common choice.
 
 ```js
-const ctx = document.querySelector("#viz").getContext("2d");
+const canvas = document.querySelector("#viz-canvas");
+const ctx = canvas.getContext("2d");
+
 for (let f = 0; f < AUDIO_DATA.totalFrames; f++) {
   tl.call(
     () => {
       const frame = AUDIO_DATA.frames[f];
       if (!frame) return;
-      ctx.clearRect(0, 0, W, H);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       // read frame.rms and frame.bands, draw whatever you want
     },
     [],

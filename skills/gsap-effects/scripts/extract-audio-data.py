@@ -12,43 +12,39 @@ Usage:
 Requirements:
     - Python 3.9+
     - ffmpeg (for decoding audio)
-    - numpy (pip install numpy — optional but 100x faster)
+    - numpy (pip install numpy)
 """
 
 import argparse
 import json
 import subprocess
-import struct
 import sys
-import math
+
+import numpy as np
 
 # ---------------------------------------------------------------------------
 # FFT parameters
 #
-# The FFT window must be large enough to resolve low-frequency bands cleanly.
-# At 44100Hz, a 4096-sample window gives ~10.8 Hz per bin — enough to
-# distinguish 30Hz bass from 45Hz sub-bass. The per-frame audio slice
-# (44100/30 = 1470 samples at 30fps) is far too small and causes the lowest
-# bands to map to the same FFT bins, producing duplicate values.
+# A 4096-sample window gives ~10.8 Hz per bin at 44100Hz — enough to resolve
+# low-frequency bands cleanly. The per-frame audio slice (44100/30 = 1470
+# samples at 30fps) is too small and causes low bands to map to the same bins.
 #
-# The window is centered on each frame's timestamp and zero-padded if it
-# extends beyond the audio boundaries.
+# Frequency range 30Hz–16kHz covers the useful range for music. Below 30Hz is
+# sub-bass most speakers can't reproduce; above 16kHz is noise/harmonics that
+# don't contribute to perceived rhythm or melody.
 # ---------------------------------------------------------------------------
 
+SAMPLE_RATE = 44100
 FFT_SIZE = 4096
-
-# Frequency range for music: 30Hz–16kHz. Below 30Hz is sub-bass rumble that
-# most speakers can't reproduce. Above 16kHz is noise/harmonics that don't
-# contribute to perceived rhythm or melody.
 MIN_FREQ = 30.0
 MAX_FREQ = 16000.0
 
 
-def decode_audio(path: str, sample_rate: int = 44100) -> tuple[bytes, int]:
-    """Decode audio to raw PCM s16le mono via ffmpeg."""
+def decode_audio(path: str) -> np.ndarray:
+    """Decode audio to mono float32 samples via ffmpeg."""
     cmd = [
         "ffmpeg", "-i", path,
-        "-vn", "-ac", "1", "-ar", str(sample_rate),
+        "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE),
         "-f", "s16le", "-acodec", "pcm_s16le",
         "-loglevel", "error",
         "pipe:1",
@@ -57,78 +53,34 @@ def decode_audio(path: str, sample_rate: int = 44100) -> tuple[bytes, int]:
     if result.returncode != 0:
         print(f"ffmpeg error: {result.stderr.decode()}", file=sys.stderr)
         sys.exit(1)
-    return result.stdout, sample_rate
+    return np.frombuffer(result.stdout, dtype=np.int16).astype(np.float32) / 32768.0
 
 
-def pcm_to_floats(pcm: bytes) -> list[float]:
-    """Convert raw PCM s16le bytes to float samples in [-1, 1]."""
-    n_samples = len(pcm) // 2
-    samples = struct.unpack(f"<{n_samples}h", pcm[:n_samples * 2])
-    return [s / 32768.0 for s in samples]
+def compute_band_edges(n_bands: int) -> np.ndarray:
+    """Logarithmically-spaced frequency band edges from MIN_FREQ to MAX_FREQ."""
+    return np.array([
+        MIN_FREQ * (MAX_FREQ / MIN_FREQ) ** (i / n_bands)
+        for i in range(n_bands + 1)
+    ])
 
 
-def compute_rms(samples: list[float]) -> float:
-    """RMS amplitude of a frame."""
-    if not samples:
-        return 0.0
-    return math.sqrt(sum(s * s for s in samples) / len(samples))
+def compute_fft_bands(
+    windowed: np.ndarray, freq_per_bin: float, n_bins: int,
+    band_edges: np.ndarray, n_bands: int,
+) -> np.ndarray:
+    """Compute peak magnitude in logarithmically-spaced frequency bands."""
+    magnitudes = np.abs(np.fft.rfft(windowed))
 
-
-def get_fft_window(samples: list[float], center: int, fft_size: int) -> list[float]:
-    """Extract a window of samples centered on `center`, zero-padded at edges."""
-    half = fft_size // 2
-    start = center - half
-    end = center + half
-    n = len(samples)
-
-    window = []
-    for i in range(start, end):
-        if 0 <= i < n:
-            window.append(samples[i])
-        else:
-            window.append(0.0)
-
-    # Apply Hann window
-    for i in range(len(window)):
-        window[i] *= 0.5 - 0.5 * math.cos(2 * math.pi * i / len(window))
-
-    return window
-
-
-def compute_fft_bands(windowed: list[float], sample_rate: int, n_bands: int) -> list[float]:
-    """Compute magnitude in logarithmically-spaced frequency bands via FFT."""
-    n = len(windowed)
-    if n == 0:
-        return [0.0] * n_bands
-
-    try:
-        import numpy as np
-        fft = np.fft.rfft(windowed)
-        magnitudes = np.abs(fft).tolist()
-    except ImportError:
-        half = n // 2 + 1
-        magnitudes = []
-        for k in range(half):
-            re = sum(windowed[i] * math.cos(2 * math.pi * k * i / n) for i in range(n))
-            im = sum(windowed[i] * math.sin(2 * math.pi * k * i / n) for i in range(n))
-            magnitudes.append(math.sqrt(re * re + im * im))
-
-    freq_per_bin = sample_rate / n
-    n_bins = len(magnitudes)
-
-    # Logarithmic band edges from MIN_FREQ to MAX_FREQ
-    band_edges = [MIN_FREQ * (MAX_FREQ / MIN_FREQ) ** (i / n_bands) for i in range(n_bands + 1)]
-
-    bands = []
+    bands = np.zeros(n_bands)
     for b in range(n_bands):
         low_bin = max(0, int(band_edges[b] / freq_per_bin))
         high_bin = min(n_bins, int(band_edges[b + 1] / freq_per_bin))
         if high_bin <= low_bin:
             high_bin = low_bin + 1
-        # Use max magnitude in the band (peak), not average — peaks are more
-        # perceptually relevant and make the visualization more responsive.
-        band_mag = max(magnitudes[low_bin:high_bin])
-        bands.append(band_mag)
+        # Clamp to valid range to avoid empty slices
+        low_bin = min(low_bin, n_bins - 1)
+        high_bin = min(high_bin, n_bins)
+        bands[b] = np.max(magnitudes[low_bin:high_bin])
 
     return bands
 
@@ -136,58 +88,70 @@ def compute_fft_bands(windowed: list[float], sample_rate: int, n_bands: int) -> 
 def extract(path: str, fps: int, n_bands: int) -> dict:
     """Extract per-frame audio data."""
     print(f"Decoding audio from {path}...", file=sys.stderr)
-    pcm, sample_rate = decode_audio(path)
-    samples = pcm_to_floats(pcm)
-    duration = len(samples) / sample_rate
-    frame_step = sample_rate // fps
+    samples = decode_audio(path)
+    duration = len(samples) / SAMPLE_RATE
+    frame_step = SAMPLE_RATE // fps
     total_frames = int(duration * fps)
 
     print(f"Duration: {duration:.1f}s, {total_frames} frames at {fps}fps", file=sys.stderr)
-    print(f"FFT window: {FFT_SIZE} samples ({sample_rate/FFT_SIZE:.1f} Hz/bin)", file=sys.stderr)
+    print(f"FFT window: {FFT_SIZE} samples ({SAMPLE_RATE / FFT_SIZE:.1f} Hz/bin)", file=sys.stderr)
     print(f"Frequency range: {MIN_FREQ:.0f}-{MAX_FREQ:.0f} Hz, {n_bands} bands", file=sys.stderr)
 
+    # Precompute constants
+    hann = np.hanning(FFT_SIZE)
+    band_edges = compute_band_edges(n_bands)
+    freq_per_bin = SAMPLE_RATE / FFT_SIZE
+    n_bins = FFT_SIZE // 2 + 1
+    half_fft = FFT_SIZE // 2
+
     # Pass 1: extract raw values
-    raw_frames = []
+    rms_values = np.zeros(total_frames)
+    band_values = np.zeros((total_frames, n_bands))
+
     for f in range(total_frames):
-        center = f * frame_step + frame_step // 2
+        # RMS from the frame's audio slice
         rms_start = f * frame_step
         rms_end = rms_start + frame_step
-        frame_samples = samples[rms_start:rms_end]
+        frame_slice = samples[rms_start:min(rms_end, len(samples))]
+        if len(frame_slice) > 0:
+            rms_values[f] = np.sqrt(np.mean(frame_slice ** 2))
 
-        rms = compute_rms(frame_samples)
-        window = get_fft_window(samples, center, FFT_SIZE)
-        bands = compute_fft_bands(window, sample_rate, n_bands)
+        # FFT from a centered 4096-sample window
+        center = rms_start + frame_step // 2
+        win_start = center - half_fft
+        win_end = center + half_fft
 
-        raw_frames.append({"rms": rms, "bands": bands})
+        if win_start >= 0 and win_end <= len(samples):
+            window = samples[win_start:win_end] * hann
+        else:
+            # Zero-pad at edges
+            padded = np.zeros(FFT_SIZE)
+            src_start = max(0, win_start)
+            src_end = min(len(samples), win_end)
+            dst_start = src_start - win_start
+            dst_end = dst_start + (src_end - src_start)
+            padded[dst_start:dst_end] = samples[src_start:src_end]
+            window = padded * hann
 
-    # Pass 2: normalize RMS to 0-1 across the whole track
-    peak_rms = max(f["rms"] for f in raw_frames) if raw_frames else 1.0
+        band_values[f] = compute_fft_bands(window, freq_per_bin, n_bins, band_edges, n_bands)
 
-    # Pass 2b: normalize each band independently across the whole track.
-    # This ensures that treble activity shows up even when bass is louder
-    # in absolute terms. Without this, high bands look dead because their
-    # absolute magnitudes are much smaller than bass/mid.
-    band_peaks = [0.0] * n_bands
-    for f in raw_frames:
-        for i, b in enumerate(f["bands"]):
-            if b > band_peaks[i]:
-                band_peaks[i] = b
+    # Pass 2: normalize
+    peak_rms = rms_values.max() if total_frames > 0 else 1.0
+    if peak_rms > 0:
+        rms_values /= peak_rms
+
+    # Per-band normalization so treble is visible alongside louder bass
+    band_peaks = band_values.max(axis=0)
+    band_peaks[band_peaks == 0] = 1.0
+    band_values /= band_peaks
 
     # Build output
     frames = []
-    for f_idx, raw in enumerate(raw_frames):
-        rms = raw["rms"] / peak_rms if peak_rms > 0 else 0.0
-        bands = []
-        for i, b in enumerate(raw["bands"]):
-            if band_peaks[i] > 0:
-                bands.append(round(b / band_peaks[i], 4))
-            else:
-                bands.append(0.0)
-
+    for f in range(total_frames):
         frames.append({
-            "time": round(f_idx / fps, 4),
-            "rms": round(rms, 4),
-            "bands": bands,
+            "time": round(f / fps, 4),
+            "rms": round(float(rms_values[f]), 4),
+            "bands": [round(float(b), 4) for b in band_values[f]],
         })
 
     return {
@@ -206,6 +170,11 @@ def main():
     parser.add_argument("--fps", type=int, default=30, help="Frames per second (default: 30)")
     parser.add_argument("--bands", type=int, default=16, help="Number of frequency bands (default: 16)")
     args = parser.parse_args()
+
+    if args.fps < 1:
+        parser.error("--fps must be at least 1")
+    if args.bands < 1:
+        parser.error("--bands must be at least 1")
 
     data = extract(args.input, args.fps, args.bands)
 
