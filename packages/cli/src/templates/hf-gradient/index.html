@@ -67,11 +67,6 @@
         position: absolute;
         inset: 0;
         z-index: 10;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 0;
       }
 
       .title-line {
@@ -87,7 +82,6 @@
       }
       #title-line-1 span {
         display: inline-block;
-        transform: translateX(-110%);
       }
 
       #title-line-2 {
@@ -95,7 +89,6 @@
       }
       #title-line-2 span {
         display: inline-block;
-        transform: translateX(110%);
       }
 
       /* ══════════════════════════════════
@@ -105,11 +98,6 @@
         position: absolute;
         inset: 0;
         z-index: 20;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 60px;
-        padding: 0 100px;
       }
 
       #preview-panel {
@@ -125,7 +113,6 @@
         justify-content: center;
         gap: 24px;
         opacity: 0;
-        transform: translateX(-60px);
       }
 
       #preview-icon {
@@ -150,7 +137,6 @@
         border-radius: 20px;
         overflow: hidden;
         opacity: 0;
-        transform: translateX(60px);
       }
 
       #code-titlebar {
@@ -201,11 +187,6 @@
         position: absolute;
         inset: 0;
         z-index: 30;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 0;
       }
 
       #terminal-window {
@@ -215,7 +196,6 @@
         border-radius: 16px;
         overflow: hidden;
         opacity: 0;
-        transform: scale(0.95);
       }
 
       #terminal-titlebar {
@@ -244,7 +224,6 @@
 
       .cmd-line {
         opacity: 0;
-        transform: translateY(10px);
       }
 
       .cmd-prompt {
@@ -278,7 +257,6 @@
         align-items: center;
         gap: 24px;
         opacity: 0;
-        transform: scale(0.9);
       }
 
       #finale-icon {
@@ -299,7 +277,37 @@
         color: rgba(255, 255, 255, 0.45);
         letter-spacing: 0.12em;
         opacity: 0;
-        transform: translateY(8px);
+      }
+
+      /* Inner wrappers for clip elements */
+      #scene-title-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+      }
+
+      #scene-code-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 60px;
+        padding: 0 100px;
+      }
+
+      #scene-cli-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
       }
     </style>
   </head>
@@ -324,8 +332,10 @@
         data-duration="2.5"
         data-track-index="1"
       >
-        <div class="title-line" id="title-line-1"><span>CREATE VIDEOS</span></div>
-        <div class="title-line" id="title-line-2"><span>WITH CODE</span></div>
+        <div id="scene-title-inner">
+          <div class="title-line" id="title-line-1"><span>CREATE VIDEOS</span></div>
+          <div class="title-line" id="title-line-2"><span>WITH CODE</span></div>
+        </div>
       </div>
 
       <!-- SCENE 2: Code Demo (2.5-6s) -->
@@ -336,18 +346,19 @@
         data-duration="3.5"
         data-track-index="1"
       >
-        <div id="preview-panel">
-          <img id="preview-icon" src="favicon.svg" alt="HyperFrames" />
-          <div id="preview-label">LIVE PREVIEW</div>
-        </div>
-        <div id="code-panel">
-          <div id="code-titlebar">
-            <div class="dot dot-red"></div>
-            <div class="dot dot-yellow"></div>
-            <div class="dot dot-green"></div>
-            <span id="code-filename">index.html</span>
+        <div id="scene-code-inner">
+          <div id="preview-panel">
+            <img id="preview-icon" src="favicon.svg" alt="HyperFrames" />
+            <div id="preview-label">LIVE PREVIEW</div>
           </div>
-          <div id="code-content"><span class="hl-tag">&lt;div</span>
+          <div id="code-panel">
+            <div id="code-titlebar">
+              <div class="dot dot-red"></div>
+              <div class="dot dot-yellow"></div>
+              <div class="dot dot-green"></div>
+              <span id="code-filename">index.html</span>
+            </div>
+            <div id="code-content"><span class="hl-tag">&lt;div</span>
   <span class="hl-attr">data-composition-id</span>=<span class="hl-val">"main"</span>
   <span class="hl-attr">data-duration</span>=<span class="hl-val">"10"</span>
   <span class="hl-attr">data-width</span>=<span class="hl-val">"1920"</span><span class="hl-tag">&gt;</span>
@@ -362,6 +373,7 @@
   <span class="hl-tag">&lt;/div&gt;</span>
 
 <span class="hl-tag">&lt;/div&gt;</span></div>
+          </div>
         </div>
       </div>
 
@@ -373,22 +385,24 @@
         data-duration="2.5"
         data-track-index="1"
       >
-        <div id="terminal-window">
-          <div id="terminal-titlebar">
-            <div class="dot dot-red"></div>
-            <div class="dot dot-yellow"></div>
-            <div class="dot dot-green"></div>
-            <span id="terminal-title">Terminal</span>
-          </div>
-          <div id="terminal-body">
-            <div class="cmd-line" id="cmd-1">
-              <span class="cmd-prompt">$ </span><span class="cmd-text">npx hyperframes init </span><span class="cmd-arg">my-video</span>
+        <div id="scene-cli-inner">
+          <div id="terminal-window">
+            <div id="terminal-titlebar">
+              <div class="dot dot-red"></div>
+              <div class="dot dot-yellow"></div>
+              <div class="dot dot-green"></div>
+              <span id="terminal-title">Terminal</span>
             </div>
-            <div class="cmd-line" id="cmd-2">
-              <span class="cmd-prompt">$ </span><span class="cmd-text">npx hyperframes </span><span class="cmd-arg">preview</span>
-            </div>
-            <div class="cmd-line" id="cmd-3">
-              <span class="cmd-prompt">$ </span><span class="cmd-text">npx hyperframes </span><span class="cmd-arg">render</span>
+            <div id="terminal-body">
+              <div class="cmd-line" id="cmd-1">
+                <span class="cmd-prompt">$ </span><span class="cmd-text">npx hyperframes init </span><span class="cmd-arg">my-video</span>
+              </div>
+              <div class="cmd-line" id="cmd-2">
+                <span class="cmd-prompt">$ </span><span class="cmd-text">npx hyperframes </span><span class="cmd-arg">preview</span>
+              </div>
+              <div class="cmd-line" id="cmd-3">
+                <span class="cmd-prompt">$ </span><span class="cmd-text">npx hyperframes </span><span class="cmd-arg">render</span>
+              </div>
             </div>
           </div>
         </div>
@@ -422,34 +436,44 @@
       }, 0);
 
       /* ─── SCENE 1: BOLD TITLE (0-2.5s) ─── */
-      tl.to("#title-line-1 span", {
+      tl.fromTo("#title-line-1 span", {
+        x: "-110%",
+      }, {
         x: 0,
         duration: 0.8,
         ease: "power3.out",
       }, 0.2);
 
-      tl.to("#title-line-2 span", {
+      tl.fromTo("#title-line-2 span", {
+        x: "110%",
+      }, {
         x: 0,
         duration: 0.8,
         ease: "power3.out",
       }, 0.35);
 
       // Fade title out
-      tl.to("#scene-title", {
+      tl.to("#scene-title-inner", {
         opacity: 0,
         duration: 0.4,
         ease: "power2.in",
       }, 2.1);
 
       /* ─── SCENE 2: CODE DEMO (2.5-6s) ─── */
-      tl.to("#preview-panel", {
+      tl.fromTo("#preview-panel", {
+        opacity: 0,
+        x: -60,
+      }, {
         opacity: 1,
         x: 0,
         duration: 0.7,
         ease: "power3.out",
       }, 2.6);
 
-      tl.to("#code-panel", {
+      tl.fromTo("#code-panel", {
+        opacity: 0,
+        x: 60,
+      }, {
         opacity: 1,
         x: 0,
         duration: 0.7,
@@ -466,35 +490,47 @@
       }, 3.5);
 
       // Fade code scene out
-      tl.to("#scene-code", {
+      tl.to("#scene-code-inner", {
         opacity: 0,
         duration: 0.4,
         ease: "power2.in",
       }, 5.6);
 
       /* ─── SCENE 3: CLI COMMANDS (6-8.5s) ─── */
-      tl.to("#terminal-window", {
+      tl.fromTo("#terminal-window", {
+        opacity: 0,
+        scale: 0.95,
+      }, {
         opacity: 1,
         scale: 1,
         duration: 0.5,
         ease: "back.out(1.4)",
       }, 6.1);
 
-      tl.to("#cmd-1", {
+      tl.fromTo("#cmd-1", {
+        opacity: 0,
+        y: 10,
+      }, {
         opacity: 1,
         y: 0,
         duration: 0.4,
         ease: "power3.out",
       }, 6.4);
 
-      tl.to("#cmd-2", {
+      tl.fromTo("#cmd-2", {
+        opacity: 0,
+        y: 10,
+      }, {
         opacity: 1,
         y: 0,
         duration: 0.4,
         ease: "power3.out",
       }, 6.9);
 
-      tl.to("#cmd-3", {
+      tl.fromTo("#cmd-3", {
+        opacity: 0,
+        y: 10,
+      }, {
         opacity: 1,
         y: 0,
         duration: 0.4,
@@ -502,21 +538,27 @@
       }, 7.4);
 
       // Fade CLI out
-      tl.to("#scene-cli", {
+      tl.to("#scene-cli-inner", {
         opacity: 0,
         duration: 0.4,
         ease: "power2.in",
       }, 8.1);
 
       /* ─── SCENE 4: LOGO FINALE (8.5-10s) ─── */
-      tl.to("#finale-row", {
+      tl.fromTo("#finale-row", {
+        opacity: 0,
+        scale: 0.9,
+      }, {
         opacity: 1,
         scale: 1,
         duration: 0.6,
         ease: "back.out(1.7)",
       }, 8.5);
 
-      tl.to("#finale-tagline", {
+      tl.fromTo("#finale-tagline", {
+        opacity: 0,
+        y: 8,
+      }, {
         opacity: 1,
         y: 0,
         duration: 0.5,

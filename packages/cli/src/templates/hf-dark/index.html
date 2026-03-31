@@ -198,7 +198,6 @@
         font-size: 32px;
         color: #3CE6AC;
         opacity: 0;
-        transform: scale(0.9);
         display: flex;
         align-items: center;
         gap: 4px;
@@ -227,7 +226,6 @@
         color: rgba(255, 255, 255, 0.4);
         letter-spacing: 0.15em;
         opacity: 0;
-        transform: translateY(10px);
       }
 
       #cta-tagline {
@@ -401,7 +399,7 @@
       }, 6.5);
 
       /* ─── SCENE 3: CTA (7-10s) ─── */
-      tl.to("#cta-terminal", {
+      tl.fromTo("#cta-terminal", { scale: 0.9 }, {
         opacity: 1,
         scale: 1,
         duration: 0.6,
@@ -418,7 +416,7 @@
         repeatDelay: 0.5,
       }, 7.4);
 
-      tl.to("#cta-url", {
+      tl.fromTo("#cta-url", { y: 10 }, {
         opacity: 1,
         y: 0,
         duration: 0.5,
