@@ -97,4 +97,102 @@ describe("bundleToSingleHtml", () => {
     ).length;
     expect(gsapOccurrences).toBe(1);
   });
+
+  it("inlines <template> compositions into matching empty host elements", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head><body>
+  <template id="logo-reveal-template">
+    <div data-composition-id="logo-reveal" data-width="1920" data-height="1080">
+      <style>.logo { opacity: 0; }</style>
+      <div class="logo">Logo Here</div>
+      <script>
+        window.__timelines = window.__timelines || {};
+        window.__timelines["logo-reveal"] = gsap.timeline({ paused: true });
+      </script>
+    </div>
+  </template>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="logo-host"
+      data-composition-id="logo-reveal"
+      data-start="0" data-duration="5"
+      data-track-index="1"></div>
+  </div>
+  <script>window.__timelines={}; const tl=gsap.timeline({paused:true}); window.__timelines["main"]=tl;</script>
+</body></html>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    // Template element should be removed
+    expect(bundled).not.toContain("<template");
+
+    // Host should contain the template content (the logo div)
+    expect(bundled).toContain("Logo Here");
+
+    // Styles from template should be hoisted
+    expect(bundled).toContain(".logo");
+
+    // Scripts from template should be included
+    expect(bundled).toContain('window.__timelines["logo-reveal"]');
+  });
+
+  it("does not inline template when host already has content", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head></head><body>
+  <template id="comp-template">
+    <div data-composition-id="comp" data-width="800" data-height="600">
+      <p>Template content</p>
+    </div>
+  </template>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div data-composition-id="comp" data-start="0" data-duration="5">
+      <span>Already filled</span>
+    </div>
+  </div>
+  <script>window.__timelines={};</script>
+</body></html>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    // Existing content should be preserved
+    expect(bundled).toContain("Already filled");
+
+    // Template content should NOT replace the existing host content
+    // (template element may still exist in the output since it was not consumed)
+    const hostMatch = bundled.match(
+      /data-composition-id="comp"[^>]*data-start="0"[^>]*>([\s\S]*?)<\/div>/,
+    );
+    expect(hostMatch).toBeTruthy();
+    expect(hostMatch![1]).toContain("Already filled");
+    expect(hostMatch![1]).not.toContain("Template content");
+  });
+
+  it("copies dimension attributes from inline template to host", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head></head><body>
+  <template id="sized-template">
+    <div data-composition-id="sized" data-width="800" data-height="600">
+      <p>Sized content</p>
+    </div>
+  </template>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div data-composition-id="sized" data-start="0" data-duration="3"></div>
+  </div>
+  <script>window.__timelines={};</script>
+</body></html>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    // The host should have dimensions copied from the template inner root
+    expect(bundled).toContain('data-width="800"');
+    expect(bundled).toContain('data-height="600"');
+    expect(bundled).toContain("Sized content");
+  });
 });

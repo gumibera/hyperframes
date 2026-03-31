@@ -449,6 +449,83 @@ export async function bundleToSingleHtml(
     $(hostEl).removeAttr("data-composition-src");
   });
 
+  // Inline template compositions: inject <template id="X-template"> content into
+  // matching empty host elements with data-composition-id="X" (no data-composition-src)
+  $("template[id]").each((_, templateEl) => {
+    const templateId = $(templateEl).attr("id") || "";
+    const match = templateId.match(/^(.+)-template$/);
+    if (!match) return;
+    const compId = match[1];
+
+    // Find the matching host element (must have data-composition-id, no data-composition-src,
+    // and must NOT be inside a <template> element). In cheerio, elements inside <template>
+    // have a detached parent chain (parents().length === 0), so we filter those out.
+    const hostSelector = `[data-composition-id="${compId}"]:not([data-composition-src])`;
+    const $candidates = $(hostSelector).filter((__, el) => $(el).parents().length > 0);
+    const $host = $candidates.first();
+    if ($host.length === 0) return;
+    if ($host.children().length > 0) return; // already has content
+
+    // Get template content and inject into host
+    const templateHtml = $(templateEl).html() || "";
+    const $inner = cheerio.load(templateHtml, { xml: false });
+    const $innerRoot = $inner(`[data-composition-id="${compId}"]`).first();
+
+    if ($innerRoot.length > 0) {
+      // Hoist styles into the collected style chunks
+      $innerRoot.find("style").each((__, styleEl) => {
+        compStyleChunks.push($inner(styleEl).html() || "");
+        $inner(styleEl).remove();
+      });
+      // Hoist scripts into the collected script chunks
+      $innerRoot.find("script").each((__, scriptEl) => {
+        const externalSrc = ($inner(scriptEl).attr("src") || "").trim();
+        if (externalSrc) {
+          if (!compExternalScriptSrcs.includes(externalSrc)) {
+            compExternalScriptSrcs.push(externalSrc);
+          }
+        } else {
+          compScriptChunks.push(
+            `(function(){ try { ${$inner(scriptEl).html() || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+          );
+        }
+        $inner(scriptEl).remove();
+      });
+
+      // Copy dimension attributes from inner root to host if not already set
+      const innerW = $innerRoot.attr("data-width");
+      const innerH = $innerRoot.attr("data-height");
+      if (innerW && !$host.attr("data-width")) $host.attr("data-width", innerW);
+      if (innerH && !$host.attr("data-height")) $host.attr("data-height", innerH);
+
+      // Set host content from inner root
+      $host.html($innerRoot.html() || "");
+    } else {
+      // No matching inner root — inject all template content directly
+      $inner("style").each((__, styleEl) => {
+        compStyleChunks.push($inner(styleEl).html() || "");
+        $inner(styleEl).remove();
+      });
+      $inner("script").each((__, scriptEl) => {
+        const externalSrc = ($inner(scriptEl).attr("src") || "").trim();
+        if (externalSrc) {
+          if (!compExternalScriptSrcs.includes(externalSrc)) {
+            compExternalScriptSrcs.push(externalSrc);
+          }
+        } else {
+          compScriptChunks.push(
+            `(function(){ try { ${$inner(scriptEl).html() || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+          );
+        }
+        $inner(scriptEl).remove();
+      });
+      $host.html($inner.html() || "");
+    }
+
+    // Remove the template element from the document
+    $(templateEl).remove();
+  });
+
   // Inject external scripts from sub-compositions (e.g., Lottie CDN)
   // that aren't already present in the main document.
   for (const extSrc of compExternalScriptSrcs) {

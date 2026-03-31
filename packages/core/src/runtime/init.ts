@@ -11,7 +11,7 @@ import { createRuntimePlayer } from "./player";
 import { createRuntimeState } from "./state";
 import { collectRuntimeTimelinePayload } from "./timeline";
 import { createRuntimeStartTimeResolver } from "./startResolver";
-import { loadExternalCompositions } from "./compositionLoader";
+import { loadExternalCompositions, loadInlineTemplateCompositions } from "./compositionLoader";
 import type { RuntimeDeterministicAdapter, RuntimeJson, RuntimeTimelineLike } from "./types";
 import type { PlayerAPI } from "../core.types";
 
@@ -362,7 +362,25 @@ export function initSandboxRuntimeModular(): void {
     });
     return resolver.resolveDurationForElement(element);
   };
-  let externalCompositionsReady = !document.querySelector("[data-composition-src]");
+  const hasExternalCompositions = !!document.querySelector("[data-composition-src]");
+  let hasInlineTemplateCompositions = false;
+  {
+    const candidates = document.querySelectorAll(
+      "[data-composition-id]:not([data-composition-src])",
+    );
+    for (const el of candidates) {
+      const cid = el.getAttribute("data-composition-id");
+      if (
+        cid &&
+        el.children.length === 0 &&
+        document.querySelector(`template#${CSS.escape(cid)}-template`)
+      ) {
+        hasInlineTemplateCompositions = true;
+        break;
+      }
+    }
+  }
+  let externalCompositionsReady = !hasExternalCompositions && !hasInlineTemplateCompositions;
 
   const getTimelineDurationSeconds = (timeline: RuntimeTimelineLike | null): number | null => {
     if (!timeline || typeof timeline.duration !== "function") return null;
@@ -1272,11 +1290,17 @@ export function initSandboxRuntimeModular(): void {
   };
 
   if (!externalCompositionsReady) {
-    void loadExternalCompositions({
+    const compositionLoaderParams = {
       injectedStyles: state.injectedCompStyles,
       injectedScripts: state.injectedCompScripts,
       parseDimensionPx,
-      onDiagnostic: ({ code, details }) => {
+      onDiagnostic: ({
+        code,
+        details,
+      }: {
+        code: string;
+        details: Record<string, string | number | boolean | null | string[]>;
+      }) => {
         postRuntimeMessage({
           source: "hf-preview",
           type: "diagnostic",
@@ -1284,14 +1308,17 @@ export function initSandboxRuntimeModular(): void {
           details,
         });
       },
-    }).finally(() => {
-      externalCompositionsReady = true;
-      runAdapters("discover", state.currentTime);
-      bindMediaMetadataListeners();
-      installAssetFailureDiagnostics();
-      postTimeline();
-      postState(true);
-    });
+    };
+    void loadExternalCompositions(compositionLoaderParams)
+      .then(() => loadInlineTemplateCompositions(compositionLoaderParams))
+      .finally(() => {
+        externalCompositionsReady = true;
+        runAdapters("discover", state.currentTime);
+        bindMediaMetadataListeners();
+        installAssetFailureDiagnostics();
+        postTimeline();
+        postState(true);
+      });
   }
 
   const picker = createPickerModule({
