@@ -2,9 +2,22 @@ import { defineCommand } from "citty";
 import { existsSync, mkdirSync, readdirSync, rmSync, cpSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
-import { execFileSync } from "node:child_process";
+import { execFileSync, execFile } from "node:child_process";
 import * as clack from "@clack/prompts";
 import { c } from "../ui/colors.js";
+
+function execFileAsync(
+  cmd: string,
+  args: string[],
+  options: { stdio?: "ignore"; timeout?: number; cwd?: string; env?: NodeJS.ProcessEnv },
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(cmd, args, options, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Target CLI tools — each has a global skills directory
@@ -94,13 +107,13 @@ function hasNpx(): boolean {
   }
 }
 
-function runSkillsAdd(repo: string, agents: string[], global: boolean): void {
+async function runSkillsAdd(repo: string, agents: string[], global: boolean): Promise<void> {
   const args = ["skills", "add", repo, "-y"];
   if (global) args.push("-g");
   for (const agent of agents) {
     args.push("-a", agent);
   }
-  execFileSync("npx", args, {
+  await execFileAsync("npx", args, {
     stdio: "ignore",
     timeout: 120_000,
   });
@@ -121,19 +134,19 @@ function hasGit(): boolean {
 
 const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
 
-function gitClone(repo: string, dest: string): void {
-  execFileSync("git", ["clone", "--depth", "1", repo, dest], {
+async function gitClone(repo: string, dest: string): Promise<void> {
+  await execFileAsync("git", ["clone", "--depth", "1", repo, dest], {
     stdio: "ignore",
     timeout: 60_000,
     env: GIT_ENV,
   });
 }
 
-function fetchRepo(source: SkillSource): string | undefined {
+async function fetchRepo(source: SkillSource): Promise<string | undefined> {
   const gitUrl = `https://github.com/${source.repo}.git`;
   if (existsSync(source.cache)) {
     try {
-      execFileSync("git", ["pull", "--ff-only"], {
+      await execFileAsync("git", ["pull", "--ff-only"], {
         cwd: source.cache,
         stdio: "ignore",
         timeout: 30_000,
@@ -143,11 +156,11 @@ function fetchRepo(source: SkillSource): string | undefined {
       const skillsDir = join(source.cache, source.skillsPath);
       if (existsSync(skillsDir)) return skillsDir;
       rmSync(source.cache, { recursive: true, force: true });
-      gitClone(gitUrl, source.cache);
+      await gitClone(gitUrl, source.cache);
     }
   } else {
     mkdirSync(dirname(source.cache), { recursive: true });
-    gitClone(gitUrl, source.cache);
+    await gitClone(gitUrl, source.cache);
   }
   const skillsDir = join(source.cache, source.skillsPath);
   return existsSync(skillsDir) ? skillsDir : undefined;
@@ -181,17 +194,17 @@ function installSkillsFromDir(
   return installed;
 }
 
-function fallbackInstall(targets: Target[]): {
+async function fallbackInstall(targets: Target[]): Promise<{
   count: number;
   installed: InstalledSkill[];
   skipped: string[];
-} {
+}> {
   const skipped: string[] = [];
   const fetched: { source: SkillSource; skillsDir: string }[] = [];
 
   for (const source of SOURCES) {
     try {
-      const skillsDir = fetchRepo(source);
+      const skillsDir = await fetchRepo(source);
       if (skillsDir) {
         fetched.push({ source, skillsDir });
       } else {
@@ -229,11 +242,13 @@ export { TARGETS };
 
 export async function installAllSkills(
   targetNames?: string[],
+  options?: { onProgress?: (message: string) => void },
 ): Promise<{ count: number; targets: string[]; skipped: string[] }> {
   const targets = targetNames
     ? TARGETS.filter((t) => targetNames.includes(t.flag))
     : TARGETS.filter((t) => t.defaultEnabled);
   const agents = targets.map((t) => t.skillsAgent);
+  const progress = options?.onProgress;
 
   // Try npx skills add first
   if (hasNpx()) {
@@ -241,8 +256,9 @@ export async function installAllSkills(
     let count = 0;
     for (const source of SOURCES) {
       try {
-        runSkillsAdd(source.repo, agents, true);
-        count += 1; // count sources, not individual skills (we don't get that from npx)
+        progress?.(`Installing ${source.name} skills...`);
+        await runSkillsAdd(source.repo, agents, true);
+        count += 1;
       } catch {
         skipped.push(source.name);
       }
@@ -257,7 +273,8 @@ export async function installAllSkills(
   if (!hasGit()) {
     return { count: 0, targets: [], skipped: SOURCES.map((s) => s.name) };
   }
-  const result = fallbackInstall(targets);
+  progress?.("Cloning skill repositories...");
+  const result = await fallbackInstall(targets);
   return { count: result.count, targets: targets.map((t) => t.name), skipped: result.skipped };
 }
 
@@ -288,7 +305,7 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
       const spinner = clack.spinner();
       spinner.start(`Installing ${source.name} skills...`);
       try {
-        runSkillsAdd(source.repo, agents, true);
+        await runSkillsAdd(source.repo, agents, true);
         installed.push(source.name);
         spinner.stop(c.success(`${source.name} skills installed`));
       } catch {
@@ -321,7 +338,7 @@ async function runInstall({ args }: { args: Record<string, unknown> }): Promise<
 
   clack.log.info(c.dim("Using git fallback..."));
 
-  const result = fallbackInstall(targets);
+  const result = await fallbackInstall(targets);
 
   console.log();
   for (const source of SOURCES) {

@@ -59,7 +59,9 @@ async function installSkills(interactive: boolean): Promise<void> {
     const spin = interactive ? clack.spinner() : null;
     spin?.start("Installing AI coding skills...");
 
-    const result = await installAllSkills(selectedTargets);
+    const result = await installAllSkills(selectedTargets, {
+      onProgress: (msg) => spin?.message(msg),
+    });
     if (result.count > 0) {
       const msg = `${result.count} skills installed (${result.targets.join(", ")})`;
       if (spin) {
