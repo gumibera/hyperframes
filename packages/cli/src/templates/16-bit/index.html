@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: 'Press Start 2P';
+        font-style: normal; font-weight: 400; font-display: block;
+        src: url('fonts/press-start-2p.woff2') format('woff2');
+      }
+
+      /* ── 16-bit SNES-era palette ── */
+      :root {
+        --bg:      #050510;
+        --sky-lo:  #0a0a3a;
+        --sky-hi:  #000820;
+        --mtn-far: #1a1a5a;
+        --mtn-mid: #0d0d35;
+        --mtn-nrr: #080820;
+        --ground:  #0a1a0a;
+        --grid:    rgba(0,255,180,0.12);
+        --gold:    #ffcc00;
+        --red:     #ff3030;
+        --cyan:    #00ffcc;
+        --pink:    #ff40c0;
+        --white:   #f0f0ff;
+        --dim:     rgba(240,240,255,0.45);
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; image-rendering: pixelated; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+
+      #root {
+        position: relative; width: 1920px; height: 1080px;
+        font-family: 'Press Start 2P', monospace;
+        -webkit-font-smoothing: none;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      /* ══════════════════════════════════
+         PERSISTENT BACKGROUND LAYERS
+         ══════════════════════════════════ */
+
+      /* Sky gradient */
+      #bg-sky {
+        position: absolute; inset: 0; z-index: 1;
+        background: linear-gradient(180deg, var(--sky-hi) 0%, var(--sky-lo) 55%, var(--ground) 55%, #061206 100%);
+      }
+
+      /* Stars — 40 individual star dots at fixed positions */
+      #stars { position: absolute; inset: 0; z-index: 2; }
+      .star {
+        position: absolute; background: var(--white);
+        image-rendering: pixelated;
+      }
+
+      /* Far mountains — pure CSS clip-path silhouette */
+      #mtn-far {
+        position: absolute; bottom: 460px; left: 0; right: 0; height: 340px;
+        background: var(--mtn-far); z-index: 3;
+        clip-path: polygon(
+          0% 100%, 0% 65%, 3% 48%, 6% 65%, 9% 38%, 13% 62%, 17% 22%,
+          22% 55%, 27% 10%, 32% 48%, 36% 30%, 40% 52%, 44% 18%,
+          48% 44%, 53% 5%, 58% 42%, 62% 25%, 66% 50%, 70% 15%,
+          74% 45%, 78% 28%, 82% 52%, 86% 20%, 90% 48%, 94% 35%, 97% 55%, 100% 45%, 100% 100%
+        );
+      }
+      /* Mid mountains */
+      #mtn-mid {
+        position: absolute; bottom: 460px; left: 0; right: 0; height: 240px;
+        background: var(--mtn-mid); z-index: 4;
+        clip-path: polygon(
+          0% 100%, 0% 75%, 5% 58%, 10% 72%, 16% 42%, 22% 68%, 28% 50%,
+          34% 72%, 40% 38%, 46% 65%, 52% 30%, 58% 60%, 64% 45%,
+          70% 68%, 76% 35%, 82% 62%, 88% 48%, 94% 70%, 100% 55%, 100% 100%
+        );
+      }
+      /* Near mountains */
+      #mtn-near {
+        position: absolute; bottom: 460px; left: 0; right: 0; height: 160px;
+        background: var(--mtn-nrr); z-index: 5;
+        clip-path: polygon(
+          0% 100%, 0% 80%, 8% 62%, 16% 78%, 25% 50%, 34% 72%, 42% 42%,
+          50% 68%, 58% 55%, 66% 72%, 74% 40%, 82% 65%, 90% 52%, 100% 68%, 100% 100%
+        );
+      }
+
+      /* Mode-7 floor grid */
+      #floor {
+        position: absolute; bottom: 0; left: -20%; right: -20%; height: 460px;
+        z-index: 6;
+        background-color: var(--ground);
+        background-image:
+          linear-gradient(to right,  var(--grid) 2px, transparent 2px),
+          linear-gradient(to bottom, var(--grid) 2px, transparent 2px);
+        background-size: 96px 64px;
+        transform: perspective(480px) rotateX(58deg);
+        transform-origin: center top;
+      }
+
+      /* Horizon glow line */
+      #horizon {
+        position: absolute; bottom: 460px; left: 0; right: 0;
+        height: 6px; z-index: 7;
+        background: linear-gradient(to right,
+          transparent 0%, var(--cyan) 20%, var(--pink) 50%, var(--cyan) 80%, transparent 100%);
+        opacity: 0;
+        filter: blur(2px);
+      }
+
+      /* CRT scanlines */
+      #scanlines {
+        position: absolute; inset: 0; z-index: 800; pointer-events: none;
+        background: repeating-linear-gradient(
+          0deg, transparent 0, transparent 3px,
+          rgba(0,0,0,0.15) 3px, rgba(0,0,0,0.15) 4px
+        );
+      }
+      /* Vignette */
+      #vignette {
+        position: absolute; inset: 0; z-index: 801; pointer-events: none;
+        background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%);
+      }
+      /* Screen border */
+      #px-border {
+        position: absolute; inset: 0; z-index: 799; pointer-events: none;
+        box-shadow: inset 0 0 0 12px #000, inset 0 0 0 20px #111;
+      }
+
+      /* ══════════════════════════════════
+         SCENE 1 — STUDIO CARD  (0–5 s)
+         ══════════════════════════════════ */
+      #s1 { position: absolute; inset: 0; z-index: 50; background: #000; }
+      #s1-inner {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px;
+      }
+      #s1-presents { font-size: 24px; color: var(--dim); letter-spacing: 0.2em; opacity: 0; }
+      #s1-studio {
+        font-size: 52px; color: var(--gold);
+        text-shadow: 6px 6px 0 #995500; letter-spacing: 0.06em;
+        opacity: 0;
+      }
+      #s1-presents2 { font-size: 22px; color: var(--dim); letter-spacing: 0.2em; opacity: 0; }
+
+      /* ══════════════════════════════════
+         SCENE 2 — TITLE REVEAL  (5–14 s)
+         ══════════════════════════════════ */
+      #s2 { position: absolute; inset: 0; z-index: 40; }
+
+      /* Pixel explosion sparks */
+      .spark {
+        position: absolute; width: 16px; height: 16px;
+        background: var(--gold); opacity: 0;
+        top: 50%; left: 50%;
+      }
+      #sp1  { transform: translate(-50%,-50%); }
+      #sp2  { transform: translate(-50%,-50%); }
+      #sp3  { transform: translate(-50%,-50%); }
+      #sp4  { transform: translate(-50%,-50%); }
+      #sp5  { transform: translate(-50%,-50%); }
+      #sp6  { transform: translate(-50%,-50%); }
+      #sp7  { transform: translate(-50%,-50%); background: var(--cyan); }
+      #sp8  { transform: translate(-50%,-50%); background: var(--cyan); }
+
+      /* Title halves — no CSS transform; GSAP owns all transforms */
+      #title-hyper {
+        position: absolute; top: 240px; left: 50%;
+        font-size: 180px; color: var(--gold);
+        text-shadow:
+          8px  8px  0 #cc8800,
+          16px 16px 0 #886600,
+          -4px -4px 0 #ffee80;
+        white-space: nowrap; line-height: 1;
+        letter-spacing: -0.01em;
+        opacity: 0;
+      }
+      #title-frames {
+        position: absolute; top: 430px; left: 50%;
+        font-size: 180px; color: var(--cyan);
+        text-shadow:
+          8px  8px  0 #007755,
+          16px 16px 0 #004433,
+          -4px -4px 0 #80ffe8;
+        white-space: nowrap; line-height: 1;
+        letter-spacing: -0.01em;
+        opacity: 0;
+      }
+      #title-sub {
+        position: absolute; top: 662px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 30px; color: var(--white);
+        letter-spacing: 0.18em; white-space: nowrap;
+        opacity: 0;
+      }
+      /* Neon underline */
+      #title-rule {
+        position: absolute; top: 716px; left: 50%;
+        transform: translateX(-50%);
+        width: 0; height: 4px;
+        background: linear-gradient(to right, var(--pink), var(--cyan));
+        box-shadow: 0 0 12px var(--cyan);
+      }
+
+      /* ══════════════════════════════════
+         SCENE 3 — FEATURES  (14–24 s)
+         ══════════════════════════════════ */
+      #s3 { position: absolute; inset: 0; z-index: 30; }
+      #feat-header {
+        position: absolute; top: 80px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 28px; color: var(--gold);
+        letter-spacing: 0.15em; white-space: nowrap;
+        opacity: 0;
+      }
+
+      /* Feature cards */
+      .fcard {
+        position: absolute; width: 520px; padding: 40px 36px;
+        background: rgba(10,10,40,0.92);
+        border: 4px solid var(--cyan);
+        box-shadow: 0 0 24px rgba(0,255,204,0.2), inset 0 0 0 1px rgba(0,255,204,0.1);
+        opacity: 0;
+      }
+      #fc1 { top: 180px; left: 120px; border-color: var(--gold); box-shadow: 0 0 24px rgba(255,204,0,0.2); }
+      #fc2 { top: 180px; left: 50%; transform: translateX(-50%); }
+      #fc3 { top: 180px; right: 120px; border-color: var(--pink); box-shadow: 0 0 24px rgba(255,64,192,0.2); }
+
+      .fc-icon { font-size: 56px; line-height: 1; margin-bottom: 20px; }
+      .fc-title { font-size: 28px; color: var(--white); margin-bottom: 16px; line-height: 1.3; }
+      .fc-body  { font-size: 18px; color: var(--dim); line-height: 1.8; }
+      #fc1 .fc-title { color: var(--gold); }
+      #fc2 .fc-title { color: var(--cyan); }
+      #fc3 .fc-title { color: var(--pink); }
+
+      /* Pixel stat bars inside feature cards */
+      .stat-track {
+        height: 16px; background: rgba(255,255,255,0.1);
+        border: 3px solid rgba(255,255,255,0.2);
+        margin-top: 8px; position: relative; overflow: hidden;
+      }
+      .stat-fill { position: absolute; inset: 0; width: 0; }
+      #sf1 { background: var(--gold); }
+      #sf2 { background: var(--cyan); }
+      #sf3 { background: var(--pink); }
+
+      /* ══════════════════════════════════
+         SCENE 4 — CTA  (24–30 s)
+         ══════════════════════════════════ */
+      #s4 { position: absolute; inset: 0; z-index: 20; }
+      #cta-wrap {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 0;
+      }
+      #cta-eyebrow {
+        font-size: 22px; color: var(--cyan); letter-spacing: 0.3em;
+        text-transform: uppercase; opacity: 0; margin-bottom: 20px;
+      }
+      #cta-big {
+        font-size: 96px; color: var(--gold);
+        text-shadow: 8px 8px 0 #995500, 16px 16px 0 #553300;
+        letter-spacing: 0.04em; opacity: 0; transform: scale(0.8);
+        text-align: center;
+      }
+      #cta-cmd {
+        margin-top: 36px;
+        font-size: 28px; color: var(--white);
+        background: rgba(0,255,204,0.08);
+        border: 3px solid var(--cyan);
+        padding: 20px 48px;
+        opacity: 0; transform: translateY(20px);
+        white-space: nowrap;
+      }
+      #cta-cursor {
+        display: inline-block; width: 20px; height: 28px;
+        background: var(--white); vertical-align: bottom;
+        margin-left: 4px;
+      }
+      #cta-url {
+        margin-top: 28px;
+        font-size: 22px; color: var(--cyan); letter-spacing: 0.18em;
+        opacity: 0;
+      }
+      #cta-rule {
+        margin-top: 20px;
+        width: 0; height: 4px;
+        background: linear-gradient(to right, transparent, var(--gold), transparent);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30"
+         data-width="1920" data-height="1080">
+
+      <!-- ── Persistent background ── -->
+      <div id="bg-sky"></div>
+
+      <!-- 40 stars at fixed pixel positions -->
+      <div id="stars">
+        <div class="star" style="width:4px;height:4px;top:42px;left:180px;"></div>
+        <div class="star" style="width:2px;height:2px;top:88px;left:420px;"></div>
+        <div class="star" style="width:4px;height:4px;top:26px;left:680px;"></div>
+        <div class="star" style="width:2px;height:2px;top:110px;left:920px;"></div>
+        <div class="star" style="width:4px;height:4px;top:54px;left:1140px;"></div>
+        <div class="star" style="width:2px;height:2px;top:32px;left:1380px;"></div>
+        <div class="star" style="width:4px;height:4px;top:96px;left:1600px;"></div>
+        <div class="star" style="width:2px;height:2px;top:18px;left:1820px;"></div>
+        <div class="star" style="width:6px;height:6px;top:140px;left:300px;"></div>
+        <div class="star" style="width:2px;height:2px;top:160px;left:560px;"></div>
+        <div class="star" style="width:4px;height:4px;top:80px;left:800px;"></div>
+        <div class="star" style="width:2px;height:2px;top:200px;left:1050px;"></div>
+        <div class="star" style="width:6px;height:6px;top:60px;left:1280px;"></div>
+        <div class="star" style="width:2px;height:2px;top:180px;left:1500px;"></div>
+        <div class="star" style="width:4px;height:4px;top:120px;left:1720px;"></div>
+        <div class="star" style="width:2px;height:2px;top:240px;left:80px;background:#00ffcc;"></div>
+        <div class="star" style="width:4px;height:4px;top:210px;left:340px;background:#ffcc00;"></div>
+        <div class="star" style="width:2px;height:2px;top:170px;left:620px;"></div>
+        <div class="star" style="width:4px;height:4px;top:290px;left:860px;background:#ff40c0;"></div>
+        <div class="star" style="width:2px;height:2px;top:250px;left:1100px;"></div>
+        <div class="star" style="width:6px;height:6px;top:190px;left:1350px;background:#ffcc00;"></div>
+        <div class="star" style="width:2px;height:2px;top:270px;left:1580px;"></div>
+        <div class="star" style="width:4px;height:4px;top:140px;left:1840px;background:#00ffcc;"></div>
+        <div class="star" style="width:2px;height:2px;top:320px;left:160px;"></div>
+        <div class="star" style="width:4px;height:4px;top:360px;left:450px;background:#ffcc00;"></div>
+        <div class="star" style="width:2px;height:2px;top:300px;left:720px;"></div>
+        <div class="star" style="width:6px;height:6px;top:380px;left:980px;background:#00ffcc;"></div>
+        <div class="star" style="width:2px;height:2px;top:340px;left:1220px;"></div>
+        <div class="star" style="width:4px;height:4px;top:400px;left:1460px;"></div>
+        <div class="star" style="width:2px;height:2px;top:360px;left:1700px;background:#ff40c0;"></div>
+        <div class="star" style="width:4px;height:4px;top:420px;left:240px;"></div>
+        <div class="star" style="width:2px;height:2px;top:440px;left:530px;background:#ffcc00;"></div>
+        <div class="star" style="width:4px;height:4px;top:410px;left:790px;"></div>
+        <div class="star" style="width:2px;height:2px;top:450px;left:1040px;background:#00ffcc;"></div>
+        <div class="star" style="width:6px;height:6px;top:390px;left:1310px;"></div>
+        <div class="star" style="width:2px;height:2px;top:430px;left:1560px;background:#ffcc00;"></div>
+        <div class="star" style="width:4px;height:4px;top:460px;left:100px;"></div>
+        <div class="star" style="width:2px;height:2px;top:480px;left:650px;"></div>
+        <div class="star" style="width:4px;height:4px;top:470px;left:1170px;background:#ff40c0;"></div>
+        <div class="star" style="width:2px;height:2px;top:490px;left:1750px;"></div>
+      </div>
+
+      <div id="mtn-far"></div>
+      <div id="mtn-mid"></div>
+      <div id="mtn-near"></div>
+      <div id="floor"></div>
+      <div id="horizon"></div>
+
+      <!-- ── SCENE 1: STUDIO (0–5s) ── -->
+      <div id="s1" class="clip" data-start="0" data-duration="5" data-track-index="1">
+        <div id="s1-inner">
+          <div id="s1-presents">PIXEL  STUDIO</div>
+          <div id="s1-studio">PRESENTS</div>
+          <div id="s1-presents2">. . .</div>
+        </div>
+      </div>
+
+      <!-- ── SCENE 2: TITLE (5–14s) ── -->
+      <div id="s2" class="clip" data-start="5" data-duration="9" data-track-index="1">
+        <!-- Pixel explosion sparks -->
+        <div class="spark" id="sp1"></div><div class="spark" id="sp2"></div>
+        <div class="spark" id="sp3"></div><div class="spark" id="sp4"></div>
+        <div class="spark" id="sp5"></div><div class="spark" id="sp6"></div>
+        <div class="spark" id="sp7"></div><div class="spark" id="sp8"></div>
+
+        <div id="title-hyper">HYPER</div>
+        <div id="title-frames">FRAMES</div>
+        <div id="title-sub">THE  VIDEO  ENGINE</div>
+        <div id="title-rule"></div>
+      </div>
+
+      <!-- ── SCENE 3: FEATURES (14–24s) ── -->
+      <div id="s3" class="clip" data-start="14" data-duration="10" data-track-index="1">
+        <div id="feat-header">-- ABILITIES UNLOCKED --</div>
+
+        <div class="fcard" id="fc1">
+          <div class="fc-icon">&#9654;</div>
+          <div class="fc-title">WRITE HTML</div>
+          <div class="fc-body">Define video as a web page. No custom DSL.</div>
+          <div class="stat-track"><div class="stat-fill" id="sf1"></div></div>
+        </div>
+
+        <div class="fcard" id="fc2">
+          <div class="fc-icon">&#9733;</div>
+          <div class="fc-title">30 FPS CAPTURE</div>
+          <div class="fc-body">Deterministic frame-by-frame. Same input, same output.</div>
+          <div class="stat-track"><div class="stat-fill" id="sf2"></div></div>
+        </div>
+
+        <div class="fcard" id="fc3">
+          <div class="fc-icon">&#9881;</div>
+          <div class="fc-title">RENDER TO MP4</div>
+          <div class="fc-body">CLI-driven. Docker mode. Built for AI agents.</div>
+          <div class="stat-track"><div class="stat-fill" id="sf3"></div></div>
+        </div>
+      </div>
+
+      <!-- ── SCENE 4: CTA (24–30s) ── -->
+      <div id="s4" class="clip" data-start="24" data-duration="6" data-track-index="1">
+        <div id="cta-wrap">
+          <div id="cta-eyebrow">your quest begins now</div>
+          <div id="cta-big">HYPERFRAMES</div>
+          <div id="cta-cmd">
+            &gt; npx hyperframes init my-video<span id="cta-cursor"></span>
+          </div>
+          <div id="cta-rule"></div>
+          <div id="cta-url">hyperframes.heygen.com</div>
+        </div>
+      </div>
+
+      <div id="scanlines"></div>
+      <div id="vignette"></div>
+      <div id="px-border"></div>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      /* ─── BACKGROUND — runs entire video ─── */
+
+      // Horizon glow fades in and pulses
+      tl.to("#horizon", { opacity: 1, duration: 0.5, ease: "steps(5)" }, 5.5);
+      tl.to("#horizon", { opacity: 0.4, duration: 2.5, ease: "sine.inOut", repeat: -1, yoyo: true }, 6.0);
+
+      // Parallax scroll: far mountains drift left slowly
+      tl.to("#mtn-far",  { x: -60,  duration: 30, ease: "none" }, 0);
+      tl.to("#mtn-mid",  { x: -120, duration: 30, ease: "none" }, 0);
+      tl.to("#mtn-near", { x: -200, duration: 30, ease: "none" }, 0);
+
+      // Stars: groups twinkle at different rates
+      tl.to(".star:nth-child(odd)",
+        { opacity: 0.2, duration: 0.6, ease: "steps(6)", repeat: -1, yoyo: true,
+          stagger: { each: 0.08, from: "random" } }, 0);
+      tl.to(".star:nth-child(even)",
+        { opacity: 0.3, duration: 0.8, ease: "steps(8)", repeat: -1, yoyo: true,
+          stagger: { each: 0.1, from: "random" } }, 0.3);
+
+      // Floor grid shifts forward (creates scrolling illusion)
+      tl.to("#floor", { backgroundPositionY: "360px", duration: 1.5, ease: "none", repeat: -1 }, 0);
+
+      /* ─── SCENE 1: STUDIO CARD ─── */
+      tl.to("#s1-presents",  { opacity: 1, duration: 0.3, ease: "steps(3)" }, 0.6);
+      tl.to("#s1-studio",    { opacity: 1, duration: 0.3, ease: "steps(3)" }, 1.2);
+      tl.to("#s1-presents2", { opacity: 1, duration: 0.3, ease: "steps(3)" }, 1.8);
+      // Blink the dots
+      tl.to("#s1-presents2",
+        { opacity: 0, duration: 0.2, ease: "steps(2)", repeat: -1, yoyo: true, repeatDelay: 0.3 }, 2.5);
+
+      /* ─── SCENE 2: TITLE REVEAL ─── */
+
+      // "HYPER" slams in from left — xPercent:-50 holds centering, x slides from off-screen
+      tl.fromTo("#title-hyper",
+        { xPercent: -50, x: -2000, opacity: 0 },
+        { xPercent: -50, x: 0, opacity: 1, duration: 0.35, ease: "steps(5)" }, 5.2);
+
+      // "FRAMES" slams in from right
+      tl.fromTo("#title-frames",
+        { xPercent: -50, x: 2000, opacity: 0 },
+        { xPercent: -50, x: 0, opacity: 1, duration: 0.35, ease: "steps(5)" }, 5.45);
+
+      // COLLISION: both titles bounce back slightly then settle
+      tl.to(["#title-hyper","#title-frames"],
+        { y: -20, duration: 0.15, ease: "steps(2)" }, 5.75);
+      tl.to(["#title-hyper","#title-frames"],
+        { y: 0, duration: 0.15, ease: "steps(2)" }, 5.9);
+
+      // Spark explosion on collision
+      tl.to(["#sp1","#sp2","#sp3","#sp4","#sp5","#sp6","#sp7","#sp8"],
+        { opacity: 1, duration: 0.08, ease: "steps(1)" }, 5.7);
+      // Sparks fly outward
+      tl.to("#sp1", { x: -180, y: -160, opacity: 0, duration: 0.4, ease: "steps(4)" }, 5.75);
+      tl.to("#sp2", { x:  180, y: -180, opacity: 0, duration: 0.4, ease: "steps(4)" }, 5.75);
+      tl.to("#sp3", { x: -220, y:   60, opacity: 0, duration: 0.4, ease: "steps(4)" }, 5.75);
+      tl.to("#sp4", { x:  200, y:   80, opacity: 0, duration: 0.4, ease: "steps(4)" }, 5.75);
+      tl.to("#sp5", { x:    0, y: -220, opacity: 0, duration: 0.4, ease: "steps(4)" }, 5.78);
+      tl.to("#sp6", { x: -140, y:  180, opacity: 0, duration: 0.4, ease: "steps(4)" }, 5.78);
+      tl.to("#sp7", { x:  160, y: -100, opacity: 0, duration: 0.35, ease: "steps(3)" }, 5.78);
+      tl.to("#sp8", { x:  -80, y:  200, opacity: 0, duration: 0.35, ease: "steps(3)" }, 5.78);
+
+      // Screen flash on impact
+      tl.fromTo("#bg-sky",
+        { filter: "brightness(3)" },
+        { filter: "brightness(1)", duration: 0.4, ease: "steps(4)" }, 5.72);
+
+      // Subtitle appears
+      tl.to("#title-sub",  { opacity: 1, duration: 0.3, ease: "steps(3)" }, 6.3);
+      tl.to("#title-rule", { width: 860, duration: 0.4, ease: "steps(4)" }, 6.6);
+
+      // Ambient: titles slowly breathe (very gentle scale)
+      tl.to("#title-hyper",
+        { textShadow: "8px 8px 0 #cc8800, 16px 16px 0 #886600, -4px -4px 0 #ffe060, 0 0 40px rgba(255,204,0,0.4)",
+          duration: 1.5, ease: "sine.inOut", repeat: -1, yoyo: true }, 7.0);
+      tl.to("#title-frames",
+        { textShadow: "8px 8px 0 #007755, 16px 16px 0 #004433, -4px -4px 0 #60ffe0, 0 0 40px rgba(0,255,204,0.4)",
+          duration: 1.5, ease: "sine.inOut", repeat: -1, yoyo: true }, 7.2);
+
+      /* ─── SCENE 3: FEATURES ─── */
+      tl.to("#feat-header", { opacity: 1, duration: 0.2, ease: "steps(2)" }, 14.3);
+
+      // Cards slide in from right, stepped
+      tl.fromTo("#fc1",
+        { x: 120, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.3, ease: "steps(3)" }, 14.8);
+      tl.fromTo("#fc2",
+        { x: 120, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.3, ease: "steps(3)" }, 15.2);
+      tl.fromTo("#fc3",
+        { x: 120, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.3, ease: "steps(3)" }, 15.6);
+
+      // Stat bars fill stepped
+      tl.to("#sf1", { width: "95%", duration: 0.7, ease: "steps(7)" }, 15.6);
+      tl.to("#sf2", { width: "88%", duration: 0.6, ease: "steps(6)" }, 16.0);
+      tl.to("#sf3", { width: "78%", duration: 0.6, ease: "steps(6)" }, 16.4);
+
+      // Borders glow pulse on each card
+      tl.to("#fc1",
+        { boxShadow: "0 0 40px rgba(255,204,0,0.5), inset 0 0 0 1px rgba(255,204,0,0.3)",
+          duration: 1.2, ease: "sine.inOut", repeat: -1, yoyo: true }, 16.5);
+      tl.to("#fc2",
+        { boxShadow: "0 0 40px rgba(0,255,204,0.5), inset 0 0 0 1px rgba(0,255,204,0.3)",
+          duration: 1.2, ease: "sine.inOut", repeat: -1, yoyo: true }, 16.7);
+      tl.to("#fc3",
+        { boxShadow: "0 0 40px rgba(255,64,192,0.5), inset 0 0 0 1px rgba(255,64,192,0.3)",
+          duration: 1.2, ease: "sine.inOut", repeat: -1, yoyo: true }, 16.9);
+
+      /* ─── SCENE 4: CTA ─── */
+      tl.to("#cta-eyebrow",
+        { opacity: 1, duration: 0.2, ease: "steps(2)" }, 24.3);
+      tl.to("#cta-big",
+        { opacity: 1, scale: 1, duration: 0.45, ease: "steps(5)" }, 24.6);
+      tl.to("#cta-cmd",
+        { opacity: 1, y: 0, duration: 0.3, ease: "steps(3)" }, 25.2);
+      tl.to("#cta-rule",
+        { width: 640, duration: 0.4, ease: "steps(4)" }, 25.7);
+      tl.to("#cta-url",
+        { opacity: 1, duration: 0.2, ease: "steps(2)" }, 26.1);
+
+      // Cursor blinks
+      tl.to("#cta-cursor",
+        { opacity: 0, duration: 0.08, ease: "steps(1)", repeat: -1, yoyo: true, repeatDelay: 0.42 }, 25.4);
+
+      // CTA title ambient glow
+      tl.to("#cta-big",
+        { textShadow: "8px 8px 0 #995500, 16px 16px 0 #553300, 0 0 60px rgba(255,204,0,0.5)",
+          duration: 1.0, ease: "sine.inOut", repeat: -1, yoyo: true }, 26.5);
+
+      // Pin to 30s
+      tl.set({}, {}, 30);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

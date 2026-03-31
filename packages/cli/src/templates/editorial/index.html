@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Editorial</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400;500;600;700&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #faf9f6;
+        font-family: "Inter", -apple-system, sans-serif;
+        color: #1a1a1a;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #faf9f6;
+      }
+
+      /* ══════════════════════════════════
+         SCENE 1 — OPENING TITLE (0-3s)
+         ══════════════════════════════════ */
+      #scene-title {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+      }
+      #scene-title-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #headline-line-1 {
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 148px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        line-height: 1;
+        color: #1a1a1a;
+        opacity: 0;
+      }
+
+      #headline-line-2 {
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 148px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        line-height: 1;
+        color: #1a1a1a;
+        margin-top: 8px;
+        opacity: 0;
+      }
+
+      #title-rule {
+        width: 0;
+        height: 2px;
+        background: #c41e3a;
+        margin-top: 40px;
+      }
+
+      /* ══════════════════════════════════
+         SCENE 2 — STATS (3-7s)
+         ══════════════════════════════════ */
+      #scene-stats {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+      }
+      #scene-stats-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 200px;
+        gap: 48px;
+      }
+
+      .stat-row {
+        display: flex;
+        align-items: baseline;
+        gap: 40px;
+        opacity: 0;
+      }
+
+      .stat-number {
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 96px;
+        font-weight: 400;
+        color: #e0ddd8;
+        line-height: 1;
+        min-width: 180px;
+      }
+
+      .stat-content {
+        flex: 1;
+        border-left: 2px solid #c41e3a;
+        padding-left: 32px;
+      }
+
+      .stat-title {
+        font-family: "Inter", sans-serif;
+        font-size: 32px;
+        font-weight: 700;
+        color: #1a1a1a;
+        letter-spacing: -0.01em;
+        margin-bottom: 8px;
+      }
+
+      .stat-body {
+        font-family: "Inter", sans-serif;
+        font-size: 22px;
+        font-weight: 400;
+        color: #6b6b6b;
+        line-height: 1.5;
+      }
+
+      /* ══════════════════════════════════
+         SCENE 3 — PULL QUOTE (7-10s)
+         ══════════════════════════════════ */
+      #scene-quote {
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+      }
+      #scene-quote-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 240px;
+      }
+
+      #quote-rule-top {
+        width: 0;
+        height: 1px;
+        background: #c41e3a;
+      }
+
+      #quote-text {
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 64px;
+        font-weight: 400;
+        font-style: italic;
+        color: #1a1a1a;
+        text-align: center;
+        line-height: 1.35;
+        margin: 48px 0;
+        opacity: 0;
+      }
+
+      #quote-rule-bottom {
+        width: 0;
+        height: 1px;
+        background: #c41e3a;
+      }
+
+      /* ══════════════════════════════════
+         SCENE 4 — END CARD (10-12s)
+         ══════════════════════════════════ */
+      #scene-end {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+      }
+      #scene-end-inner {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 32px;
+      }
+
+      #end-favicon {
+        width: 64px;
+        height: 64px;
+        opacity: 0;
+      }
+
+      #end-url {
+        font-family: "Inter", sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #1a1a1a;
+        opacity: 0;
+      }
+
+      #end-rule {
+        width: 0;
+        height: 2px;
+        background: #c41e3a;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="12"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- SCENE 1: Opening Title (0-3s) -->
+      <div
+        id="scene-title"
+        class="clip"
+        data-start="0"
+        data-duration="3"
+        data-track-index="1"
+      >
+        <div id="scene-title-inner">
+          <div id="headline-line-1">THE FUTURE</div>
+          <div id="headline-line-2">OF VIDEO</div>
+          <div id="title-rule"></div>
+        </div>
+      </div>
+
+      <!-- SCENE 2: Stats (3-7s) -->
+      <div
+        id="scene-stats"
+        class="clip"
+        data-start="3"
+        data-duration="4"
+        data-track-index="1"
+      >
+        <div id="scene-stats-inner">
+          <div class="stat-row" id="stat-1">
+            <div class="stat-number">01</div>
+            <div class="stat-content">
+              <div class="stat-title">Write once</div>
+              <div class="stat-body">HTML compositions that render to any format</div>
+            </div>
+          </div>
+          <div class="stat-row" id="stat-2">
+            <div class="stat-number">02</div>
+            <div class="stat-content">
+              <div class="stat-title">Preview live</div>
+              <div class="stat-body">Real-time editing in the browser studio</div>
+            </div>
+          </div>
+          <div class="stat-row" id="stat-3">
+            <div class="stat-number">03</div>
+            <div class="stat-content">
+              <div class="stat-title">Ship fast</div>
+              <div class="stat-body">Production-ready MP4 in seconds, not hours</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 3: Pull Quote (7-10s) -->
+      <div
+        id="scene-quote"
+        class="clip"
+        data-start="7"
+        data-duration="3"
+        data-track-index="1"
+      >
+        <div id="scene-quote-inner">
+          <div id="quote-rule-top"></div>
+          <div id="quote-text">Any browser can render it.<br />HyperFrames can record it.</div>
+          <div id="quote-rule-bottom"></div>
+        </div>
+      </div>
+
+      <!-- SCENE 4: End Card (10-12s) -->
+      <div
+        id="scene-end"
+        class="clip"
+        data-start="10"
+        data-duration="2"
+        data-track-index="1"
+      >
+        <div id="scene-end-inner">
+          <img id="end-favicon" src="favicon.svg" alt="HyperFrames" />
+          <div id="end-rule"></div>
+          <div id="end-url">hyperframes.heygen.com</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      /* ─── SCENE 1: OPENING TITLE (0-3s) ─── */
+
+      // Line 1 fades in with letter-spacing animation
+      tl.fromTo("#headline-line-1",
+        { opacity: 0, letterSpacing: "0.15em" },
+        { opacity: 1, letterSpacing: "0.04em", duration: 1.4, ease: "power3.out" },
+        0.2
+      );
+
+      // Line 2 fades in slightly after
+      tl.fromTo("#headline-line-2",
+        { opacity: 0, letterSpacing: "0.15em" },
+        { opacity: 1, letterSpacing: "0.04em", duration: 1.4, ease: "power3.out" },
+        0.5
+      );
+
+      // Red horizontal rule animates width
+      tl.to("#title-rule", {
+        width: 120,
+        duration: 0.8,
+        ease: "power3.out",
+      }, 1.2);
+
+      // Fade title scene out
+      tl.to("#scene-title-inner", {
+        opacity: 0,
+        duration: 0.5,
+        ease: "power2.in",
+      }, 2.5);
+
+      /* ─── SCENE 2: STATS (3-7s) ─── */
+
+      // Stat 1 slides in from left
+      tl.fromTo("#stat-1",
+        { opacity: 0, x: -60 },
+        { opacity: 1, x: 0, duration: 0.8, ease: "power3.out" },
+        3.1
+      );
+
+      // Stat 2 slides in from left
+      tl.fromTo("#stat-2",
+        { opacity: 0, x: -60 },
+        { opacity: 1, x: 0, duration: 0.8, ease: "power3.out" },
+        3.5
+      );
+
+      // Stat 3 slides in from left
+      tl.fromTo("#stat-3",
+        { opacity: 0, x: -60 },
+        { opacity: 1, x: 0, duration: 0.8, ease: "power3.out" },
+        3.9
+      );
+
+      // Fade stats scene out
+      tl.to("#scene-stats-inner", {
+        opacity: 0,
+        duration: 0.5,
+        ease: "power2.in",
+      }, 6.5);
+
+      /* ─── SCENE 3: PULL QUOTE (7-10s) ─── */
+
+      // Top rule animates width from center
+      tl.to("#quote-rule-top", {
+        width: 600,
+        duration: 0.8,
+        ease: "power3.out",
+      }, 7.2);
+
+      // Quote text fades in
+      tl.fromTo("#quote-text",
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" },
+        7.5
+      );
+
+      // Bottom rule animates width from center
+      tl.to("#quote-rule-bottom", {
+        width: 600,
+        duration: 0.8,
+        ease: "power3.out",
+      }, 8.0);
+
+      // Fade quote scene out
+      tl.to("#scene-quote-inner", {
+        opacity: 0,
+        duration: 0.5,
+        ease: "power2.in",
+      }, 9.5);
+
+      /* ─── SCENE 4: END CARD (10-12s) ─── */
+
+      // Favicon fades in
+      tl.fromTo("#end-favicon",
+        { opacity: 0, scale: 0.8 },
+        { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" },
+        10.2
+      );
+
+      // Red rule animates width
+      tl.to("#end-rule", {
+        width: 80,
+        duration: 0.5,
+        ease: "power3.out",
+      }, 10.5);
+
+      // URL fades in
+      tl.fromTo("#end-url",
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" },
+        10.8
+      );
+
+      // Pin to 12s
+      tl.set({}, {}, 12);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

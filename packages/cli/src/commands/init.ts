@@ -710,7 +710,13 @@ Examples:
       if (templateFlag) {
         clack.log.warn(`Unknown template "${templateFlag}" — pick from the list below`);
       }
-      const INIT_TEMPLATES: TemplateId[] = ["hf-dark", "hf-gradient", "blank"];
+      const INIT_TEMPLATES: TemplateId[] = [
+        "hf-dark",
+        "hf-gradient",
+        "16-bit",
+        "editorial",
+        "blank",
+      ];
       const initOptions = TEMPLATES.filter((t) => INIT_TEMPLATES.includes(t.id));
       const templateResult = await clack.select({
         message: "Pick a template",
