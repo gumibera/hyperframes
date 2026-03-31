@@ -23,7 +23,7 @@ Requires ffmpeg. Optional: numpy (faster FFT, falls back to pure Python).
 
 The script uses a 4096-sample FFT window (not the per-frame sample count) to ensure each frequency band maps to distinct FFT bins. Bands are logarithmically spaced from 30Hz to 16kHz — the useful range for music. Each band is normalized independently across the full track so treble activity is visible even when bass is louder in absolute terms.
 
-Output structure:
+## Step 2: Understanding the Data
 
 ```json
 {
@@ -32,49 +32,23 @@ Output structure:
   "bands": 16,
   "totalFrames": 5415,
   "frames": [
-    { "time": 0.0, "rms": 0.0, "bands": [0.0, 0.0, 0.0, ...] },
     { "time": 0.0333, "rms": 0.42, "bands": [0.8, 0.6, 0.3, ...] }
   ]
 }
 ```
 
-- `rms` — overall amplitude, normalized 0-1 across the track. Drives pulsing, bouncing, glow.
-- `bands` — frequency magnitudes per band, each normalized 0-1 independently across the track. Index 0 = lowest bass (30Hz), last index = highest treble (16kHz). Drives spectrum bars, EQ displays.
+**`rms`** (0-1) — overall loudness of this frame, normalized across the full track. 0 is silence, 1 is the loudest moment in the entire audio. Use this for anything that should respond to overall energy: scaling, pulsing, glow intensity, opacity, movement speed.
 
-## Band Ordering
+**`bands`** (array of 0-1 values) — frequency magnitudes. Each value is normalized independently for that band across the full track, so a 0.8 in treble means "this is 80% of the loudest this treble band gets anywhere in the audio" — not that treble is as loud as bass in absolute terms. This is what makes all frequency ranges visually active.
 
-Bands are always ordered low-to-high frequency: index 0 is bass, last index is treble. When drawing visualizations:
-
-- **Horizontal layouts** (spectrum bars, EQ): low frequencies on the left, high frequencies on the right. Iterate bands left-to-right as index 0, 1, 2, ...
-- **Vertical layouts**: low frequencies at the bottom, high frequencies at the top. Iterate bands bottom-to-top.
-- **Circular layouts**: bass starts at the top (12 o'clock) and wraps clockwise.
-
-## Step 2: Embed Data in the Composition
-
-Inline the JSON as a script variable. For large files, load via fetch from the project root.
-
-```html
-<script>
-  const AUDIO_DATA = /* paste audio-data.json contents here */;
-</script>
-```
-
-Or load at runtime (works in both studio and renderer):
-
-```html
-<script>
-  let AUDIO_DATA = null;
-  fetch("audio-data.json")
-    .then((r) => r.json())
-    .then((d) => {
-      AUDIO_DATA = d;
-    });
-</script>
-```
+- Index 0 = lowest bass (~30Hz). Index `n-1` = highest treble (~16kHz).
+- Low indices (0-3) react to kick drums, bass lines, sub-bass rumble.
+- Mid indices (4-9) react to vocals, guitars, synths, most melodic content.
+- High indices (10-15) react to hi-hats, cymbals, sibilance, brightness.
 
 ## Step 3: Drive Canvas from the Timeline
 
-The core pattern: register a `tl.call()` at every frame interval. Each call reads the pre-computed data for that frame and draws to Canvas.
+The core pattern: register a `tl.call()` at every frame interval to redraw the canvas.
 
 ```js
 const canvas = document.querySelector("#viz-canvas");
@@ -87,7 +61,7 @@ for (let f = 0; f < totalFrames; f++) {
     () => {
       const frame = AUDIO_DATA.frames[f];
       if (!frame) return;
-      drawVisualization(ctx, canvas.width, canvas.height, frame);
+      draw(ctx, canvas.width, canvas.height, frame);
     },
     [],
     f / fps,
@@ -95,212 +69,154 @@ for (let f = 0; f < totalFrames; f++) {
 }
 ```
 
-This is deterministic — same input produces identical output on every render. The timeline is seekable so scrubbing in the studio works.
+This is deterministic and seekable — scrubbing in the studio works because each frame's draw is tied to a specific timeline position.
 
-## Visualization Patterns
+## Rendering Approaches
 
-### Spectrum Bars
+The data is framework-agnostic. Here's how to wire it up in each rendering approach HyperFrames supports.
 
-Vertical bars where each bar represents a frequency band. Bass on the left, treble on the right.
+### Canvas 2D
+
+Best for: bars, waveforms, circles, gradients, particles. Most common choice.
 
 ```js
-function drawSpectrumBars(ctx, w, h, frame) {
-  ctx.clearRect(0, 0, w, h);
-  const bands = frame.bands;
-  const n = bands.length;
-  const barWidth = (w * 0.8) / n;
-  const gap = (w * 0.2) / (n + 1);
-  const maxHeight = h * 0.85;
-
-  for (let i = 0; i < n; i++) {
-    const barHeight = bands[i] * maxHeight;
-    const x = gap + i * (barWidth + gap);
-    const y = h - barHeight;
-
-    // Gradient from bass color to treble color
-    const t = i / (n - 1);
-    const r = Math.round(106 + t * 150);
-    const g = Math.round(220 - t * 100);
-    const b = Math.round(255 - t * 80);
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-
-    // Rounded top
-    const radius = Math.min(barWidth / 2, 6);
-    ctx.beginPath();
-    ctx.moveTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.lineTo(x + barWidth - radius, y);
-    ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
-    ctx.lineTo(x + barWidth, h);
-    ctx.lineTo(x, h);
-    ctx.closePath();
-    ctx.fill();
-  }
+const ctx = document.querySelector("#viz").getContext("2d");
+for (let f = 0; f < AUDIO_DATA.totalFrames; f++) {
+  tl.call(
+    () => {
+      const frame = AUDIO_DATA.frames[f];
+      if (!frame) return;
+      ctx.clearRect(0, 0, W, H);
+      // read frame.rms and frame.bands, draw whatever you want
+    },
+    [],
+    f / AUDIO_DATA.fps,
+  );
 }
 ```
 
-### Mirrored Waveform Bars
+### WebGL / Three.js
 
-Bars extend both up and down from a center line, creating a symmetric waveform.
+HyperFrames has a Three.js adapter that patches `THREE.Clock` for deterministic time. Create your scene normally, then update uniforms or object properties from the audio data each frame.
 
 ```js
-function drawMirroredBars(ctx, w, h, frame) {
-  ctx.clearRect(0, 0, w, h);
-  const bands = frame.bands;
-  const n = bands.length;
-  const barWidth = (w * 0.8) / n;
-  const gap = (w * 0.2) / (n + 1);
-  const centerY = h / 2;
-  const maxHeight = h * 0.4;
+// In your Three.js setup:
+const uniforms = { uBass: { value: 0 }, uMid: { value: 0 }, uRms: { value: 0 } };
 
-  for (let i = 0; i < n; i++) {
-    const barHeight = bands[i] * maxHeight;
-    const x = gap + i * (barWidth + gap);
-
-    const t = i / (n - 1);
-    ctx.fillStyle = `rgba(116, 225, 185, ${0.6 + bands[i] * 0.4})`;
-
-    // Top half
-    ctx.fillRect(x, centerY - barHeight, barWidth, barHeight);
-    // Bottom half (mirrored)
-    ctx.fillRect(x, centerY, barWidth, barHeight);
-  }
+for (let f = 0; f < AUDIO_DATA.totalFrames; f++) {
+  tl.call(
+    () => {
+      const frame = AUDIO_DATA.frames[f];
+      if (!frame) return;
+      uniforms.uBass.value = Math.max(frame.bands[0], frame.bands[1], frame.bands[2]);
+      uniforms.uMid.value = Math.max(frame.bands[6], frame.bands[7], frame.bands[8]);
+      uniforms.uRms.value = frame.rms;
+    },
+    [],
+    f / AUDIO_DATA.fps,
+  );
 }
 ```
 
-### Pulsing Circle
+### DOM Elements
 
-A circle that scales with overall amplitude. Works well as a background element behind other content.
+For simpler visualizations (a few bars, a pulsing element), you can animate DOM elements directly. Less performant than Canvas for many elements, but fine for under ~20.
 
 ```js
-function drawPulsingCircle(ctx, w, h, frame) {
-  ctx.clearRect(0, 0, w, h);
-  const baseRadius = Math.min(w, h) * 0.15;
-  const radius = baseRadius + frame.rms * baseRadius * 0.8;
-
-  const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, radius);
-  gradient.addColorStop(0, `rgba(106, 220, 255, ${0.3 + frame.rms * 0.5})`);
-  gradient.addColorStop(0.6, `rgba(116, 225, 185, ${0.1 + frame.rms * 0.2})`);
-  gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
-  ctx.fill();
+const bars = document.querySelectorAll(".bar");
+for (let f = 0; f < AUDIO_DATA.totalFrames; f++) {
+  tl.call(
+    () => {
+      const frame = AUDIO_DATA.frames[f];
+      if (!frame) return;
+      bars.forEach((bar, i) => {
+        bar.style.height = frame.bands[i] * 100 + "%";
+      });
+    },
+    [],
+    f / AUDIO_DATA.fps,
+  );
 }
 ```
 
-### Circular Visualizer
+## Spatial Mapping
 
-Bars arranged in a ring. Each bar points outward from the center. Frequency bands map around the circle.
+When laying out frequency data spatially, follow these conventions so visualizations read naturally:
 
-```js
-function drawCircularVisualizer(ctx, w, h, frame) {
-  ctx.clearRect(0, 0, w, h);
-  const cx = w / 2;
-  const cy = h / 2;
-  const innerRadius = Math.min(w, h) * 0.15;
-  const maxBarLength = Math.min(w, h) * 0.25;
-  const bands = frame.bands;
-  const n = bands.length;
-  // Mirror bands for full circle
-  const allBands = [...bands, ...bands.slice().reverse()];
-  const total = allBands.length;
+- **Horizontal layouts**: low frequencies (bass) on the left, high frequencies (treble) on the right. Iterate the bands array left-to-right.
+- **Vertical layouts**: low frequencies at the bottom, high frequencies at the top.
+- **Circular layouts**: bass starts at the top (12 o'clock) and wraps clockwise. Mirror the bands array for a full circle.
 
-  ctx.lineCap = "round";
+## Motion Principles
 
-  for (let i = 0; i < total; i++) {
-    const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
-    const barLength = allBands[i] * maxBarLength;
-    const x1 = cx + Math.cos(angle) * innerRadius;
-    const y1 = cy + Math.sin(angle) * innerRadius;
-    const x2 = cx + Math.cos(angle) * (innerRadius + barLength);
-    const y2 = cy + Math.sin(angle) * (innerRadius + barLength);
+### Smoothing
 
-    const t = i / total;
-    ctx.strokeStyle = `rgba(106, 220, 255, ${0.5 + allBands[i] * 0.5})`;
-    ctx.lineWidth = Math.max(2, ((w * 0.8) / total) * 0.6);
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-}
-```
-
-### Background Glow
-
-Subtle color/opacity shift tied to amplitude. Layer behind other composition content.
+Raw per-frame data changes abruptly. Blend with the previous frame for fluid motion:
 
 ```js
-function drawBackgroundGlow(ctx, w, h, frame) {
-  ctx.clearRect(0, 0, w, h);
-  const bass = frame.bands[0] || 0;
-  const mid = frame.bands[Math.floor(frame.bands.length / 2)] || 0;
+let prev = null;
+const smoothing = 0.25; // 0 = no smoothing, higher = more lag
 
-  const gradient = ctx.createRadialGradient(w * 0.3, h * 0.4, 0, w * 0.5, h * 0.5, w * 0.7);
-  gradient.addColorStop(0, `rgba(116, 225, 185, ${bass * 0.15})`);
-  gradient.addColorStop(0.5, `rgba(106, 220, 255, ${mid * 0.08})`);
-  gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, w, h);
-}
-```
-
-## Smoothing
-
-Raw per-frame data can look jittery. Smooth by blending with the previous frame:
-
-```js
-let prevFrame = null;
-const smoothing = 0.3; // 0 = no smoothing, 0.5 = heavy
-
-function getSmoothedFrame(f) {
+function smooth(f) {
   const raw = AUDIO_DATA.frames[f];
-  if (!raw) return prevFrame || { rms: 0, bands: new Array(AUDIO_DATA.bands).fill(0) };
-
-  if (!prevFrame) {
-    prevFrame = { rms: raw.rms, bands: [...raw.bands] };
-    return prevFrame;
+  if (!raw) return prev;
+  if (!prev) {
+    prev = { rms: raw.rms, bands: [...raw.bands] };
+    return prev;
   }
-
-  const smoothed = {
-    rms: prevFrame.rms * smoothing + raw.rms * (1 - smoothing),
-    bands: raw.bands.map((b, i) => prevFrame.bands[i] * smoothing + b * (1 - smoothing)),
+  prev = {
+    rms: prev.rms * smoothing + raw.rms * (1 - smoothing),
+    bands: raw.bands.map((b, i) => prev.bands[i] * smoothing + b * (1 - smoothing)),
   };
-  prevFrame = smoothed;
-  return smoothed;
+  return prev;
 }
 ```
 
-Use `getSmoothedFrame(f)` instead of `AUDIO_DATA.frames[f]` in the draw calls.
+Lower smoothing (0.1-0.2) feels snappy and responsive — good for percussive music. Higher smoothing (0.3-0.5) feels languid and flowing — good for ambient or orchestral.
+
+### Value Mapping
+
+Audio data is 0-1 but visual properties need different ranges. Map with intention:
+
+- **Scale/size**: multiply by a max value. A bar's height = `bands[i] * maxHeight`. Don't let elements disappear at 0 — add a minimum: `minHeight + bands[i] * (maxHeight - minHeight)`.
+- **Opacity**: low values should still be slightly visible. `0.15 + bands[i] * 0.85` keeps elements present during quiet moments.
+- **Color intensity**: shift between a muted base and a vivid peak. Interpolate HSL lightness or RGB channels based on the value.
+- **Position/offset**: use rms to drive drift or wobble. Small movements (5-20px) feel organic; large movements look chaotic.
+
+### What Makes It Feel Good
+
+- **Bass drives the big moves.** Scale, position shifts, and glow should react to low bands. Bass is what makes a visualization feel like it's "hitting."
+- **Treble drives the detail.** Small particle movements, edge shimmer, opacity flicker. Treble adds texture without dominating.
+- **RMS drives global properties.** Background brightness, overall scale, color warmth. It's the "energy level" of the whole frame.
+- **Don't animate everything at once.** Pick 2-3 visual properties to tie to the audio. More than that looks noisy.
+- **Quiet sections should still have life.** A completely static frame during a soft passage looks broken. Keep minimum values above zero.
 
 ## Band Count Guide
 
-| Bands | Detail level | Good for                                      |
-| ----- | ------------ | --------------------------------------------- |
-| 4     | Low          | Pulsing circles, simple bars, background glow |
-| 8     | Medium       | Spectrum bars, mirrored waveforms (default)   |
-| 16    | High         | Circular visualizers, detailed EQ displays    |
-| 32    | Very high    | Smooth curves, dense radial visualizers       |
+| Bands | Detail level | Good for                                    |
+| ----- | ------------ | ------------------------------------------- |
+| 4     | Low          | Simple pulsing, background glow             |
+| 8     | Medium       | Bar visualizations, basic spectrum          |
+| 16    | High         | Detailed EQ, circular visualizers (default) |
+| 32    | Very high    | Smooth curves, dense radial layouts         |
 
-More bands = larger JSON file. 8 is a good default for most visualizations.
+More bands = larger JSON file. 16 is a good default.
 
-## Combining Patterns
+## Layering
 
-Layer multiple canvases with CSS z-index for rich compositions:
+Layer multiple canvases with CSS z-index for depth:
 
 ```html
-<canvas id="bg-glow" style="position:absolute;top:0;left:0;z-index:1;"></canvas>
-<canvas id="spectrum" style="position:absolute;top:0;left:0;z-index:2;"></canvas>
+<canvas id="bg-layer" style="position:absolute;top:0;left:0;z-index:1;"></canvas>
+<canvas id="main-layer" style="position:absolute;top:0;left:0;z-index:2;"></canvas>
 ```
 
-Background glow reacts to bass while spectrum bars show the full frequency range.
+A background layer driven by bass/rms and a foreground layer driven by individual bands creates depth without complexity.
 
 ## HyperFrames Integration Notes
 
 - The `<canvas>` element needs `data-start`, `data-duration`, and `data-track-index` like any other clip
-- Set canvas width/height attributes to match the composition dimensions (1920x1080)
+- Set canvas `width`/`height` attributes to match the composition dimensions (1920x1080)
 - The extraction script FPS must match the render FPS (default: 30)
-- For large audio files, the JSON can be several MB — load via fetch rather than inlining
-- Smoothing works correctly with seeking because `prevFrame` resets — but for perfect seek behavior, disable smoothing or pre-compute smoothed values in the extraction script
+- For large audio files, the JSON can be several MB — load via `fetch` rather than inlining
+- Each canvas in the composition needs its own `data-track-index` — don't put multiple canvases on the same track
