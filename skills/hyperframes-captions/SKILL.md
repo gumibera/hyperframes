@@ -293,7 +293,7 @@ GROUPS.forEach(function (group, gi) {
 tl.seek(0); // reset after lint
 ```
 
-Place this **before** `window.__timelines[id] = tl` so it runs at composition init. Warnings appear in the browser console during `hyperframes dev`.
+Place this **before** `window.__timelines[id] = tl` so it runs at composition init. Warnings appear in the browser console during `hyperframes preview`.
 
 ## Constraints
 

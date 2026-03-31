@@ -27,15 +27,15 @@ npx hyperframes init my-video
 cd my-video
 ```
 
-### `dev`
+### `preview`
 
 Start the live preview studio in your browser:
 
 ```bash
-npx hyperframes dev
+npx hyperframes preview
 # Studio running at http://localhost:3002
 
-npx hyperframes dev --port 4567
+npx hyperframes preview --port 4567
 ```
 
 ### `render`

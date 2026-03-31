@@ -13,7 +13,7 @@ export interface LintFormatOptions {
 }
 
 /**
- * Format lint findings for console output. Used by lint, render, and dev commands.
+ * Format lint findings for console output. Used by lint, render, and preview commands.
  */
 export function formatLintFindings(
   { results, totalErrors, totalWarnings, totalInfos }: ProjectLintResult,

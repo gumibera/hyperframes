@@ -19,7 +19,7 @@
 ## Commands
 
 ```bash
-npx hyperframes dev          # preview in browser (studio editor)
+npx hyperframes preview          # preview in browser (studio editor)
 npx hyperframes render       # render to MP4
 npx hyperframes lint         # validate compositions (errors + warnings)
 npx hyperframes lint --verbose  # include info-level findings

@@ -803,7 +803,7 @@ export function lintHyperframeHtml(
         severity: "info",
         message: `This composition loads an external script from \`${src}\`. The HyperFrames bundler automatically hoists CDN scripts from sub-compositions into the parent document. In unbundled runtime mode, \`loadExternalCompositions\` re-injects them. If you're using a custom pipeline that bypasses both, you'll need to include this script manually.`,
         fixHint:
-          "No action needed when using `hyperframes dev` or `hyperframes render`. If using a custom pipeline, add this script tag to your root composition or HTML page.",
+          "No action needed when using `hyperframes preview` or `hyperframes render`. If using a custom pipeline, add this script tag to your root composition or HTML page.",
         snippet: truncateSnippet(match[0] ?? ""),
       });
     }

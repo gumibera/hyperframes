@@ -420,7 +420,7 @@ async function nextStepLoop(destDir: string): Promise<void> {
       message: "What do you want to do?",
       options: [
         {
-          value: "dev",
+          value: "preview",
           label: "Open in studio",
           hint: "full editor with timeline",
         },
@@ -437,9 +437,9 @@ async function nextStepLoop(destDir: string): Promise<void> {
     // Hand off to the selected command — use explicit imports so the
     // bundler can resolve them (dynamic import with a variable fails in bundles)
     try {
-      if (next === "dev") {
-        const devCmd = await import("./dev.js").then((m) => m.default);
-        await runCommand(devCmd, { rawArgs: [destDir] });
+      if (next === "preview") {
+        const previewCmd = await import("./preview.js").then((m) => m.default);
+        await runCommand(previewCmd, { rawArgs: [destDir] });
       } else if (next === "render") {
         const renderCmd = await import("./render.js").then((m) => m.default);
         await runCommand(renderCmd, { rawArgs: [destDir] });
@@ -623,7 +623,7 @@ Examples:
       );
       console.log();
       console.log(`  ${c.accent("2.")} Preview in the browser:`);
-      console.log(`     ${c.accent(`cd ${name}`)} && ${c.accent("npx hyperframes dev")}`);
+      console.log(`     ${c.accent(`cd ${name}`)} && ${c.accent("npx hyperframes preview")}`);
       console.log();
       console.log(`  ${c.accent("3.")} Render to MP4 when ready:`);
       console.log(`     ${c.accent(`cd ${name}`)} && ${c.accent("npx hyperframes render")}`);

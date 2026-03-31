@@ -106,7 +106,7 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     Start the development server with live hot reload:
     ```bash
     cd my-video
-    npx hyperframes dev
+    npx hyperframes preview
     ```
     The Hyperframes Studio opens in your browser. Edit `index.html` and the preview updates instantly.
   </Step>
@@ -227,19 +227,19 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
       For music or noisy audio, use `--model medium.en` for better accuracy. For the best results with production content, transcribe via the OpenAI or Groq Whisper API and import the JSON.
     </Tip>
   </Tab>
-  <Tab title="Develop">
-    ### `dev`
+  <Tab title="Preview">
+    ### `preview`
 
     Start a live preview server with hot reload:
 
     ```bash
-    npx hyperframes dev [dir]
-    npx hyperframes dev --port 4567
+    npx hyperframes preview [dir]
+    npx hyperframes preview --port 4567
     ```
 
     | Flag | Description |
     |------|-------------|
-    | `--port` | Port to run the dev server on (default: 3002) |
+    | `--port` | Port to run the preview server on (default: 3002) |
 
     Opens your composition in the Hyperframes Studio with live preview. Edits to `index.html` and any referenced sub-compositions are reflected automatically. The preview uses the same Hyperframes runtime as production rendering, so what you see is what you get.
 
@@ -482,7 +482,7 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     The rendering pipeline the CLI calls under the hood. Use directly for programmatic rendering.
   </Card>
   <Card title="Studio" icon="palette" href="/packages/studio">
-    The editor UI that powers `hyperframes dev`. Use directly to embed in your own app.
+    The editor UI that powers `hyperframes preview`. Use directly to embed in your own app.
   </Card>
   <Card title="Core" icon="cube" href="/packages/core">
     Types, linter, and runtime. Use directly for custom tooling and integrations.

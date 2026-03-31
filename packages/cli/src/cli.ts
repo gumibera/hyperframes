@@ -18,7 +18,7 @@ import { checkForUpdate, printUpdateNotice } from "./utils/updateCheck.js";
 
 const subCommands = {
   init: () => import("./commands/init.js").then((m) => m.default),
-  dev: () => import("./commands/dev.js").then((m) => m.default),
+  preview: () => import("./commands/preview.js").then((m) => m.default),
   render: () => import("./commands/render.js").then((m) => m.default),
   lint: () => import("./commands/lint.js").then((m) => m.default),
   info: () => import("./commands/info.js").then((m) => m.default),

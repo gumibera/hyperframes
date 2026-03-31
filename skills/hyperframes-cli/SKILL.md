@@ -20,7 +20,7 @@ The natural sequence when building a composition:
 1. **Scaffold** — `npx hyperframes init my-video` (new projects only)
 2. **Write** — author HTML composition (see `compose-video` skill)
 3. **Lint** — `npx hyperframes lint` to catch structural errors
-4. **Preview** — `npx hyperframes dev` to see it live in the studio
+4. **Preview** — `npx hyperframes preview` to see it live in the studio
 5. **Render** — `npx hyperframes render` to export video
 
 **Lint before preview.** It catches missing `data-composition-id`, overlapping tracks on the same `data-track-index`, unregistered timelines, and other structural issues that silently produce broken output. A 2-second lint saves minutes debugging a blank screen. Both `dev` and `render` auto-lint, but linting explicitly after editing gives you a chance to fix issues without waiting for the server or renderer to spin up.
@@ -59,9 +59,9 @@ Lints `index.html` and all files in `compositions/`. Reports errors (must fix), 
 ## Previewing in the Studio
 
 ```bash
-npx hyperframes dev                   # serve current directory
-npx hyperframes dev ./my-project      # specific project
-npx hyperframes dev --port 4567       # custom port (default 3002)
+npx hyperframes preview                   # serve current directory
+npx hyperframes preview ./my-project      # specific project
+npx hyperframes preview --port 4567       # custom port (default 3002)
 ```
 
 Opens the studio in your browser automatically. Hot-reloads on file changes. Run from the project root (directory containing `index.html`).

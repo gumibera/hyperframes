@@ -59,22 +59,22 @@ async function serveWithPortFallback(
 }
 
 export default defineCommand({
-  meta: { name: "dev", description: "Start the studio for local development" },
+  meta: { name: "preview", description: "Start the studio for previewing compositions" },
   args: {
     dir: { type: "positional", description: "Project directory", required: false },
-    port: { type: "string", description: "Port to run the dev server on", default: "3002" },
+    port: { type: "string", description: "Port to run the preview server on", default: "3002" },
   },
   async run({ args }) {
     const rawArg = args.dir;
     const dir = resolve(rawArg ?? ".");
     const startPort = parseInt(args.port ?? "3002", 10);
 
-    // Compute display name: preserve symlink/CWD name when user runs "hyperframes dev ."
+    // Compute display name: preserve symlink/CWD name when user runs "hyperframes preview ."
     const isImplicitCwd = !rawArg || rawArg === "." || rawArg === "./";
     const projectName = isImplicitCwd ? basename(process.env.PWD ?? dir) : basename(dir);
 
     // Lint before starting — surface issues for the agent to fix.
-    // dev.ts doesn't use resolveProject() because it needs to proceed even without index.html.
+    // preview.ts doesn't use resolveProject() because it needs to proceed even without index.html.
     const indexPath = join(dir, "index.html");
     if (existsSync(indexPath)) {
       const project = { dir, name: projectName, indexPath };
@@ -137,7 +137,7 @@ async function runDevMode(dir: string, projectName?: string): Promise<void> {
     }
   }
 
-  clack.intro(c.bold("hyperframes dev"));
+  clack.intro(c.bold("hyperframes preview"));
 
   const s = clack.spinner();
   s.start("Starting studio...");
@@ -240,7 +240,7 @@ async function runLocalStudioMode(dir: string, projectName?: string): Promise<vo
     }
   }
 
-  clack.intro(c.bold("hyperframes dev") + c.dim(" (local studio)"));
+  clack.intro(c.bold("hyperframes preview") + c.dim(" (local studio)"));
   const s = clack.spinner();
   s.start("Starting studio...");
 
@@ -304,7 +304,7 @@ async function runEmbeddedMode(
   const pName = projectName ?? basename(dir);
   const { app } = createStudioServer({ projectDir: dir, projectName: pName });
 
-  clack.intro(c.bold("hyperframes dev"));
+  clack.intro(c.bold("hyperframes preview"));
   const s = clack.spinner();
   s.start("Starting studio...");
 
