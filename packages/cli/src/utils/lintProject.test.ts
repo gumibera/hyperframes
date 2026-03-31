@@ -150,6 +150,181 @@ describe("lintProject", () => {
   });
 });
 
+function validHtmlWithAudio(compId = "main"): string {
+  return `<html><body>
+  <div data-composition-id="${compId}" data-width="1920" data-height="1080">
+    <audio id="music" src="song.mp3" data-start="0" data-track-index="0" data-volume="1"></audio>
+  </div>
+  <script>window.__timelines = window.__timelines || {}; window.__timelines["${compId}"] = gsap.timeline({ paused: true });</script>
+</body></html>`;
+}
+
+describe("audio_file_without_element", () => {
+  it("warns when audio file exists but no <audio> element", () => {
+    const project = makeProject(validHtml());
+    writeFileSync(join(project.dir, "music.mp3"), "fake");
+
+    const { totalWarnings, results } = lintProject(project);
+
+    expect(totalWarnings).toBeGreaterThan(0);
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_file_without_element");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("warning");
+    expect(finding?.message).toContain("music.mp3");
+  });
+
+  it("does not warn when audio file exists and <audio> element is present", () => {
+    const project = makeProject(validHtmlWithAudio());
+    writeFileSync(join(project.dir, "song.mp3"), "fake");
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_file_without_element");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does not warn when no audio files exist", () => {
+    const project = makeProject(validHtml());
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_file_without_element");
+    expect(finding).toBeUndefined();
+  });
+
+  it("detects multiple audio file extensions", () => {
+    const project = makeProject(validHtml());
+    writeFileSync(join(project.dir, "narration.wav"), "fake");
+    writeFileSync(join(project.dir, "bgm.ogg"), "fake");
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_file_without_element");
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain("narration.wav");
+    expect(finding?.message).toContain("bgm.ogg");
+  });
+
+  it("does not warn when <audio> element is in a sub-composition", () => {
+    const project = makeProject(validHtml(), {
+      "captions.html": validHtmlWithAudio("captions"),
+    });
+    writeFileSync(join(project.dir, "song.mp3"), "fake");
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_file_without_element");
+    expect(finding).toBeUndefined();
+  });
+});
+
+describe("audio_src_not_found", () => {
+  it("errors when <audio> src references a file that does not exist", () => {
+    const project = makeProject(validHtmlWithAudio());
+    // song.mp3 is referenced in validHtmlWithAudio but not on disk
+
+    const { totalErrors, results } = lintProject(project);
+
+    expect(totalErrors).toBeGreaterThan(0);
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_src_not_found");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+    expect(finding?.message).toContain("song.mp3");
+  });
+
+  it("does not error when <audio> src file exists", () => {
+    const project = makeProject(validHtmlWithAudio());
+    writeFileSync(join(project.dir, "song.mp3"), "fake");
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_src_not_found");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does not error when <audio> src is an HTTP URL", () => {
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080">
+    <audio id="music" src="https://cdn.example.com/song.mp3" data-start="0" data-track-index="0" data-volume="1"></audio>
+  </div>
+  <script>window.__timelines = window.__timelines || {}; window.__timelines["main"] = gsap.timeline({ paused: true });</script>
+</body></html>`;
+    const project = makeProject(html);
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_src_not_found");
+    expect(finding).toBeUndefined();
+  });
+
+  it("detects missing src in sub-compositions", () => {
+    const project = makeProject(validHtml(), {
+      "captions.html": validHtmlWithAudio("captions"),
+    });
+    // song.mp3 referenced in sub-comp but not on disk
+
+    const { totalErrors, results } = lintProject(project);
+
+    expect(totalErrors).toBeGreaterThan(0);
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_src_not_found");
+    expect(finding).toBeDefined();
+  });
+
+  it("resolves relative paths from project root", () => {
+    const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080">
+    <audio id="music" src="assets/bgm.mp3" data-start="0" data-track-index="0" data-volume="1"></audio>
+  </div>
+  <script>window.__timelines = window.__timelines || {}; window.__timelines["main"] = gsap.timeline({ paused: true });</script>
+</body></html>`;
+    const project = makeProject(html);
+    mkdirSync(join(project.dir, "assets"), { recursive: true });
+    writeFileSync(join(project.dir, "assets", "bgm.mp3"), "fake");
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_src_not_found");
+    expect(finding).toBeUndefined();
+  });
+
+  it("deduplicates missing files across compositions", () => {
+    const project = makeProject(validHtmlWithAudio(), {
+      "captions.html": validHtmlWithAudio("captions"),
+    });
+    // Both reference song.mp3 which doesn't exist
+
+    const { results } = lintProject(project);
+
+    const first = results[0];
+    expect(first).toBeDefined();
+    const finding = first?.result.findings.find((f) => f.code === "audio_src_not_found");
+    expect(finding).toBeDefined();
+    // Should mention song.mp3 only once despite two references
+    const occurrences = (finding?.message.match(/song\.mp3/g) ?? []).length;
+    expect(occurrences).toBe(1);
+  });
+});
+
 describe("shouldBlockRender", () => {
   it("default: does not block on errors", () => {
     expect(shouldBlockRender(false, false, 5, 0)).toBe(false);
