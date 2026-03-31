@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync, spawn } from "node:child_process";
 import * as clack from "@clack/prompts";
 import { c } from "../ui/colors.js";
+import { printBanner } from "../ui/banner.js";
 import { TEMPLATES, type TemplateId } from "../templates/generators.js";
 import { trackInitTemplate } from "../telemetry/events.js";
 import { hasFFmpeg } from "../whisper/manager.js";
@@ -635,6 +636,7 @@ Examples:
     // -----------------------------------------------------------------------
     // Interactive mode
     // -----------------------------------------------------------------------
+    printBanner();
     clack.intro("Create a new HyperFrames project");
 
     // 1. Project name
