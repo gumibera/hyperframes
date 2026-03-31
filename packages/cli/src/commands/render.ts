@@ -253,10 +253,6 @@ Examples:
         browserPath,
       });
     }
-
-    // Explicit exit — Puppeteer/Chrome CDP connections hold the event loop
-    // open even after all work is done. Without this, the process hangs.
-    process.exit(0);
   },
 });
 

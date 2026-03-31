@@ -9,6 +9,7 @@
 
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import type { IncomingMessage } from "node:http";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join, extname } from "node:path";
 import { getVerifiedHyperframeRuntimeSource } from "./hyperframeRuntimeLoader.js";
@@ -323,14 +324,31 @@ export function createFileServer(options: FileServerOptions): Promise<FileServer
   });
 
   return new Promise((resolve) => {
+    // Track open connections so we can force-destroy them on close.
+    // Without this, server.close() waits for keep-alive connections to
+    // drain, holding the Node.js event loop open indefinitely.
+    const connections = new Set<IncomingMessage["socket"]>();
     const server = serve({ fetch: app.fetch, port }, (info) => {
       const actualPort = info.port;
       const url = `http://localhost:${actualPort}`;
 
+      const httpServer = (server as unknown as { server?: { on: Function } }).server;
+      if (httpServer?.on) {
+        httpServer.on("connection", (socket: IncomingMessage["socket"]) => {
+          connections.add(socket);
+          socket.on("close", () => connections.delete(socket));
+        });
+      }
+
       resolve({
         url,
         port: actualPort,
-        close: () => server.close(),
+        close: () => {
+          // Destroy all open connections, then close the server
+          for (const socket of connections) socket.destroy();
+          connections.clear();
+          server.close();
+        },
       });
     });
   });
