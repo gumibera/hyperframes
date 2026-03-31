@@ -1,15 +1,14 @@
 import { isColorSupported } from "./colors.js";
 
 // ---------------------------------------------------------------------------
-// Gradient stops: teal → indigo → purple → magenta → pink
+// Gradient stops: white → logo blue (#48BFE3)
 // ---------------------------------------------------------------------------
 
 const GRADIENT: [number, number, number][] = [
-  [72, 191, 227], // teal
-  [93, 96, 206], // indigo
-  [114, 9, 183], // purple
-  [181, 23, 158], // magenta
-  [247, 37, 133], // pink
+  [255, 255, 255], // white
+  [180, 230, 245], // light sky
+  [120, 210, 238], // mid
+  [72, 191, 227], // logo blue #48BFE3
 ];
 
 function lerp(a: number, b: number, t: number): number {
@@ -31,42 +30,37 @@ function rgb(r: number, g: number, b: number, text: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Block-letter art: HYPER + FRAMES (5 rows each)
+// Letter definitions (4 rows each)
 // ---------------------------------------------------------------------------
 
-const HYPER = [
-  "██   ██ ██    ██ ██████  ███████ ██████  ",
-  "██   ██  ██  ██  ██   ██ ██      ██   ██ ",
-  "████████  ████   ██████  █████   ██████  ",
-  "██   ██    ██    ██      ██      ██   ██ ",
-  "██   ██    ██    ██      ███████ ██   ██ ",
-];
+type Letter = [string, string, string, string];
 
-const FRAMES = [
-  "███████ ██████   █████  ███    ███ ███████ ███████",
-  "██      ██   ██ ██   ██ ████  ████ ██      ██     ",
-  "█████   ██████  ███████ ██ ████ ██ █████   ███████",
-  "██      ██   ██ ██   ██ ██  ██  ██ ██           ██",
-  "██      ██   ██ ██   ██ ██      ██ ███████ ███████",
-];
+const LETTERS: Record<string, Letter> = {
+  H: ["█  █", "████", "█  █", "█  █"],
+  Y: ["█  █", " ██ ", " ██ ", " ██ "],
+  P: ["███ ", "█  █", "███ ", "█   "],
+  E: ["████", "█   ", "███ ", "████"],
+  R: ["███ ", "█  █", "███ ", "█ █ "],
+  F: ["████", "█   ", "███ ", "█   "],
+  A: [" ██ ", "█  █", "████", "█  █"],
+  M: ["█   █", "██ ██", "█ █ █", "█   █"],
+  S: [" ███", "█   ", " ██ ", "███ "],
+};
 
-// ---------------------------------------------------------------------------
-// Logo: simplified code-play icon ◇ ◆ ◇
-// ---------------------------------------------------------------------------
+function buildRows(): [string, string, string, string] {
+  const word = "HYPERFRAMES";
+  const rows: [string, string, string, string] = ["", "", "", ""];
 
-function printGradientRow(row: string, maxWidth: number): string {
-  let line = "";
-  for (let col = 0; col < row.length; col++) {
-    const ch = row[col];
-    if (!ch || ch === " ") {
-      line += " ";
-      continue;
+  for (let i = 0; i < word.length; i++) {
+    const letter = LETTERS[word[i]!];
+    if (!letter) continue;
+    const gap = i > 0 ? " " : "";
+    for (let r = 0; r < 4; r++) {
+      rows[r] += gap + letter[r];
     }
-    const t = maxWidth > 1 ? col / (maxWidth - 1) : 0;
-    const [r, g, b] = gradientColor(t);
-    line += rgb(r, g, b, ch);
   }
-  return line;
+
+  return rows;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,23 +70,23 @@ function printGradientRow(row: string, maxWidth: number): string {
 export function printBanner(): void {
   if (!isColorSupported || !process.stdout.isTTY) return;
 
-  const maxWidth = Math.max(...HYPER.map((r) => r.length), ...FRAMES.map((r) => r.length));
-
-  // Logo centered above text
-  const [lr, lg, lb] = gradientColor(0.5);
-  const logo = "◇ ◆ ◇";
-  const logoPad = Math.max(0, Math.floor((maxWidth - logo.length) / 2));
+  const rows = buildRows();
+  const maxWidth = Math.max(...rows.map((r) => r.length));
 
   console.log();
-  console.log("  " + " ".repeat(logoPad) + rgb(lr, lg, lb, logo));
-  console.log();
-
-  for (const row of HYPER) {
-    console.log("  " + printGradientRow(row, maxWidth));
+  for (const row of rows) {
+    let line = "  ";
+    for (let col = 0; col < row.length; col++) {
+      const ch = row[col];
+      if (!ch || ch === " ") {
+        line += " ";
+        continue;
+      }
+      const t = maxWidth > 1 ? col / (maxWidth - 1) : 0;
+      const [r, g, b] = gradientColor(t);
+      line += rgb(r, g, b, ch);
+    }
+    console.log(line);
   }
-  for (const row of FRAMES) {
-    console.log("  " + printGradientRow(row, maxWidth));
-  }
-
   console.log();
 }
