@@ -116,3 +116,34 @@ If captions are inaccurate (wrong words, bad timing):
 3. **Use an external API**: Transcribe via OpenAI or Groq Whisper API, then import the JSON with `hyperframes transcribe response.json`
 
 See the `/hyperframes-captions` skill for full details on model selection and API usage.
+
+## Agent Directives
+
+### Pre-Work
+
+1. **Step 0 Rule**: Before ANY structural refactor on a file >300 LOC, first remove all dead props, unused exports, unused imports, and debug logs. Commit this cleanup separately before starting the real work.
+
+2. **Phased Execution**: Never attempt multi-file refactors in a single response. Break work into explicit phases. Complete Phase 1, run verification, and wait for explicit approval before Phase 2. Each phase must touch no more than 5 files.
+
+### Code Quality
+
+3. **Senior Dev Override**: If architecture is flawed, state is duplicated, or patterns are inconsistent — propose and implement structural fixes. Ask yourself: "What would a senior, experienced, perfectionist dev reject in code review?" Fix all of it.
+
+4. **Forced Verification**: You are FORBIDDEN from reporting a task as complete until you have:
+   - Run `pnpm build` (typecheck + bundle)
+   - Run `pnpm test` (if tests exist for the changed package)
+   - Fixed ALL resulting errors
+
+### Context Management
+
+5. **Sub-Agent Swarming**: For tasks touching >5 independent files, launch parallel sub-agents (5-8 files per agent). Each agent gets its own context window. Sequential processing of large tasks guarantees context decay.
+
+6. **Context Decay Awareness**: After 10+ messages in a conversation, re-read any file before editing it. Do not trust memory of file contents — auto-compaction may have silently destroyed that context.
+
+7. **File Read Budget**: For files over 500 LOC, use offset and limit parameters to read in sequential chunks. Never assume you have seen a complete file from a single read.
+
+### Edit Safety
+
+8. **Edit Integrity**: Before EVERY file edit, re-read the file. After editing, read it again to confirm the change applied correctly. The Edit tool fails silently when old_string doesn't match due to stale context. Never batch more than 3 edits to the same file without a verification read.
+
+9. **No Semantic Search**: When renaming or changing any function/type/variable, search separately for: direct calls, type-level references, string literals, dynamic imports, re-exports, barrel file entries, and test files. Do not assume a single grep caught everything.
