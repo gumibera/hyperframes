@@ -24,6 +24,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "knip": "knip",
+    "generate:previews": "tsx scripts/generate-template-previews.ts",
     "prepare": "test -d .git && lefthook install || true"
   },
   "devDependencies": {
