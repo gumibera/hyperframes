@@ -119,17 +119,47 @@ tl.call(
 );
 ```
 
-When handing off between multiple typewriter lines, hide the previous cursor and show the next one:
+When handing off between multiple typewriter lines, the new cursor must blink before it starts typing. Going straight from hidden to solid skips the idle state and looks like the cursor just appeared mid-keystroke. Always: hide previous → blink new → pause → then solid when typing begins.
 
 ```js
+// Step 1: hand off — new cursor appears blinking
 tl.call(
   () => {
     prevCursor.classList.replace("cursor-blink", "cursor-hide");
-    nextCursor.classList.replace("cursor-hide", "cursor-solid");
+    nextCursor.classList.replace("cursor-hide", "cursor-blink");
   },
   [],
   handoffTime,
 );
+
+// Step 2: after a brief blink pause (0.4-0.6s), go solid and start typing
+const typeStart = handoffTime + 0.5;
+tl.call(
+  () => {
+    nextCursor.classList.replace("cursor-blink", "cursor-solid");
+  },
+  [],
+  typeStart,
+);
+tl.to("#next-text", { text: { value: text }, duration: dur, ease: "none" }, typeStart);
+tl.call(
+  () => {
+    nextCursor.classList.replace("cursor-solid", "cursor-blink");
+  },
+  [],
+  typeStart + dur,
+);
+```
+
+## Spacing with Static Text
+
+When a typewriter word sits next to static text (e.g. "Ship something **bold.**"), use `margin-left` on a wrapper span around the dynamic text + cursor. Do not use flex gap (it spaces the cursor away from the text) or a trailing space in the static text (it collapses when the dynamic text is empty).
+
+```html
+<div style="display:flex; align-items:baseline;">
+  <span style="font-size:40px; color:#555;">Ship something</span>
+  <span style="margin-left:14px;"><span id="word"></span><span id="cursor">|</span></span>
+</div>
 ```
 
 ## Backspacing (Clearing Text)
