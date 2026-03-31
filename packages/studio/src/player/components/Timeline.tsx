@@ -429,7 +429,7 @@ export const Timeline = memo(function Timeline({
     return (
       <div
         className={`h-full border-t bg-[#0a0a0b] flex flex-col select-none transition-colors duration-150 ${
-          isDragOver ? "border-blue-500/50 bg-blue-500/[0.03]" : "border-neutral-800/50"
+          isDragOver ? "border-studio-accent/50 bg-studio-accent/[0.03]" : "border-neutral-800/50"
         }`}
         onDragOver={(e) => {
           e.preventDefault();
@@ -466,7 +466,9 @@ export const Timeline = memo(function Timeline({
         <div className="flex-1 flex items-center justify-center">
           <div
             className={`flex items-center gap-3 px-6 py-3 border border-dashed rounded-lg transition-colors duration-150 ${
-              isDragOver ? "border-blue-400/60 bg-blue-500/[0.06]" : "border-neutral-700/50"
+              isDragOver
+                ? "border-studio-accent/60 bg-studio-accent/[0.06]"
+                : "border-neutral-700/50"
             }`}
           >
             {isDragOver ? (
@@ -480,13 +482,13 @@ export const Timeline = memo(function Timeline({
                   strokeWidth="1.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-blue-400 flex-shrink-0"
+                  className="text-studio-accent flex-shrink-0"
                 >
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                <span className="text-[13px] text-blue-400">Drop media files to import</span>
+                <span className="text-[13px] text-studio-accent">Drop media files to import</span>
               </>
             ) : (
               <>
@@ -568,7 +570,7 @@ export const Timeline = memo(function Timeline({
             {/* Shift hint */}
             {shiftHeld && !rangeSelection && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                <span className="text-[9px] text-blue-400/60 font-medium">
+                <span className="text-[9px] text-studio-accent/60 font-medium">
                   Drag to select range
                 </span>
               </div>

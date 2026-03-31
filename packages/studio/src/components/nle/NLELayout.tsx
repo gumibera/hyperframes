@@ -351,7 +351,7 @@ export const NLELayout = memo(function NLELayout({
         <>
           {/* Resize divider */}
           <div
-            className="h-1 flex-shrink-0 bg-neutral-800 hover:bg-blue-500 cursor-row-resize transition-colors active:bg-blue-400 z-10"
+            className="h-1 flex-shrink-0 bg-neutral-800 hover:bg-studio-accent cursor-row-resize transition-colors active:bg-studio-accent/80 z-10"
             style={{ touchAction: "none" }}
             onPointerDown={handleDividerPointerDown}
             onPointerMove={handleDividerPointerMove}

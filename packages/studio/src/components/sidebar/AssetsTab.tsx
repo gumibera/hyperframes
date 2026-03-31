@@ -100,7 +100,7 @@ function AssetCard({
       onPointerLeave={() => setHovered(false)}
       className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors cursor-pointer ${
         isCopied
-          ? "bg-[#3CE6AC]/10 border-l-2 border-[#3CE6AC]"
+          ? "bg-studio-accent/10 border-l-2 border-studio-accent"
           : "border-l-2 border-transparent hover:bg-neutral-800/50"
       }`}
     >
@@ -127,7 +127,7 @@ function AssetCard({
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium text-neutral-300 truncate block">{name}</span>
         {isCopied ? (
-          <span className="text-[9px] text-[#3CE6AC]">Copied!</span>
+          <span className="text-[9px] text-studio-accent">Copied!</span>
         ) : (
           <span className="text-[9px] text-neutral-600 truncate block">{asset}</span>
         )}
@@ -164,7 +164,7 @@ export const AssetsTab = memo(function AssetsTab({ projectId, assets, onImport }
 
   return (
     <div
-      className={`flex-1 flex flex-col min-h-0 transition-colors ${dragOver ? "bg-blue-950/20" : ""}`}
+      className={`flex-1 flex flex-col min-h-0 transition-colors ${dragOver ? "bg-studio-accent/[0.05]" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         setDragOver(true);

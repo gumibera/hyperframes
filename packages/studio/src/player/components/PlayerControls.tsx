@@ -257,7 +257,7 @@ export const PlayerControls = memo(function PlayerControls({
           onClick={onToggleTimeline}
           className={`w-7 h-7 flex items-center justify-center rounded-md border transition-colors ${
             timelineVisible
-              ? "text-[#3CE6AC] bg-[#3CE6AC]/10 border-[#3CE6AC]/30"
+              ? "text-studio-accent bg-studio-accent/10 border-studio-accent/30"
               : "border-neutral-700 text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
           }`}
           title={timelineVisible ? "Hide timeline" : "Show timeline"}

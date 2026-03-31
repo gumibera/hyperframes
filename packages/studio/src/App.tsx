@@ -317,7 +317,7 @@ export function StudioApp() {
   if (resolving || !projectId) {
     return (
       <div className="h-screen w-screen bg-neutral-950 flex items-center justify-center">
-        <div className="w-4 h-4 rounded-full bg-[#3CE6AC] animate-pulse" />
+        <div className="w-4 h-4 rounded-full bg-studio-accent animate-pulse" />
       </div>
     );
   }
@@ -338,7 +338,7 @@ export function StudioApp() {
             onClick={() => setLeftCollapsed((v) => !v)}
             className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors ${
               !leftCollapsed
-                ? "text-[#3CE6AC] bg-[#3CE6AC]/10 border-[#3CE6AC]/30"
+                ? "text-studio-accent bg-studio-accent/10 border-studio-accent/30"
                 : "bg-transparent border-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
             }`}
             title={leftCollapsed ? "Show sidebar" : "Hide sidebar"}
@@ -361,7 +361,7 @@ export function StudioApp() {
             onClick={() => setTimelineVisible((v) => !v)}
             className={`h-7 w-7 flex items-center justify-center rounded-md border transition-colors ${
               timelineVisible
-                ? "text-[#3CE6AC] bg-[#3CE6AC]/10 border-[#3CE6AC]/30"
+                ? "text-studio-accent bg-studio-accent/10 border-studio-accent/30"
                 : "bg-transparent border-transparent text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800"
             }`}
             title={timelineVisible ? "Hide timeline" : "Show timeline"}
@@ -384,7 +384,7 @@ export function StudioApp() {
             onClick={() => setRightCollapsed((v) => !v)}
             className={`h-7 flex items-center gap-1.5 px-2.5 rounded-md text-[11px] font-medium border transition-colors ${
               !rightCollapsed
-                ? "text-[#3CE6AC] bg-[#3CE6AC]/10 border-[#3CE6AC]/30"
+                ? "text-studio-accent bg-studio-accent/10 border-studio-accent/30"
                 : "text-neutral-500 hover:text-neutral-300 hover:bg-neutral-800 border-transparent"
             }`}
           >
@@ -454,7 +454,7 @@ export function StudioApp() {
         {/* Left resize handle */}
         {!leftCollapsed && (
           <div
-            className="w-1 flex-shrink-0 bg-neutral-800 hover:bg-blue-500 cursor-col-resize transition-colors active:bg-blue-400"
+            className="w-1 flex-shrink-0 bg-neutral-800 hover:bg-studio-accent cursor-col-resize transition-colors active:bg-studio-accent/80"
             style={{ touchAction: "none" }}
             onPointerDown={(e) => handlePanelResizeStart("left", e)}
             onPointerMove={handlePanelResizeMove}
@@ -487,7 +487,7 @@ export function StudioApp() {
         {!rightCollapsed && (
           <>
             <div
-              className="w-1 flex-shrink-0 bg-neutral-800 hover:bg-blue-500 cursor-col-resize transition-colors active:bg-blue-400"
+              className="w-1 flex-shrink-0 bg-neutral-800 hover:bg-studio-accent cursor-col-resize transition-colors active:bg-studio-accent/80"
               style={{ touchAction: "none" }}
               onPointerDown={(e) => handlePanelResizeStart("right", e)}
               onPointerMove={handlePanelResizeMove}

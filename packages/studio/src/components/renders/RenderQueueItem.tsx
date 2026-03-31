@@ -90,7 +90,7 @@ export const RenderQueueItem = memo(function RenderQueueItem({
           )}
           {job.status === "rendering" && (
             <div className="w-full h-full flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-[#3CE6AC] animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-studio-accent animate-pulse" />
             </div>
           )}
           {job.status === "failed" && (
@@ -122,11 +122,11 @@ export const RenderQueueItem = memo(function RenderQueueItem({
             <div className="mt-1">
               <div className="flex items-center justify-between mb-0.5">
                 <span className="text-[9px] text-neutral-500">{job.stage || "Rendering"}</span>
-                <span className="text-[9px] font-mono text-[#3CE6AC]">{job.progress}%</span>
+                <span className="text-[9px] font-mono text-studio-accent">{job.progress}%</span>
               </div>
               <div className="w-full h-1 bg-neutral-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-[#3CE6AC] rounded-full transition-all duration-300"
+                  className="h-full bg-studio-accent rounded-full transition-all duration-300"
                   style={{ width: `${job.progress}%` }}
                 />
               </div>

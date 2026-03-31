@@ -56,8 +56,8 @@ export function LintModal({
                 <WarningIcon size={18} className="text-red-400" weight="fill" />
               </div>
             ) : (
-              <div className="w-8 h-8 rounded-full bg-[#3CE6AC]/10 flex items-center justify-center">
-                <CheckCircleIcon size={18} className="text-[#3CE6AC]" weight="fill" />
+              <div className="w-8 h-8 rounded-full bg-studio-accent/10 flex items-center justify-center">
+                <CheckCircleIcon size={18} className="text-studio-accent" weight="fill" />
               </div>
             )}
             <div>
@@ -83,7 +83,9 @@ export function LintModal({
             <button
               onClick={handleCopyToAgent}
               className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${
-                copied ? "bg-green-600 text-white" : "bg-[#3CE6AC] hover:bg-[#3CE6AC]/80 text-white"
+                copied
+                  ? "bg-green-600 text-white"
+                  : "bg-studio-accent hover:bg-studio-accent/80 text-white"
               }`}
             >
               {copied ? "Copied!" : "Copy to Agent"}
@@ -109,8 +111,11 @@ export function LintModal({
                   {f.file && <p className="text-xs text-neutral-600 font-mono mt-0.5">{f.file}</p>}
                   {f.fixHint && (
                     <div className="flex items-start gap-1 mt-1.5">
-                      <CaretRightIcon size={10} className="text-[#3CE6AC] flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-[#3CE6AC]">{f.fixHint}</p>
+                      <CaretRightIcon
+                        size={10}
+                        className="text-studio-accent flex-shrink-0 mt-0.5"
+                      />
+                      <p className="text-xs text-studio-accent">{f.fixHint}</p>
                     </div>
                   )}
                 </div>
@@ -126,8 +131,11 @@ export function LintModal({
                   {f.file && <p className="text-xs text-neutral-600 font-mono mt-0.5">{f.file}</p>}
                   {f.fixHint && (
                     <div className="flex items-start gap-1 mt-1.5">
-                      <CaretRightIcon size={10} className="text-[#3CE6AC] flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-[#3CE6AC]">{f.fixHint}</p>
+                      <CaretRightIcon
+                        size={10}
+                        className="text-studio-accent flex-shrink-0 mt-0.5"
+                      />
+                      <p className="text-xs text-studio-accent">{f.fixHint}</p>
                     </div>
                   )}
                 </div>

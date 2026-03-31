@@ -41,7 +41,7 @@ function CompCard({
       onPointerLeave={handleLeave}
       className={`w-full text-left px-2 py-1.5 flex items-center gap-2.5 transition-colors cursor-pointer ${
         isActive
-          ? "bg-[#3CE6AC]/10 border-l-2 border-[#3CE6AC]"
+          ? "bg-studio-accent/10 border-l-2 border-studio-accent"
           : "border-l-2 border-transparent hover:bg-neutral-800/50"
       }`}
     >

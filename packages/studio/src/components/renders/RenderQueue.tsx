@@ -34,7 +34,7 @@ function FormatExportButton({
       <button
         onClick={() => onStartRender(format)}
         disabled={isRendering}
-        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-r bg-[#3CE6AC] text-[#09090B] hover:brightness-110 transition-colors disabled:opacity-50"
+        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-r bg-studio-accent text-[#09090B] hover:brightness-110 transition-colors disabled:opacity-50"
       >
         {isRendering ? "Rendering..." : "Export"}
       </button>
