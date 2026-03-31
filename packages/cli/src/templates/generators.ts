@@ -18,8 +18,8 @@ export interface TemplateOption {
 }
 
 export const TEMPLATES: TemplateOption[] = [
-  { id: "hf-dark", label: "HyperFrames Dark", hint: "Sleek dark theme product showcase" },
-  { id: "hf-gradient", label: "HyperFrames Gradient", hint: "Animated gradient product launch" },
+  { id: "hf-dark", label: "Midnight", hint: "Dark tech with neon grid and glow accents" },
+  { id: "hf-gradient", label: "Aurora", hint: "Shifting gradient backdrop with bold kinetic type" },
   { id: "blank", label: "Blank", hint: "Empty composition — just the scaffolding" },
   { id: "warm-grain", label: "Warm Grain", hint: "Cream aesthetic with grain texture" },
   { id: "play-mode", label: "Play Mode", hint: "Playful elastic animations" },
