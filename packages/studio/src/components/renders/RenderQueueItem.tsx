@@ -4,6 +4,7 @@ import type { RenderJob } from "./useRenderQueue";
 
 interface RenderQueueItemProps {
   job: RenderJob;
+  projectId: string;
   onDelete: () => void;
 }
 
@@ -24,26 +25,30 @@ function formatTimeAgo(timestamp: number): string {
 
 export const RenderQueueItem = memo(function RenderQueueItem({
   job,
+  projectId,
   onDelete,
 }: RenderQueueItemProps) {
   const [hovered, setHovered] = useState(false);
 
+  // Direct file URL — serves from disk, survives server restarts
+  const fileSrc = `/api/projects/${projectId}/renders/file/${job.filename}`;
+
   const handleOpen = useCallback(() => {
-    window.open(`/api/render/${job.id}/view`, "_blank");
-  }, [job.id]);
+    window.open(fileSrc, "_blank");
+  }, [fileSrc]);
 
   const handleDownload = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       const a = document.createElement("a");
-      a.href = `/api/render/${job.id}/download`;
+      a.href = fileSrc;
       a.download = job.filename;
       a.click();
     },
-    [job.id, job.filename],
+    [fileSrc, job.filename],
   );
 
-  const viewSrc = `/api/render/${job.id}/view`;
+  const viewSrc = fileSrc;
   const isComplete = job.status === "complete";
 
   return (

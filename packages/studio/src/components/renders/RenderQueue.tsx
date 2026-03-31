@@ -4,6 +4,7 @@ import type { RenderJob } from "./useRenderQueue";
 
 interface RenderQueueProps {
   jobs: RenderJob[];
+  projectId: string;
   onDelete: (jobId: string) => void;
   onClearCompleted: () => void;
   onStartRender: (format: "mp4" | "webm") => void;
@@ -43,6 +44,7 @@ function FormatExportButton({
 
 export const RenderQueue = memo(function RenderQueue({
   jobs,
+  projectId,
   onDelete,
   onClearCompleted,
   onStartRender,
@@ -110,7 +112,12 @@ export const RenderQueue = memo(function RenderQueue({
           </div>
         ) : (
           jobs.map((job) => (
-            <RenderQueueItem key={job.id} job={job} onDelete={() => onDelete(job.id)} />
+            <RenderQueueItem
+              key={job.id}
+              job={job}
+              projectId={projectId}
+              onDelete={() => onDelete(job.id)}
+            />
           ))
         )}
       </div>

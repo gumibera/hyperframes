@@ -183,6 +183,28 @@ export function registerRenderRoutes(api: Hono, adapter: StudioApiAdapter): void
     return c.json({ deleted: true });
   });
 
+  // Serve render file directly from disk (no in-memory map dependency)
+  api.get("/projects/:id/renders/file/*", async (c) => {
+    const project = await adapter.resolveProject(c.req.param("id"));
+    if (!project) return c.json({ error: "not found" }, 404);
+    const filename = c.req.path.split("/renders/file/")[1];
+    if (!filename) return c.json({ error: "missing filename" }, 400);
+    const rendersDir = adapter.rendersDir(project);
+    const fp = join(rendersDir, filename);
+    if (!existsSync(fp)) return c.json({ error: "not found" }, 404);
+    const isWebm = fp.endsWith(".webm");
+    const contentType = isWebm ? "video/webm" : "video/mp4";
+    const content = readFileSync(fp);
+    return new Response(content, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `inline; filename="${filename}"`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": String(content.length),
+      },
+    });
+  });
+
   // List renders
   api.get("/projects/:id/renders", async (c) => {
     const project = await adapter.resolveProject(c.req.param("id"));

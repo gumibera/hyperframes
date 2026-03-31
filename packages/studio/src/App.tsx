@@ -499,6 +499,7 @@ export function StudioApp() {
             >
               <RenderQueue
                 jobs={renderQueue.jobs}
+                projectId={projectId}
                 onDelete={renderQueue.deleteRender}
                 onClearCompleted={renderQueue.clearCompleted}
                 onStartRender={(format) => renderQueue.startRender(30, "standard", format)}
