@@ -415,46 +415,6 @@ function scaffoldProject(
 // nextStepLoop — "What do you want to do?" loop after scaffolding
 // ---------------------------------------------------------------------------
 
-async function nextStepLoop(destDir: string): Promise<void> {
-  while (true) {
-    const next = await clack.select({
-      message: "What do you want to do?",
-      options: [
-        {
-          value: "preview",
-          label: "Open in studio",
-          hint: "full editor with timeline",
-        },
-        { value: "render", label: "Render to MP4", hint: "export video now" },
-        { value: "done", label: "Done for now" },
-      ],
-    });
-
-    if (clack.isCancel(next) || next === "done") {
-      clack.outro(c.success("Happy editing!"));
-      return;
-    }
-
-    // Hand off to the selected command — use explicit imports so the
-    // bundler can resolve them (dynamic import with a variable fails in bundles)
-    try {
-      if (next === "preview") {
-        const previewCmd = await import("./preview.js").then((m) => m.default);
-        await runCommand(previewCmd, { rawArgs: [destDir] });
-      } else if (next === "render") {
-        const renderCmd = await import("./render.js").then((m) => m.default);
-        await runCommand(renderCmd, { rawArgs: [destDir] });
-      }
-    } catch {
-      // Command may throw on Ctrl+C — that's fine, loop back
-    }
-
-    // Wait a tick so any lingering SIGINT state clears before Clack prompts again
-    await new Promise((r) => setTimeout(r, 100));
-    console.log();
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Exported command
 // ---------------------------------------------------------------------------
@@ -670,11 +630,10 @@ Examples:
       }
     }
 
-    // 2. Got a video or audio file?
+    // 2. Video/audio file handling (only via --video/--audio flags, no interactive prompt)
     let localVideoName: string | undefined;
     let sourceFilePath: string | undefined;
     let videoDuration: number | undefined;
-    let isAudioOnly = false;
 
     if (videoFlag) {
       const videoPath = resolve(videoFlag);
@@ -688,59 +647,20 @@ Examples:
       const result = await handleVideoFile(videoPath, destDir, true);
       localVideoName = result.localVideoName;
       videoDuration = result.meta.durationSeconds;
-    } else {
-      const mediaChoice = await clack.select({
-        message: "Got a video or audio file?",
-        options: [
-          { value: "video", label: "Video", hint: "MP4, WebM, MOV" },
-          { value: "audio", label: "Audio only", hint: "MP3, WAV, M4A" },
-          {
-            value: "no",
-            label: "No",
-            hint: "Start with motion graphics or text",
-          },
-        ],
-        initialValue: "no" as "video" | "audio" | "no",
-      });
-      if (clack.isCancel(mediaChoice)) {
+    } else if (audioFlag) {
+      const audioPath = resolve(audioFlag);
+      if (!existsSync(audioPath)) {
+        clack.log.error(`File not found: ${audioFlag}`);
         clack.cancel("Setup cancelled.");
-        process.exit(0);
+        process.exit(1);
       }
-
-      if (mediaChoice === "video" || mediaChoice === "audio") {
-        const pathResult = await clack.text({
-          message: `Path to your ${mediaChoice} file (drag and drop or paste)`,
-          placeholder: mediaChoice === "video" ? "/path/to/video.mp4" : "/path/to/audio.mp3",
-          validate(val) {
-            const trimmed = val?.trim();
-            if (!trimmed) return "Please enter a file path";
-            if (!existsSync(resolve(trimmed))) return "File not found";
-            return undefined;
-          },
-        });
-        if (clack.isCancel(pathResult)) {
-          clack.cancel("Setup cancelled.");
-          process.exit(0);
-        }
-
-        const filePath = resolve(String(pathResult).trim());
-        sourceFilePath = filePath;
-        mkdirSync(destDir, { recursive: true });
-
-        if (mediaChoice === "video") {
-          const result = await handleVideoFile(filePath, destDir, true);
-          localVideoName = result.localVideoName;
-          videoDuration = result.meta.durationSeconds;
-        } else {
-          // Audio file — copy to project root
-          isAudioOnly = true;
-          copyFileSync(filePath, resolve(destDir, basename(filePath)));
-          clack.log.info(`Audio copied to ${c.accent(basename(filePath))}`);
-        }
-      }
+      mkdirSync(destDir, { recursive: true });
+      sourceFilePath = audioPath;
+      copyFileSync(audioPath, resolve(destDir, basename(audioPath)));
+      clack.log.info(`Audio copied to ${c.accent(basename(audioPath))}`);
     }
 
-    // 2b. Transcribe if we have a source file with audio
+    // 2b. Transcribe if we have a source file with audio (via flags)
     if (sourceFilePath) {
       const transcribeChoice = await clack.confirm({
         message: "Generate captions from audio?",
@@ -794,7 +714,6 @@ Examples:
       if (templateFlag) {
         clack.log.warn(`Unknown template "${templateFlag}" — pick from the list below`);
       }
-      const defaultTemplate = isAudioOnly ? "warm-grain" : "blank";
       const templateResult = await clack.select({
         message: "Pick a template",
         options: TEMPLATES.map((t) => ({
@@ -802,7 +721,7 @@ Examples:
           label: t.label,
           hint: t.hint,
         })),
-        initialValue: defaultTemplate as TemplateId,
+        initialValue: "blank" as TemplateId,
       });
       if (clack.isCancel(templateResult)) {
         clack.cancel("Setup cancelled.");
@@ -834,6 +753,13 @@ Examples:
         `${c.dim("     AI skills are installed — your agent knows how to create and edit compositions.")}`,
     );
 
-    await nextStepLoop(destDir);
+    // Auto-launch studio preview
+    clack.log.info("Opening studio preview...");
+    try {
+      const previewCmd = await import("./preview.js").then((m) => m.default);
+      await runCommand(previewCmd, { rawArgs: [destDir] });
+    } catch {
+      // Ctrl+C or error — that's fine
+    }
   },
 });
