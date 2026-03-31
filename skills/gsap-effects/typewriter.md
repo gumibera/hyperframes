@@ -44,10 +44,11 @@ tl.to(
 
 ## With Blinking Cursor
 
-Add a cursor element that blinks while idle and holds steady while typing. Two rules:
+Add a cursor element that blinks while idle and holds steady while typing. Three rules:
 
-1. **The cursor must always blink when idle** — after typing finishes, after clearing, during hold pauses. A cursor that just sits there solid looks broken.
-2. **No gap between text and cursor** — the cursor element must be immediately adjacent to the text element in the HTML (no whitespace, no flex gap). Any space between the last character and `|` looks wrong.
+1. **Only one cursor visible at a time.** Multiple visible cursors on screen looks broken. Every line gets its own cursor element, but only the active line's cursor is visible — all others must be `cursor-hide`. When a line finishes and the next line starts, hide the previous cursor before showing the next one.
+2. **The cursor must always blink when idle** — after typing finishes, after clearing, during hold pauses. A cursor that just sits there solid looks broken.
+3. **No gap between text and cursor** — the cursor element must be immediately adjacent to the text element in the HTML (no whitespace, no flex gap). Any space between the last character and `|` looks wrong.
 
 ```html
 <!-- No whitespace between spans — cursor must sit flush against text -->
