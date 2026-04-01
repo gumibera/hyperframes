@@ -1,7 +1,7 @@
 /**
  * Custom help renderer for the hyperframes CLI.
  *
- * Root-level: kubectl-style grouped categories + examples.
+ * Root-level: grouped command categories + examples.
  * Subcommands: citty's standard USAGE/ARGUMENTS/OPTIONS + appended examples.
  */
 import { renderUsage } from "citty";
@@ -73,7 +73,7 @@ const ROOT_EXAMPLES: Example[] = [
   ["Check system dependencies", "hyperframes doctor"],
 ];
 
-// ── Per-command examples (kubectl style: comment + command) ────────────────
+// ── Per-command examples (comment + command style: comment + command) ────────────────
 const COMMAND_EXAMPLES: Record<string, Example[]> = {
   init: [
     ["Create a project with the interactive wizard", "hyperframes init my-video"],
@@ -186,7 +186,7 @@ function renderRootHelp(): string {
   return lines.join("\n");
 }
 
-// ── Format examples section (kubectl style) ────────────────────────────────
+// ── Format examples section (comment + command style) ────────────────────────────────
 function formatExamples(examples: Example[]): string {
   const lines: string[] = [];
   lines.push(c.bold("Examples:"));
