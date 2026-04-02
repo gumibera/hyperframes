@@ -45,7 +45,6 @@ npx skills add greensock/gsap-skills     # GSAP skills
 
 Uses [vercel-labs/skills](https://github.com/vercel-labs/skills). Installs to Claude Code, Gemini CLI, and Codex CLI by default. Pass `-a <agent>` for other targets.
 
-
 ## Project Overview
 
 Open-source video rendering framework: write HTML, render video.

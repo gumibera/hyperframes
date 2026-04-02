@@ -20,7 +20,6 @@ When transcribing:
 
 ---
 
-
 Analyze the spoken content to determine caption style. If the user specifies a style, use that. Otherwise, detect tone from the transcript.
 
 ## Transcript Source

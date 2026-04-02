@@ -38,13 +38,13 @@ The CLI auto-detects and normalizes these formats:
 
 The default model (`small.en`) balances accuracy and speed. For better results, use a larger model:
 
-| Model       | Size   | Speed    | Accuracy  | When to use                           |
-| ----------- | ------ | -------- | --------- | ------------------------------------- |
-| `tiny`      | 75 MB  | Fastest  | Low       | Quick previews, testing pipeline      |
-| `base`      | 142 MB | Fast     | Fair      | Short clips, clear audio              |
-| `small`     | 466 MB | Moderate | Good      | **Default** — good for most content   |
-| `medium`    | 1.5 GB | Slow     | Very good | Important content, noisy audio, music |
-| `large-v3`  | 3.1 GB | Slowest  | Best      | Production quality                    |
+| Model      | Size   | Speed    | Accuracy  | When to use                           |
+| ---------- | ------ | -------- | --------- | ------------------------------------- |
+| `tiny`     | 75 MB  | Fastest  | Low       | Quick previews, testing pipeline      |
+| `base`     | 142 MB | Fast     | Fair      | Short clips, clear audio              |
+| `small`    | 466 MB | Moderate | Good      | **Default** — good for most content   |
+| `medium`   | 1.5 GB | Slow     | Very good | Important content, noisy audio, music |
+| `large-v3` | 3.1 GB | Slowest  | Best      | Production quality                    |
 
 **Only add `.en` suffix when the user explicitly says the audio is English.** `.en` models are slightly more accurate for English but will TRANSLATE non-English audio instead of transcribing it.
 
