@@ -36,6 +36,7 @@
     "hono": "^4.0.0",
     "mime-types": "^3.0.2",
     "open": "^10.0.0",
+    "postcss": "^8.5.8",
     "puppeteer-core": "^24.39.1"
   },
   "devDependencies": {
