@@ -37,6 +37,12 @@ function readWordBoxes(
 
   const iframeDisplayRect = iframe.getBoundingClientRect();
   const overlayRect = overlayEl.getBoundingClientRect();
+  // The iframe renders at native resolution (e.g. 1920x1080) but is
+  // CSS-scaled to fit the viewport. getBoundingClientRect() on elements
+  // inside the iframe returns coordinates in the iframe's native space.
+  // Multiply by cssScale to convert to parent window coordinates.
+  const nativeW = parseFloat(iframe.style.width) || iframeDisplayRect.width;
+  const cssScale = iframeDisplayRect.width / nativeW;
   const offsetX = iframeDisplayRect.left - overlayRect.left;
   const offsetY = iframeDisplayRect.top - overlayRect.top;
 
@@ -101,19 +107,16 @@ function readWordBoxes(
       const segId = group.segmentIds[wi];
       const wordEl = resolvedWordEls[wi] as HTMLElement | undefined;
       if (!wordEl) continue;
-      // getBoundingClientRect() returns values in the iframe's viewport coords.
-      // The iframe is CSS-scaled, but getBoundingClientRect already reflects
-      // the scaled coordinates, so we only apply the offset — no scale multiplier.
       const rect = wordEl.getBoundingClientRect();
       boxes.push({
         segmentId: segId,
         groupId,
         groupIndex: gi,
         wordIndex: wi,
-        x: rect.left + offsetX,
-        y: rect.top + offsetY,
-        width: rect.width,
-        height: rect.height,
+        x: rect.left * cssScale + offsetX,
+        y: rect.top * cssScale + offsetY,
+        width: rect.width * cssScale,
+        height: rect.height * cssScale,
       });
     }
   }
