@@ -10,6 +10,7 @@ This repo ships skills that are installed globally via `npx hyperframes skills` 
 | ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **hyperframes-compose**  | `/hyperframes-compose`  | Creating ANY HTML composition — videos, animations, title cards, overlays. Contains required HTML structure, `class="clip"` rules, GSAP timeline patterns, and rendering constraints. |
 | **hyperframes-captions** | `/hyperframes-captions` | Any task involving text synced to audio: captions, subtitles, lyrics, lyric videos, karaoke. Also covers transcription strategy (whisper model selection, transcript format).         |
+| **hyperframes-fonts**    | `/hyperframes-fonts`    | Font selection, loading, and troubleshooting. Use when choosing fonts, fixing broken text in renders, or ensuring fonts work in Docker/offline.                                       |
 
 ### GSAP Skills (from [greensock/gsap-skills](https://github.com/greensock/gsap-skills))
 
@@ -34,6 +35,7 @@ The skills encode HyperFrames-specific patterns (e.g., required `class="clip"` o
 - When creating a video from audio (music video, lyric video, audio visualizer with text) → invoke BOTH `/hyperframes-compose` AND `/hyperframes-captions`
 - When writing GSAP animations → invoke `/gsap-core` and `/gsap-timeline` BEFORE writing any code
 - When optimizing animation performance → invoke `/gsap-performance` BEFORE making changes
+- When choosing fonts or troubleshooting font issues in renders → invoke `/hyperframes-fonts` BEFORE adding @font-face rules or Google Fonts imports
 - After creating or editing any `.html` composition → run `npx hyperframes lint` and `npx hyperframes validate` in parallel, fix all errors before opening the studio or considering the task complete. `lint` checks the HTML structure statically; `validate` loads the composition in headless Chrome and catches runtime JS errors, missing assets, and failed network requests. Always validate before `npx hyperframes preview`.
 
 ### Installing skills
@@ -44,7 +46,6 @@ npx skills add greensock/gsap-skills     # GSAP skills
 ```
 
 Uses [vercel-labs/skills](https://github.com/vercel-labs/skills). Installs to Claude Code, Gemini CLI, and Codex CLI by default. Pass `-a <agent>` for other targets.
-
 
 ## Project Overview
 
