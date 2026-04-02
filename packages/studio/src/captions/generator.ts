@@ -233,6 +233,10 @@ function hexToRgba(color: string, opacity: number): string {
   if (color.startsWith("rgb")) {
     return color;
   }
+  // Named colors and other non-hex values — return as-is
+  if (!color.startsWith("#")) {
+    return color;
+  }
   // Try to parse hex
   const hex = color.replace("#", "");
   if (hex.length === 3 || hex.length === 6) {

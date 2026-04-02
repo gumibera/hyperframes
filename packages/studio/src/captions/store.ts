@@ -7,6 +7,8 @@ import {
   CaptionStyle,
 } from "./types";
 
+let nextSplitId = 0;
+
 interface CaptionState {
   isEditMode: boolean;
   model: CaptionModel | null;
@@ -57,7 +59,7 @@ const initialState = {
   sourceFilePath: null,
 };
 
-export const useCaptionStore = create<CaptionState>((set, get) => ({
+export const useCaptionStore = create<CaptionState>((set) => ({
   ...initialState,
 
   // Basic
@@ -186,7 +188,7 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
       const firstIds = group.segmentIds.slice(0, splitIndex);
       const secondIds = group.segmentIds.slice(splitIndex);
 
-      const newGroupId = `group-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const newGroupId = `group-split-${nextSplitId++}`;
       const groups = new Map(state.model.groups);
       groups.set(groupId, { ...group, segmentIds: firstIds });
       groups.set(newGroupId, { ...group, id: newGroupId, segmentIds: secondIds });
@@ -232,7 +234,7 @@ export const useCaptionStore = create<CaptionState>((set, get) => ({
       });
 
       // Clear selection if it referenced group2
-      const selectedGroupId = get().selectedGroupId === groupId2 ? null : get().selectedGroupId;
+      const selectedGroupId = state.selectedGroupId === groupId2 ? null : state.selectedGroupId;
 
       return { model: { ...state.model, groups, segments, groupOrder }, selectedGroupId };
     }),

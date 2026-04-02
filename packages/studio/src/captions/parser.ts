@@ -107,6 +107,8 @@ export function buildCaptionModel(
 export function extractTranscript(source: string): TranscriptWord[] {
   // Match: (const|let|var) (TRANSCRIPT|script) = [...]
   // The array may span multiple lines and contain trailing commas.
+  // The lazy [\s\S]*? anchors on the first `];` — assumes transcript word
+  // text never contains a literal `];` string (safe for speech transcripts).
   const varPattern = /(?:const|let|var)\s+(?:TRANSCRIPT|script)\s*=\s*(\[[\s\S]*?\]);/;
   const match = source.match(varPattern);
 
