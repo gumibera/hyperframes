@@ -74,10 +74,11 @@ export function useCaptionSync(projectId: string | null) {
 
     const overrides = buildOverrides(state.model);
 
-    fetch(
-      `/api/projects/${pid}/files/${encodeURIComponent("caption-overrides.json")}`,
-      { method: "PUT", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(overrides, null, 2) },
-    ).catch(() => {});
+    fetch(`/api/projects/${pid}/files/${encodeURIComponent("caption-overrides.json")}`, {
+      method: "PUT",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(overrides, null, 2),
+    }).catch(() => {});
   }, []);
 
   // Auto-save on model changes with 800ms debounce
@@ -114,6 +115,7 @@ export function useCaptionSync(projectId: string | null) {
       const res = await fetch(
         `/api/projects/${pid}/files/${encodeURIComponent("caption-overrides.json")}`,
       );
+      if (!res.ok) return;
       const data = await res.json();
       if (!data.content) return;
 
@@ -140,7 +142,10 @@ export function useCaptionSync(projectId: string | null) {
         const style: Partial<CaptionStyle> = { ...seg.style };
         if (override.x !== undefined) style.x = override.x;
         if (override.y !== undefined) style.y = override.y;
-        if (override.scale !== undefined) { style.scaleX = override.scale; style.scaleY = override.scale; }
+        if (override.scale !== undefined) {
+          style.scaleX = override.scale;
+          style.scaleY = override.scale;
+        }
         if (override.rotation !== undefined) style.rotation = override.rotation;
         if (override.activeColor !== undefined) style.activeColor = override.activeColor;
         if (override.dimColor !== undefined) style.dimColor = override.dimColor;
