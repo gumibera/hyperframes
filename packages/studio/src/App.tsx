@@ -78,7 +78,10 @@ export function StudioApp() {
 
     const tryActivateCaptions = () => {
       if (useCaptionStore.getState().isEditMode || activating) {
-        if (pollId) { clearInterval(pollId); pollId = null; }
+        if (pollId) {
+          clearInterval(pollId);
+          pollId = null;
+        }
         return;
       }
 
@@ -88,7 +91,9 @@ export function StudioApp() {
       try {
         doc = iframe?.contentDocument ?? null;
         win = iframe?.contentWindow ?? null;
-      } catch { return; }
+      } catch {
+        return;
+      }
       if (!doc || !win) return;
 
       const groups = doc.querySelectorAll(".caption-group");
@@ -102,7 +107,8 @@ export function StudioApp() {
       // Strategy 1: data-composition-src or data-composition-file attributes
       const compHosts = doc.querySelectorAll("[data-composition-src], [data-composition-file]");
       for (const host of compHosts) {
-        const src = host.getAttribute("data-composition-src") || host.getAttribute("data-composition-file");
+        const src =
+          host.getAttribute("data-composition-src") || host.getAttribute("data-composition-file");
         if (src && src.includes("captions")) {
           captionSrcPath = src;
           break;
@@ -154,7 +160,9 @@ export function StudioApp() {
           captionSync.loadOverrides();
         })
         .catch(() => {})
-        .finally(() => { activating = false; });
+        .finally(() => {
+          activating = false;
+        });
     };
 
     // Listen for runtime messages that signal composition loading is complete
@@ -175,7 +183,7 @@ export function StudioApp() {
       window.removeEventListener("message", handleMessage);
       if (pollId) clearInterval(pollId);
     };
-  }, [activeCompPath, projectId, compIdToSrc]);
+  }, [activeCompPath, projectId, compIdToSrc, captionSync]);
 
   // Auto-expand right panel when a caption word is selected
   // eslint-disable-next-line no-restricted-syntax
@@ -295,7 +303,6 @@ export function StudioApp() {
   const projectIdRef = useRef(projectId);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
   const consoleErrorsRef = useRef<LintFinding[]>([]);
-
 
   // Listen for external file changes (user editing HTML outside the editor).
   // In dev: use Vite HMR. In embedded/production: use SSE from /api/events.
@@ -850,9 +857,7 @@ export function StudioApp() {
               });
             }}
             previewOverlay={
-              captionEditMode ? (
-                <CaptionOverlay iframeRef={previewIframeRef} />
-              ) : undefined
+              captionEditMode ? <CaptionOverlay iframeRef={previewIframeRef} /> : undefined
             }
             timelineFooter={
               captionEditMode ? (
