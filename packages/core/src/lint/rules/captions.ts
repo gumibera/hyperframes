@@ -55,6 +55,59 @@ export const captionRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> 
     return findings;
   },
 
+  // caption_transcript_not_inline
+  ({ scripts, styles, options }) => {
+    const findings: HyperframeLintFinding[] = [];
+    // Only check files that look like caption compositions
+    const isCaptionFile =
+      (options.filePath && /caption/i.test(options.filePath)) ||
+      styles.some((s) => /\.caption[-_]?(?:group|word)/i.test(s.content));
+    if (!isCaptionFile) return findings;
+
+    const allScript = scripts.map((s) => s.content).join("\n");
+    const hasInlineTranscript = /(?:const|let|var)\s+(?:TRANSCRIPT|script)\s*=\s*\[/.test(
+      allScript,
+    );
+    const hasFetchTranscript = /fetch\s*\(\s*["'][^"']*transcript/i.test(allScript);
+
+    if (!hasInlineTranscript && hasFetchTranscript) {
+      findings.push({
+        code: "caption_transcript_not_inline",
+        severity: "warning",
+        message:
+          "Captions composition loads transcript via fetch(). The studio caption editor " +
+          "requires an inline `var TRANSCRIPT = [...]` array to detect and edit captions.",
+        fixHint:
+          'Embed the transcript as `var TRANSCRIPT = [{ "text": "...", "start": 0, "end": 1 }, ...]` ' +
+          "with JSON-quoted property keys. See the captions skill for details.",
+      });
+    }
+
+    if (hasInlineTranscript) {
+      // Verify the inline transcript can be parsed
+      const varPattern = /(?:const|let|var)\s+(?:TRANSCRIPT|script)\s*=\s*(\[[\s\S]*?\]);/;
+      const match = allScript.match(varPattern);
+      if (match?.[1]) {
+        try {
+          JSON.parse(match[1]);
+        } catch {
+          findings.push({
+            code: "caption_transcript_parse_error",
+            severity: "warning",
+            message:
+              "Inline TRANSCRIPT array is not valid JSON. The studio caption editor may fail " +
+              "to parse it. Common cause: unquoted property keys with apostrophes in text.",
+            fixHint:
+              'Use JSON-quoted keys: { "text": "don\'t", "start": 0, "end": 1 } instead of ' +
+              '{ text: "don\'t", start: 0, end: 1 }.',
+          });
+        }
+      }
+    }
+
+    return findings;
+  },
+
   // caption_container_relative_position
   ({ styles }) => {
     const findings: HyperframeLintFinding[] = [];
