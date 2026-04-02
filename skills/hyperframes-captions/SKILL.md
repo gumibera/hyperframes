@@ -1,7 +1,7 @@
 ---
 name: hyperframes-captions
-description: Build tone-adaptive captions from whisper transcripts. Detects script energy (hype, corporate, tutorial, storytelling, social) and applies matching typography, color, and animation. Supports per-word styling for brand names, ALL CAPS, numbers, and CTAs. Use when adding captions, subtitles, or lyrics to a HyperFrames composition. Lyric videos ARE captions — any text synced to audio uses this skill.
-trigger: Use this skill whenever a task involves syncing text to audio timing. This includes captions, subtitles, lyrics, karaoke, transcription overlays, and any word-level or phrase-level text timed to speech or music.
+description: Captions, subtitles, lyrics, and karaoke synced to audio in HyperFrames. Tone-adaptive — detects script energy and applies matching typography, color, and animation with per-word styling.
+trigger: Syncing text to audio timing — captions, subtitles, lyrics, karaoke, transcription overlays, word-level or phrase-level text timed to speech or music.
 ---
 
 # Captions
@@ -11,6 +11,7 @@ trigger: Use this skill whenever a task involves syncing text to audio timing. T
 **Never use `.en` models unless the user explicitly states the audio is English.** `.en` models (small.en, medium.en) TRANSLATE non-English audio into English instead of transcribing it. This silently destroys the original language.
 
 When transcribing:
+
 1. If the user says the language → use `--model small --language <code>` (no `.en` suffix)
 2. If the user says it's English → use `--model small.en`
 3. If the language is unknown → use `--model small` (no `.en`, no `--language`) — whisper auto-detects
@@ -18,6 +19,7 @@ When transcribing:
 **Default model is `small` (not `small.en`).** Only add `.en` when explicitly told the audio is English.
 
 ---
+
 
 Analyze the spoken content to determine caption style. If the user specifies a style, use that. Otherwise, detect tone from the transcript.
 
@@ -38,7 +40,7 @@ This is the only format the captions composition consumes. Use it directly:
 const words = JSON.parse(transcriptJson); // [{ text, start, end }]
 ```
 
-For transcription commands, whisper model selection, external APIs (OpenAI, Groq), and supported input formats, see [transcript-guide.md](./transcript-guide.md). **After every transcription, read the transcript and run the quality check** — bad transcripts (music tokens, garbled words) must be retried with a larger model before proceeding.
+For transcription commands, whisper model selection, external APIs (OpenAI, Groq), and supported input formats, see [transcript-guide.md](./transcript-guide.md).
 
 ## Style Detection (Default — When No Style Is Specified)
 
@@ -99,42 +101,13 @@ For each detected word, specify:
 
 ## Script-to-Style Mapping
 
-Read the transcript. Detect the energy. The tone determines everything — typography, color, animation techniques. Use the table below to select your full animation stack.
-
-| Detected energy                      | Font mood                      | Color                       | Entrance                     | Highlight                | Exit                |
-| ------------------------------------ | ------------------------------ | --------------------------- | ---------------------------- | ------------------------ | ------------------- |
-| High (hype, launch, music, anthem)   | Heavy condensed, 800-900       | Bright accent on dark       | Slam heroes + elastic others | Karaoke with accent glow | Scatter or drop     |
-| Medium-high (social, casual, upbeat) | Rounded sans, 700-800          | Playful, colored pills      | Elastic springs + staggered  | Karaoke with color pop   | Scatter or collapse |
-| Medium (corporate, pitch, explainer) | Clean sans, 600-700            | White on dark, muted accent | Clip-path reveal             | Karaoke (subtle)         | Fade + slide        |
-| Medium-low (tutorial, educational)   | Mono or clean sans, 500-600    | High contrast, minimal      | Staggered entrance           | Karaoke (minimal scale)  | Fade                |
-| Low (storytelling, cinematic, brand) | Serif or elegant sans, 400-500 | Warm muted tones            | 3D rotation                  | Karaoke (warm tones)     | Collapse            |
-
-**How to detect energy from the transcript:**
-
-- High energy: short sentences, exclamations, repetition ("up, up, up"), emotional vocabulary ("dream", "shine", "believe", "fire"), song lyrics, fast delivery (many words per second)
-- Medium energy: declarative statements, product descriptions, mixed sentence length, moderate pacing
-- Low energy: long flowing sentences, reflective/introspective language, slow pacing (few words per second), narrative arcs
-
-When in doubt, **bias toward higher energy**. Boring captions are worse than slightly over-animated ones.
-
-## Animation Design (Mandatory)
-
-Before writing any animation code, read [dynamic-techniques.md](./dynamic-techniques.md) for the implementation patterns referenced in the table above.
-
-**Minimum requirements — every caption composition must have:**
-
-- At least **2 distinct highlight techniques** — cycle them across groups (e.g., odd groups get elastic pop, even groups get clip-path wipe)
-- At least **1 kinetic exit** (scatter, collapse, or drop) — fade-out alone is not acceptable for medium energy or above
-- **Karaoke highlight** on every composition — all words visible but muted, each lights up when spoken. This is the baseline, not optional.
-- **Emphasis words get special treatment** — words flagged by per-word styling (emotional keywords, ALL CAPS, brand names) must use a different animation than surrounding words (slam, scale-pop with overshoot, or 3D flip)
-
-**Technique cycling:** never use the same entrance on more than 3 consecutive groups. Rotate techniques using the group index to create variety. Higher energy content should cycle through more techniques.
-
-**Energy scaling:** the detected energy level controls animation intensity:
-
-- High: large overshoot (back.out(2.5)), fast timing (0.1-0.2s), 3+ techniques per composition, scatter/drop exits
-- Medium: moderate motion (back.out(1.4)), standard timing (0.2-0.4s), 2 techniques, clip-path + fade exits
-- Low: gentle reveals (power2.out), slow timing (0.4-0.6s), 1-2 techniques, collapse/fade exits
+| Script tone          | Font mood                             | Animation                               | Color                                        | Size                 |
+| -------------------- | ------------------------------------- | --------------------------------------- | -------------------------------------------- | -------------------- |
+| Hype/launch          | Heavy condensed, 800-900 weight       | Scale-pop, back.out(1.7), fast 0.1-0.2s | Bright accent on dark (cyan, yellow, lime)   | Large 72-96px        |
+| Corporate/pitch      | Clean sans-serif, 600-700 weight      | Fade + slide-up, power3.out, 0.3s       | White/neutral on dark, single muted accent   | Medium 56-72px       |
+| Tutorial/educational | Mono or clean sans, 500-600 weight    | Typewriter or gentle fade, 0.4-0.5s     | High contrast, minimal color                 | Medium 48-64px       |
+| Storytelling/brand   | Serif or elegant sans, 400-500 weight | Slow fade, power2.out, 0.5-0.6s         | Warm muted tones, low opacity (0.85-0.9)     | Smaller 44-56px      |
+| Social/casual        | Rounded sans, 700-800 weight          | Bounce, elastic.out, word-by-word       | Playful colors, colored backgrounds on pills | Medium-large 56-80px |
 
 ## Word Grouping by Tone
 
@@ -222,14 +195,11 @@ tl.seek(0);
 
 Place this **before** `window.__timelines[id] = tl` so it runs at composition init.
 
-## Studio Caption Editor Compatibility
+## References
 
-The HyperFrames Studio can edit captions in real time, but only if the composition follows these rules:
+For dynamic animation techniques (karaoke, clip-path reveals, slam words, scatter exits, elastic entrances, 3D rotation, audio-reactive captions, pretext-based positioning and grouping), see [dynamic-techniques.md](./dynamic-techniques.md).
 
-- **Inline the transcript as `var TRANSCRIPT = [...]`** — the studio's parser extracts the transcript by matching this variable name in the composition source. Using `fetch()` to load transcript data at runtime will NOT be detected.
-- **Use JSON-quoted property keys** — write `{ "text": "hello", "start": 0, "end": 1 }` not `{ text: "hello", start: 0, end: 1 }`. The parser's fallback normalization for unquoted keys breaks on apostrophes in words like `didn't`.
-- **Use `.caption-group` and `.caption-word` CSS classes** — the studio detects caption elements by these class names.
-- **Audio data can be inline or fetched** — only the transcript must be inline. Audio data loaded via `fetch("audio-data.json")` or embedded as `var AUDIO = {...}` both work.
+For transcription commands, whisper models, external APIs, and troubleshooting, see [transcript-guide.md](./transcript-guide.md).
 
 ## Constraints
 
@@ -237,6 +207,4 @@ The HyperFrames Studio can edit captions in real time, but only if the compositi
 - **Sync to transcript timestamps.** Words appear when spoken.
 - **One group visible at a time.** No overlapping caption groups.
 - **Every caption group must have a hard `tl.set` kill at `group.end`.** Exit animations alone are not sufficient.
-- **Never `overflow: hidden` on caption containers or groups.** Glow, shadow, and scale effects paint outside the box — clipping them creates hard visual cutoffs. Always use `overflow: visible`.
-- **Music requires audio-reactive captions.** If the source audio is music (any genre, any energy level), extract audio data with `extract-audio-data.py` and use it to modulate group entrance intensity (scale, glow) in the group loop. No special wiring needed — see [dynamic-techniques.md](./dynamic-techniques.md). This is not optional.
 - **Check project root** for font files before defaulting to Google Fonts.
