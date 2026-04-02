@@ -83,25 +83,30 @@ export function applyCaptionOverrides(): void {
         if (override.fontWeight !== undefined) styleProps.fontWeight = override.fontWeight;
         if (override.fontFamily !== undefined) styleProps.fontFamily = override.fontFamily;
 
-        // Replace color values in existing GSAP tweens by timeline order.
-        // For any word, color tweens follow: dim (setup) → active (spoken) → after.
-        // Sort by startTime and assign by position, not by content heuristics.
+        // Replace color values in existing GSAP tweens.
+        // Instead of relying on timeline position order (fragile if custom
+        // color tweens exist), we classify each tween by comparing its
+        // target color to the current computed color of the element.
+        // Tweens that match the current color are "dim" tweens; tweens
+        // with a different color are "active" tweens.
         if (override.activeColor || override.dimColor) {
           const allTweens = gsap.getTweensOf(el);
           const colorTweens = allTweens
             .filter((tw) => tw.vars.color !== undefined)
             .sort((a, b) => a.startTime() - b.startTime());
 
-          for (let i = 0; i < colorTweens.length; i++) {
-            if (i === 0 && override.dimColor) {
-              // First color tween = dim setup
-              colorTweens[i].vars.color = override.dimColor;
-            } else if (i === 1 && override.activeColor) {
-              // Second color tween = active/spoken
-              colorTweens[i].vars.color = override.activeColor;
-            } else if (i >= 2 && override.dimColor) {
-              // Third+ = after/deactivate (use dim color)
-              colorTweens[i].vars.color = override.dimColor;
+          // Use the first tween's color as the dim baseline — if no tweens,
+          // fall back to computed style.
+          const dimBaseline = colorTweens.length > 0 ? String(colorTweens[0].vars.color) : "";
+
+          for (const tw of colorTweens) {
+            const tweenColor = String(tw.vars.color);
+            if (tweenColor === dimBaseline) {
+              // This tween targets the dim/inactive color
+              if (override.dimColor) tw.vars.color = override.dimColor;
+            } else {
+              // This tween targets the active/spoken color
+              if (override.activeColor) tw.vars.color = override.activeColor;
             }
           }
 

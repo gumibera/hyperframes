@@ -376,8 +376,8 @@ export const NLELayout = memo(function NLELayout({
                 onDrillDown={handleDrillDown}
                 renderClipContent={renderClipContent}
               />
-              {timelineFooter}
             </div>
+            {timelineFooter && <div className="flex-shrink-0">{timelineFooter}</div>}
           </div>
         </>
       )}

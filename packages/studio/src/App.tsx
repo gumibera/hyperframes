@@ -65,20 +65,18 @@ export function StudioApp() {
   const [rightWidth, setRightWidth] = useState(400);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(true);
-  // Auto-enter caption edit mode when viewing a captions composition
   // Auto-enter caption edit mode when the iframe contains .caption-group elements.
-  // Listens for the runtime's postMessage events (state/timeline) which fire after
-  // all compositions are loaded, then checks for caption groups.
+  // This is a subscription to external events (postMessage from runtime) — useEffect
+  // is appropriate here. The runtime fires "state"/"timeline" messages after all
+  // compositions load, which triggers caption detection.
   // eslint-disable-next-line no-restricted-syntax
   useEffect(() => {
     if (!projectId) return;
 
-    let pollId: ReturnType<typeof setInterval> | null = null;
     let activating = false;
 
     const tryActivateCaptions = () => {
       if (useCaptionStore.getState().isEditMode || activating) {
-        if (pollId) { clearInterval(pollId); pollId = null; }
         return;
       }
 
@@ -88,7 +86,9 @@ export function StudioApp() {
       try {
         doc = iframe?.contentDocument ?? null;
         win = iframe?.contentWindow ?? null;
-      } catch { return; }
+      } catch {
+        return;
+      }
       if (!doc || !win) return;
 
       const groups = doc.querySelectorAll(".caption-group");
@@ -102,7 +102,8 @@ export function StudioApp() {
       // Strategy 1: data-composition-src or data-composition-file attributes
       const compHosts = doc.querySelectorAll("[data-composition-src], [data-composition-file]");
       for (const host of compHosts) {
-        const src = host.getAttribute("data-composition-src") || host.getAttribute("data-composition-file");
+        const src =
+          host.getAttribute("data-composition-src") || host.getAttribute("data-composition-file");
         if (src && src.includes("captions")) {
           captionSrcPath = src;
           break;
@@ -154,7 +155,9 @@ export function StudioApp() {
           captionSync.loadOverrides();
         })
         .catch(() => {})
-        .finally(() => { activating = false; });
+        .finally(() => {
+          activating = false;
+        });
     };
 
     // Listen for runtime messages that signal composition loading is complete
@@ -168,14 +171,11 @@ export function StudioApp() {
     window.addEventListener("message", handleMessage);
     // Try immediately in case compositions are already loaded
     tryActivateCaptions();
-    // Poll until captions are detected — sub-composition scripts run async
-    pollId = setInterval(tryActivateCaptions, 200);
 
     return () => {
       window.removeEventListener("message", handleMessage);
-      if (pollId) clearInterval(pollId);
     };
-  }, [activeCompPath, projectId, compIdToSrc]);
+  }, [activeCompPath, projectId, compIdToSrc, captionSync]);
 
   // Auto-expand right panel when a caption word is selected
   // eslint-disable-next-line no-restricted-syntax
@@ -295,7 +295,6 @@ export function StudioApp() {
   const projectIdRef = useRef(projectId);
   const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
   const consoleErrorsRef = useRef<LintFinding[]>([]);
-
 
   // Listen for external file changes (user editing HTML outside the editor).
   // In dev: use Vite HMR. In embedded/production: use SSE from /api/events.
@@ -850,14 +849,15 @@ export function StudioApp() {
               });
             }}
             previewOverlay={
-              captionEditMode ? (
-                <CaptionOverlay iframeRef={previewIframeRef} />
-              ) : undefined
+              captionEditMode ? <CaptionOverlay iframeRef={previewIframeRef} /> : undefined
             }
             timelineFooter={
               captionEditMode ? (
-                <div className="border-t border-neutral-800/30">
-                  <div className="flex items-center gap-1.5 px-2 py-1">
+                <div
+                  className="border-t border-neutral-800/30 flex-shrink-0"
+                  style={{ height: 60 }}
+                >
+                  <div className="flex items-center gap-1.5 px-2 py-0.5">
                     <span className="text-[9px] font-medium text-neutral-500 uppercase tracking-wider">
                       Captions
                     </span>

@@ -51,7 +51,9 @@ function readWordBoxes(
     if (!groupEl) continue;
     const computed = win.getComputedStyle(groupEl);
     if (parseFloat(computed.opacity) <= 0.01 || computed.visibility === "hidden") continue;
-    // Find word spans — may be direct children or inside wrappers
+    // Find word elements — handles both per-word spans (generator output)
+    // and grouped text nodes (existing caption templates that use
+    // el.textContent = line.text instead of individual word spans).
     const resolvedWordEls: HTMLElement[] = [];
     for (const child of groupEl.children) {
       const c = child as HTMLElement;
@@ -60,6 +62,39 @@ function readWordBoxes(
         if (inner) resolvedWordEls.push(inner);
       } else if (c.tagName === "SPAN") {
         resolvedWordEls.push(c);
+      }
+    }
+    // Fallback: if no word spans found but group has text content,
+    // the template uses grouped text. Wrap each word in a span so
+    // the overlay can target them individually.
+    if (resolvedWordEls.length === 0 && groupEl.textContent?.trim()) {
+      const textNode = groupEl.childNodes[0];
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const words = (textNode.textContent || "").split(/\s+/).filter(Boolean);
+        const frag = doc.createDocumentFragment();
+        for (const word of words) {
+          const span = doc.createElement("span");
+          span.textContent = word + " ";
+          span.style.display = "inline";
+          frag.appendChild(span);
+          resolvedWordEls.push(span);
+        }
+        groupEl.replaceChild(frag, textNode);
+      } else {
+        // Single span child with all text (e.g. vignelli template)
+        const singleSpan = groupEl.querySelector<HTMLElement>(":scope > span");
+        if (singleSpan && singleSpan.textContent?.trim()) {
+          const words = singleSpan.textContent.split(/\s+/).filter(Boolean);
+          const frag = doc.createDocumentFragment();
+          for (const word of words) {
+            const span = doc.createElement("span");
+            span.textContent = word + " ";
+            span.style.display = "inline";
+            frag.appendChild(span);
+            resolvedWordEls.push(span);
+          }
+          singleSpan.replaceWith(frag);
+        }
       }
     }
     for (let wi = 0; wi < group.segmentIds.length; wi++) {
