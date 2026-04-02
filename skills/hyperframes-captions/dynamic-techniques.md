@@ -20,44 +20,47 @@ You are here because SKILL.md told you to read this file before writing animatio
 
 **If the source audio is music (vocals over instrumentation, beats, any musical content), you MUST extract audio data and add audio-reactive animations.** This is not optional — music without audio reactivity looks disconnected. Even low-energy ballads get subtle bass pulse and treble glow.
 
-This is the one pattern that requires HyperFrames-specific wiring — the async loading and timeline registration order matters.
-
-**Critical: register the timeline synchronously** (`window.__timelines["id"] = tl`) before the fetch. The player needs the timeline immediately to start playback. GSAP timelines are mutable — `tl.call()` entries added later in the fetch callback will fire when the player seeks to those times.
+No special wiring is needed. The group loop already iterates over every caption group to build entrance, karaoke, and exit tweens. At that point, read the audio data for each group's time range and use it to modulate the group's animation intensity with regular GSAP tweens.
 
 ```js
-// Register BEFORE fetch so the player can find the timeline
-window.__timelines["captions"] = tl;
+// Load audio data inline (same pattern as TRANSCRIPT)
+var AUDIO = JSON.parse(audioDataJson); // { fps, totalFrames, frames: [{ bands: [...] }] }
 
-fetch("audio-data.json")
-  .then(function (r) {
-    return r.json();
-  })
-  .then(function (AUDIO) {
-    for (var f = 0; f < AUDIO.totalFrames; f++) {
-      tl.call(
-        (function (fi) {
-          return function () {
-            var frame = AUDIO.frames[fi];
-            if (!frame) return;
-            var bass = Math.max(frame.bands[0] || 0, frame.bands[1] || 0);
-            var treble = Math.max(frame.bands[6] || 0, frame.bands[7] || 0);
-            // Apply to visible caption groups
-            gsap.set(activeGroupEl, {
-              scale: 1 + bass * 0.06,
-              textShadow:
-                "0 0 " + Math.round(treble * 15) + "px rgba(255,255,255," + treble * 0.5 + ")",
-            });
-          };
-        })(f),
-        [],
-        f / AUDIO.fps,
-      );
-    }
-  })
-  .catch(function () {
-    // No audio data — continue without reactivity
-  });
+GROUPS.forEach(function (group, gi) {
+  var groupEl = document.getElementById("cg-" + gi);
+  if (!groupEl) return;
+
+  // Read peak energy for this group's time range
+  var startFrame = Math.floor(group.start * AUDIO.fps);
+  var endFrame = Math.min(Math.floor(group.end * AUDIO.fps), AUDIO.totalFrames - 1);
+  var peakBass = 0;
+  var peakTreble = 0;
+  for (var f = startFrame; f <= endFrame; f++) {
+    var frame = AUDIO.frames[f];
+    if (!frame) continue;
+    peakBass = Math.max(peakBass, frame.bands[0] || 0, frame.bands[1] || 0);
+    peakTreble = Math.max(peakTreble, frame.bands[6] || 0, frame.bands[7] || 0);
+  }
+
+  // Modulate entrance — louder groups enter bigger and glowier
+  tl.to(
+    groupEl,
+    {
+      scale: 1 + peakBass * 0.06,
+      textShadow:
+        "0 0 " + Math.round(peakTreble * 12) + "px rgba(255,255,255," + peakTreble * 0.4 + ")",
+      duration: 0.3,
+      ease: "power2.out",
+    },
+    group.start,
+  );
+
+  // Reset at exit so audio-driven values don't persist
+  tl.set(groupEl, { scale: 1, textShadow: "none" }, group.end - 0.15);
+});
 ```
+
+This shapes the animation at build time, not playback time — no per-frame callbacks, no `tl.call()` loops, no async fetch timing issues. Loud groups come in with more weight and glow; quiet groups come in soft. The audio data modulates _how much_, the content determines _what_.
 
 Keep audio reactivity subtle — 3-6% scale variation and soft glow. Heavy pulsing makes text unreadable.
 
@@ -79,5 +82,5 @@ These tools are available in the HyperFrames runtime. Use them when they solve a
 | ------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | **pretext**         | Pure-arithmetic text measurement without DOM reflow. 0.0002ms per call.   | `window.__hyperframes.pretext.prepare(text, font)` / `.layout(prepared, maxWidth, lineHeight)` | Per-frame text reflow, shrinkwrap containers, computing layout before render |
 | **fitTextFontSize** | Finds the largest font size that fits text on one line. Built on pretext. | `window.__hyperframes.fitTextFontSize(text, { maxWidth, fontFamily, fontWeight })`             | Overflow prevention for long phrases, portrait mode, large base sizes        |
-| **audio data**      | Pre-extracted per-frame RMS energy and frequency bands.                   | Extract with `extract-audio-data.py`, load via `fetch("audio-data.json")`                      | Audio-reactive visuals — scale, glow, color tied to the music                |
-| **GSAP**            | Animation timeline with tweens, callbacks, and per-frame control.         | `gsap.to()`, `gsap.set()`, `tl.call()`                                                         | All caption animation                                                        |
+| **audio data**      | Pre-extracted per-frame RMS energy and frequency bands.                   | Extract with `extract-audio-data.py`, load inline or via `fetch("audio-data.json")`            | Audio-reactive visuals — modulate intensity based on the music               |
+| **GSAP**            | Animation timeline with tweens and callbacks.                             | `gsap.to()`, `gsap.set()`, `tl.to()`, `tl.set()`                                               | All caption animation                                                        |
