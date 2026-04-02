@@ -1,7 +1,6 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback } from "react";
 import { useCaptionStore } from "../store";
 import type { CaptionStyle } from "../types";
-import { CaptionAnimationPanel } from "./CaptionAnimationPanel";
 import { Section, Row, inputCls } from "./shared";
 
 // ---------------------------------------------------------------------------
@@ -20,8 +19,6 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
   const selectedGroupId = useCaptionStore((s) => s.selectedGroupId);
   const updateSelectedStyle = useCaptionStore((s) => s.updateSelectedStyle);
   const updateGroupStyle = useCaptionStore((s) => s.updateGroupStyle);
-
-  const [activeTab, setActiveTab] = useState<"style" | "animation">("style");
 
   // Resolve effective style for the first selected segment
   const firstSegmentId = selectedSegmentIds.size > 0 ? [...selectedSegmentIds][0] : undefined;
@@ -179,14 +176,6 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
   const y = effectiveStyle.y ?? 0;
   const rotation = effectiveStyle.rotation ?? 0;
   const scaleX = effectiveStyle.scaleX ?? 1;
-  const fontSize = effectiveStyle.fontSize ?? 48;
-  const fontWeight = effectiveStyle.fontWeight ?? 700;
-  const fontFamily = effectiveStyle.fontFamily ?? "Inter";
-  const color = effectiveStyle.color ?? "#ffffff";
-  const activeColor = effectiveStyle.activeColor ?? "#ffffff";
-  const dimColor = effectiveStyle.dimColor ?? "#999999";
-  const letterSpacing = effectiveStyle.letterSpacing ?? 0;
-  const opacity = effectiveStyle.opacity ?? 1;
 
   // Count label
   const countLabel = selectedSegmentIds.size === 1 ? "1 word" : `${selectedSegmentIds.size} words`;
@@ -195,168 +184,54 @@ export const CaptionPropertyPanel = memo(function CaptionPropertyPanel({
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="px-3 py-2 border-b border-neutral-800 flex-shrink-0">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-2xs text-neutral-500">{countLabel}</span>
-        </div>
-        {/* Tab switcher */}
-        <div className="flex gap-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab("style")}
-            className={[
-              "flex-1 py-0.5 rounded text-2xs font-medium transition-colors",
-              activeTab === "style"
-                ? "bg-studio-accent/20 text-studio-accent border border-studio-accent/50"
-                : "text-neutral-500 border border-neutral-800 hover:text-neutral-300 hover:border-neutral-600",
-            ].join(" ")}
-          >
-            Style
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("animation")}
-            className={[
-              "flex-1 py-0.5 rounded text-2xs font-medium transition-colors",
-              activeTab === "animation"
-                ? "bg-studio-accent/20 text-studio-accent border border-studio-accent/50"
-                : "text-neutral-500 border border-neutral-800 hover:text-neutral-300 hover:border-neutral-600",
-            ].join(" ")}
-          >
-            Animation
-          </button>
-        </div>
+        <span className="text-2xs text-neutral-500">{countLabel}</span>
       </div>
 
-      {/* Animation tab */}
-      {activeTab === "animation" && <CaptionAnimationPanel />}
+      <div className="flex-1 overflow-y-auto px-3 py-2">
+        <Section label="Position">
+          <Row label="X">
+            <input
+              type="number"
+              value={x}
+              onChange={(e) => handleStyleChange({ x: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </Row>
+          <Row label="Y">
+            <input
+              type="number"
+              value={y}
+              onChange={(e) => handleStyleChange({ y: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </Row>
+        </Section>
 
-      {/* Style tab */}
-      {activeTab === "style" && (
-        <div className="flex-1 overflow-y-auto px-3 py-2">
-          <Section label="Typography">
-            <Row label="Font">
-              <input
-                type="text"
-                value={fontFamily}
-                onChange={(e) => handleStyleChange({ fontFamily: e.target.value })}
-                className={inputCls}
-              />
-            </Row>
-            <Row label="Size">
-              <input
-                type="number"
-                value={fontSize}
-                min={8}
-                step={1}
-                onChange={(e) => handleStyleChange({ fontSize: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </Row>
-            <Row label="Weight">
-              <input
-                type="number"
-                value={fontWeight}
-                min={100}
-                max={900}
-                step={100}
-                onChange={(e) => handleStyleChange({ fontWeight: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </Row>
-            <Row label="Spacing">
-              <input
-                type="number"
-                value={letterSpacing}
-                step={0.01}
-                onChange={(e) => handleStyleChange({ letterSpacing: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </Row>
-          </Section>
-
-          <Section label="Color">
-            <Row label="Color">
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => handleStyleChange({ color: e.target.value })}
-                className={inputCls + " h-6 p-0.5 cursor-pointer"}
-              />
-            </Row>
-            <Row label="Active">
-              <input
-                type="color"
-                value={activeColor}
-                onChange={(e) => handleStyleChange({ activeColor: e.target.value })}
-                className={inputCls + " h-6 p-0.5 cursor-pointer"}
-              />
-            </Row>
-            <Row label="Dim">
-              <input
-                type="color"
-                value={dimColor}
-                onChange={(e) => handleStyleChange({ dimColor: e.target.value })}
-                className={inputCls + " h-6 p-0.5 cursor-pointer"}
-              />
-            </Row>
-            <Row label="Opacity">
-              <input
-                type="number"
-                value={opacity}
-                min={0}
-                max={1}
-                step={0.1}
-                onChange={(e) => handleStyleChange({ opacity: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </Row>
-          </Section>
-
-          <Section label="Position">
-            <Row label="X">
-              <input
-                type="number"
-                value={x}
-                onChange={(e) => handleStyleChange({ x: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </Row>
-            <Row label="Y">
-              <input
-                type="number"
-                value={y}
-                onChange={(e) => handleStyleChange({ y: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </Row>
-          </Section>
-
-          <Section label="Transform">
-            <Row label="Scale">
-              <input
-                type="number"
-                value={scaleX}
-                step={0.1}
-                onChange={(e) =>
-                  handleStyleChange({
-                    scaleX: Number(e.target.value),
-                    scaleY: Number(e.target.value),
-                  })
-                }
-                className={inputCls}
-              />
-            </Row>
-            <Row label="Rotation">
-              <input
-                type="number"
-                value={rotation}
-                onChange={(e) => handleStyleChange({ rotation: Number(e.target.value) })}
-                className={inputCls}
-              />
-            </Row>
-          </Section>
-        </div>
-      )}
+        <Section label="Transform">
+          <Row label="Scale">
+            <input
+              type="number"
+              value={scaleX}
+              step={0.1}
+              onChange={(e) =>
+                handleStyleChange({
+                  scaleX: Number(e.target.value),
+                  scaleY: Number(e.target.value),
+                })
+              }
+              className={inputCls}
+            />
+          </Row>
+          <Row label="Rotation">
+            <input
+              type="number"
+              value={rotation}
+              onChange={(e) => handleStyleChange({ rotation: Number(e.target.value) })}
+              className={inputCls}
+            />
+          </Row>
+        </Section>
+      </div>
     </div>
   );
 });
