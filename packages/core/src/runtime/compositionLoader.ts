@@ -1,3 +1,38 @@
+// ── Prop interpolation (browser-safe) ─────────────────────────────────────
+
+const MUSTACHE_RE = /\{\{(\s*[\w.-]+\s*)\}\}/g;
+
+function parseVariableValues(raw: string | null): Record<string, string | number | boolean> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+    return parsed as Record<string, string | number | boolean>;
+  } catch {
+    return null;
+  }
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function interpolateHtml(html: string, values: Record<string, string | number | boolean>): string {
+  if (!html || Object.keys(values).length === 0) return html;
+  return html.replace(MUSTACHE_RE, (_match, rawKey: string) => {
+    const key = rawKey.trim();
+    if (key in values) return escapeHtml(String(values[key]));
+    return _match;
+  });
+}
+
+// ── Composition loader types ──────────────────────────────────────────────
+
 type LoadExternalCompositionsParams = {
   injectedStyles: HTMLStyleElement[];
   injectedScripts: HTMLScriptElement[];
@@ -277,7 +312,14 @@ export async function loadExternalCompositions(
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        const html = await response.text();
+        let html = await response.text();
+
+        // Interpolate {{key}} placeholders using data-props from host
+        const varValues = parseVariableValues(host.getAttribute("data-props"));
+        if (varValues) {
+          html = interpolateHtml(html, varValues);
+        }
+
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
         const template =

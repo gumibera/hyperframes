@@ -532,7 +532,7 @@ function generateElementHtml(element: TimelineElement, keyframes?: Keyframe[]): 
     }
     if (element.variableValues && Object.keys(element.variableValues).length > 0) {
       const varJson = JSON.stringify(element.variableValues);
-      compositionAttrs.push(`data-variable-values='${varJson.replace(/'/g, "&#39;")}'`);
+      compositionAttrs.push(`data-props='${varJson.replace(/'/g, "&#39;")}'`);
     }
     const attrs = compositionAttrs.join(" ");
     // Build iframe src with variable values as query params if present

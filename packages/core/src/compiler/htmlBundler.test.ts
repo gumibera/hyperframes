@@ -227,4 +227,106 @@ describe("bundleToSingleHtml", () => {
     expect(bundled).toContain('url("fonts/brand.woff2")');
     expect(bundled).not.toContain('url("../fonts/brand.woff2")');
   });
+
+  it("interpolates {{key}} placeholders in sub-compositions using data-props", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="card1"
+      data-composition-id="card1"
+      data-composition-src="compositions/card.html"
+      data-props='{"title":"Pro Plan","price":"$19/mo","featured":true}'
+      data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+    <div id="card2"
+      data-composition-id="card2"
+      data-composition-src="compositions/card.html"
+      data-props='{"title":"Enterprise","price":"$49/mo","featured":false}'
+      data-start="5" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+  <script>window.__timelines={}; const tl=gsap.timeline({paused:true}); window.__timelines["main"]=tl;</script>
+</body></html>`,
+      "compositions/card.html": `<template id="card1-template">
+  <div data-composition-id="card1" data-width="1920" data-height="1080">
+    <h2 class="card-title">{{title}}</h2>
+    <p class="card-price">{{price}}</p>
+    <span class="badge">Featured: {{featured}}</span>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const cardTl = gsap.timeline({ paused: true });
+      window.__timelines["card1"] = cardTl;
+    </script>
+  </div>
+</template>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    // Card 1 should have interpolated values
+    expect(bundled).toContain("Pro Plan");
+    expect(bundled).toContain("$19/mo");
+
+    // Card 2 should have its own interpolated values
+    expect(bundled).toContain("Enterprise");
+    expect(bundled).toContain("$49/mo");
+
+    // No raw mustache placeholders should remain for resolved keys
+    expect(bundled).not.toContain("{{title}}");
+    expect(bundled).not.toContain("{{price}}");
+  });
+
+  it("interpolates {{key}} in inline template compositions", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head></head><body>
+  <template id="badge-template">
+    <div data-composition-id="badge" data-width="1920" data-height="1080">
+      <span class="label">{{label}}</span>
+      <style>.label { color: {{color}}; }</style>
+    </div>
+  </template>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div data-composition-id="badge"
+      data-props='{"label":"BEST VALUE","color":"#ff0000"}'
+      data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+</body></html>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    expect(bundled).toContain("BEST VALUE");
+    expect(bundled).toContain("#ff0000");
+    expect(bundled).not.toContain("{{label}}");
+    expect(bundled).not.toContain("{{color}}");
+  });
+
+  it("HTML-escapes interpolated values to prevent XSS", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head></head><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div id="xss-test"
+      data-composition-id="xss-test"
+      data-composition-src="compositions/unsafe.html"
+      data-props='{"name":"<script>alert(1)</script>"}'
+      data-start="0" data-duration="5" data-track-index="0" class="clip"></div>
+  </div>
+</body></html>`,
+      "compositions/unsafe.html": `<template id="xss-test-template">
+  <div data-composition-id="xss-test" data-width="1920" data-height="1080">
+    <p>Hello, {{name}}</p>
+  </div>
+</template>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    // The interpolated content inside <p> should be escaped
+    expect(bundled).toContain("Hello, &lt;script&gt;alert(1)&lt;/script&gt;");
+    // The raw script tag should NOT appear as actual HTML content (only in the JSON attribute)
+    expect(bundled).not.toContain("<p>Hello, <script>alert(1)</script></p>");
+  });
 });

@@ -22,6 +22,8 @@ import {
   type UnresolvedElement,
   rewriteAssetPaths,
   rewriteCssAssetUrls,
+  interpolateProps,
+  parseVariableValues,
 } from "@hyperframes/core";
 import { extractVideoMetadata, extractAudioMetadata } from "../utils/ffprobe.js";
 import {
@@ -505,6 +507,12 @@ function inlineSubCompositions(
     }
     if (!compHtml) {
       continue;
+    }
+
+    // Interpolate {{key}} placeholders using data-props from the host element
+    const varValues = parseVariableValues(host.getAttribute("data-props"));
+    if (varValues) {
+      compHtml = interpolateProps(compHtml, varValues);
     }
 
     const compDoc = parseHTML(compHtml).document;

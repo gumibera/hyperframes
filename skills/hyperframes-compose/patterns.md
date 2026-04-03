@@ -116,3 +116,66 @@ Use separate elements on the same track, each with its own time range. Slides au
   </script>
 </div>
 ```
+
+## Reusable Components (data-props)
+
+Write a composition once, use it N times with different data. Avoids copy-pasting HTML for repeated elements like cards, team members, or chart bars.
+
+**Component file (compositions/stat-card.html):**
+
+```html
+<template id="stat-card-template">
+  <div data-composition-id="stat-card" data-width="1920" data-height="1080">
+    <style>
+      .stat-value { font-size: 120px; font-weight: 900; color: {{color}}; }
+      .stat-label { font-size: 32px; color: #fff; }
+    </style>
+    <div class="stat-value" id="val-inner">{{value}}</div>
+    <div class="stat-label" id="lbl-inner">{{label}}</div>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.from("#val-inner", { opacity: 0, scale: 0.5, duration: 0.8, ease: "back.out(2)" }, 0.2);
+      tl.from("#lbl-inner", { opacity: 0, y: 20, duration: 0.5 }, 0.6);
+      window.__timelines["stat-card"] = tl;
+    </script>
+  </div>
+</template>
+```
+
+**Root (index.html) — 3 instances:**
+
+```html
+<div
+  class="clip"
+  data-composition-id="revenue"
+  data-composition-src="compositions/stat-card.html"
+  data-props='{"value":"$2.4M","label":"Revenue","color":"#22c55e"}'
+  data-start="0"
+  data-duration="3"
+  data-track-index="1"
+></div>
+
+<div
+  class="clip"
+  data-composition-id="users"
+  data-composition-src="compositions/stat-card.html"
+  data-props='{"value":"14K","label":"Active Users","color":"#3b82f6"}'
+  data-start="3"
+  data-duration="3"
+  data-track-index="1"
+></div>
+
+<div
+  class="clip"
+  data-composition-id="nps"
+  data-composition-src="compositions/stat-card.html"
+  data-props='{"value":"72","label":"NPS Score","color":"#f59e0b"}'
+  data-start="6"
+  data-duration="3"
+  data-track-index="1"
+></div>
+```
+
+**Key:** Each host needs a unique `data-composition-id`. The `{{key}}` placeholders work in HTML, CSS, and scripts.

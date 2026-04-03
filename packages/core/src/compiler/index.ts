@@ -22,3 +22,6 @@ export {
   type HyperframeStaticFailureReason,
   type HyperframeStaticGuardResult,
 } from "./staticGuard";
+
+// Prop interpolation
+export { interpolateProps, interpolateScriptProps, parseVariableValues } from "./interpolateProps";

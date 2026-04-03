@@ -126,6 +126,13 @@ export {
   rewriteCssAssetUrls,
 } from "./compiler/rewriteSubCompPaths";
 
+// Prop interpolation
+export {
+  interpolateProps,
+  interpolateScriptProps,
+  parseVariableValues,
+} from "./compiler/interpolateProps";
+
 // Inline scripts
 export {
   HYPERFRAME_RUNTIME_ARTIFACTS,

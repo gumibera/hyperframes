@@ -272,7 +272,7 @@ export function parseHtml(html: string): ParsedHtml {
       const sourceHeight = sourceHeightAttr ? parseInt(sourceHeightAttr, 10) : undefined;
 
       // Parse variable values if present
-      const variableValuesAttr = el.getAttribute("data-variable-values");
+      const variableValuesAttr = el.getAttribute("data-props");
       let variableValues: Record<string, string | number | boolean> | undefined;
       if (variableValuesAttr) {
         try {

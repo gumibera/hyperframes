@@ -37,12 +37,13 @@ When no `visual-style.md` or animation direction is provided, follow [house-styl
 
 ### Composition Clips
 
-| Attribute                    | Required | Values                                       |
-| ---------------------------- | -------- | -------------------------------------------- |
-| `data-composition-id`        | Yes      | Unique composition ID                        |
-| `data-duration`              | Yes      | Takes precedence over GSAP timeline duration |
-| `data-width` / `data-height` | Yes      | Pixel dimensions (1920x1080 or 1080x1920)    |
-| `data-composition-src`       | No       | Path to external HTML file                   |
+| Attribute                    | Required | Values                                                            |
+| ---------------------------- | -------- | ----------------------------------------------------------------- |
+| `data-composition-id`        | Yes      | Unique composition ID                                             |
+| `data-duration`              | Yes      | Takes precedence over GSAP timeline duration                      |
+| `data-width` / `data-height` | Yes      | Pixel dimensions (1920x1080 or 1080x1920)                         |
+| `data-composition-src`       | No       | Path to external HTML file                                        |
+| `data-props`                 | No       | JSON object passed to sub-composition for `{{key}}` interpolation |
 
 ## Composition Structure
 
@@ -69,6 +70,65 @@ Every composition is a `<template>` wrapping a `<div>` with `data-composition-id
 ```
 
 Load in root: `<div id="el-1" data-composition-id="my-comp" data-composition-src="compositions/my-comp.html" data-start="0" data-duration="10" data-track-index="1"></div>`
+
+## Parameterized Compositions (data-props)
+
+Reuse a single composition with different data by passing `data-props` — a JSON object whose keys replace `{{key}}` placeholders in the sub-composition's HTML, CSS, and scripts.
+
+**Root (index.html) — use the same card 3 times:**
+
+```html
+<div
+  class="clip"
+  data-composition-id="card-free"
+  data-composition-src="compositions/card.html"
+  data-props='{"title":"Free","price":"$0","bgColor":"#6366f1"}'
+  data-start="0"
+  data-duration="4"
+  data-track-index="1"
+></div>
+<div
+  class="clip"
+  data-composition-id="card-pro"
+  data-composition-src="compositions/card.html"
+  data-props='{"title":"Pro","price":"$29","bgColor":"#ec4899"}'
+  data-start="4"
+  data-duration="4"
+  data-track-index="1"
+></div>
+```
+
+**Sub-composition (compositions/card.html) — uses `{{key}}` placeholders:**
+
+```html
+<template id="card-free-template">
+  <div data-composition-id="card-free" data-width="1920" data-height="1080">
+    <style>
+      .card { background: {{bgColor}}; }
+    </style>
+    <h2>{{title}}</h2>
+    <p>{{price}}/mo</p>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.from("h2", { opacity: 0, y: -20, duration: 0.6 }, 0.2);
+      window.__timelines["card-free"] = tl;
+    </script>
+  </div>
+</template>
+```
+
+**Rules:**
+
+- `data-props` value must be valid JSON: `'{"key":"value"}'`
+- Placeholders use mustache syntax: `{{key}}` (whitespace OK: `{{ key }}`)
+- Works in HTML content, CSS `<style>` blocks, and `<script>` blocks
+- Values are HTML-escaped in content/CSS (XSS-safe), raw in scripts
+- Unmatched `{{key}}` placeholders are left as-is (no error)
+- Supported value types: string, number, boolean
+
+**When to use:** Any time you have 2+ similar elements (pricing cards, team members, testimonials, chart bars, timeline steps). Write the component once, instantiate with different data.
 
 ## Video and Audio
 
@@ -147,6 +207,7 @@ For audio-driven animation (beat sync, glow, pulse), see the `audio-reactive` sk
 - [ ] Every top-level container has `data-composition-id`
 - [ ] Every composition has `data-width`, `data-height`, `data-duration`
 - [ ] Compositions in own HTML files, loaded via `data-composition-src`
+- [ ] Repeated elements use `data-props` instead of copy-pasting HTML
 - [ ] `<template>` wrapper on sub-compositions
 - [ ] `window.__timelines` registered for every composition
 - [ ] 100% deterministic — no randomness
