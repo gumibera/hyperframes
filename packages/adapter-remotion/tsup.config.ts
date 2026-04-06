@@ -5,6 +5,6 @@ export default defineConfig({
   format: ["esm"],
   dts: true,
   clean: true,
-  external: ["react", "react-dom", "@remotion/core", "@remotion/player"],
+  external: ["react", "react-dom", "remotion", "@remotion/player"],
   target: "es2022",
 });

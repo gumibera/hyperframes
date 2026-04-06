@@ -32,26 +32,26 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@remotion/core": "^4.0.0",
     "@remotion/player": "^4.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
+    "remotion": "^4.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
-    "@remotion/core": ">=4.0.0",
     "@remotion/player": ">=4.0.0",
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react-dom": ">=18.0.0",
+    "remotion": ">=4.0.0"
   },
   "peerDependenciesMeta": {
-    "@remotion/core": {
+    "@remotion/player": {
       "optional": true
     },
-    "@remotion/player": {
+    "remotion": {
       "optional": true
     }
   }
