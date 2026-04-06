@@ -21,17 +21,17 @@ Pick ONE primary (60-70% of scene changes) + 1-2 accents. Never use a different 
 
 Think about what the transition _communicates_, not just what it looks like.
 
-| Mood                     | Transitions                                                                            | Why it works                                                                                                            |
-| ------------------------ | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Warm / inviting**      | Light leak, blur crossfade, focus pull, film burn                                      | Soft edges, warm color washes. Nothing sharp or mechanical. The transition feels like sunlight.                         |
-| **Cold / clinical**      | Squeeze, zoom out, blinds, shutter, grid dissolve                                      | Content transforms mechanically — compressed, shrunk, sliced, gridded. Zoom out creates clinical distance. No softness. |
-| **Editorial / magazine** | Push slide, vertical push, diagonal split, shutter                                     | Like turning a page or slicing a layout. Clean directional movement. Diagonal split is a bold editorial cut.            |
-| **Tech / futuristic**    | Grid dissolve, staggered blocks, blinds, chromatic aberration                          | Grid dissolve is the core "data" transition. Pattern-based, coordinated. Data-grid aesthetic.                           |
-| **Tense / edgy**         | Glitch, VHS, chromatic aberration, flash cut, ripple                                   | Instability, distortion, digital breakdown. The medium itself is corrupted.                                             |
-| **Playful / fun**        | Elastic push, 3D flip, circle iris, morph circle, clock wipe                           | Overshoot, bounce, rotation, expansion. Clock wipe has a whimsical mechanical quality.                                  |
-| **Dramatic / cinematic** | Zoom through, zoom out, gravity drop, overexposure, diagonal split, color dip to black | Scale, weight, light extremes. Big spatial movements. Diagonal split is a bold geometric cut.                           |
-| **Premium / luxury**     | Focus pull, blur crossfade, color dip to black, slow crossfade                         | Restraint. Long durations, soft easing, minimal movement. The transition barely exists — that IS the luxury.            |
-| **Retro / analog**       | Film burn, light leak, VHS, clock wipe                                                 | Organic imperfection. Warm color bleeds, scan line displacement. Clock wipe evokes broadcast TV.                        |
+| Mood                     | Transitions                                                                                                                                                           | Why it works                                                                                                            |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Warm / inviting**      | Light leak, blur crossfade, focus pull, film burn, light leak (shader), thermal distortion                                                                            | Soft edges, warm color washes. Nothing sharp or mechanical. The transition feels like sunlight.                         |
+| **Cold / clinical**      | Squeeze, zoom out, blinds, shutter, grid dissolve, gravitational lens                                                                                                 | Content transforms mechanically — compressed, shrunk, sliced, gridded. Zoom out creates clinical distance. No softness. |
+| **Editorial / magazine** | Push slide, vertical push, diagonal split, shutter, whip pan                                                                                                          | Like turning a page or slicing a layout. Clean directional movement. Whip pan is a fast editorial camera move.          |
+| **Tech / futuristic**    | Grid dissolve, staggered blocks, blinds, chromatic aberration, glitch (shader), chromatic split (shader)                                                              | Grid dissolve is the core "data" transition. Shader glitch adds posterization + scan lines.                             |
+| **Tense / edgy**         | Glitch, VHS, chromatic aberration, flash cut, ripple, ridged burn, glitch (shader)                                                                                    | Instability, distortion, digital breakdown. Ridged burn adds sharp lightning-crack edges.                               |
+| **Playful / fun**        | Elastic push, 3D flip, circle iris, morph circle, clock wipe, ripple waves, swirl vortex                                                                              | Overshoot, bounce, rotation, expansion. Swirl vortex adds organic spiral distortion.                                    |
+| **Dramatic / cinematic** | Zoom through, zoom out, gravity drop, overexposure, diagonal split, color dip to black, cinematic zoom (shader), gravitational lens, domain warp, flash through white | Scale, weight, light extremes. Shader transitions add per-pixel depth.                                                  |
+| **Premium / luxury**     | Focus pull, blur crossfade, color dip to black, slow crossfade, cross-warp morph, thermal distortion                                                                  | Restraint. Cross-warp morph flows both scenes into each other organically.                                              |
+| **Retro / analog**       | Film burn, light leak, VHS, clock wipe                                                                                                                                | Organic imperfection. Warm color bleeds, scan line displacement. Clock wipe evokes broadcast TV.                        |
 
 ## Narrative Position
 
@@ -67,17 +67,35 @@ Think about what the transition _communicates_, not just what it looks like.
 
 Read [catalog.md](./catalog.md) for GSAP code and hard rules for every transition type.
 
-| Category             | Transitions                                                                                     |
-| -------------------- | ----------------------------------------------------------------------------------------------- |
-| Content-transforming | Push slide, vertical push, elastic push, squeeze, zoom through, zoom out, gravity drop, 3D flip |
-| Reveal/mask          | Circle iris, diamond iris, diagonal split, clock wipe, shutter                                  |
-| Dissolve             | Crossfade, blur crossfade, focus pull, color dip                                                |
-| Cover                | Staggered blocks, horizontal blinds, vertical blinds                                            |
-| Light                | Light leak, overexposure burn, film burn                                                        |
-| Distortion           | Glitch, chromatic aberration, ripple, VHS tape                                                  |
-| Pattern              | Grid dissolve                                                                                   |
-| Instant              | Flash cut, morph circle                                                                         |
+| Category             | Transitions                                                                                                                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Content-transforming | Push slide, vertical push, elastic push, squeeze, zoom through, zoom out, gravity drop, 3D flip                                                                                                                       |
+| Reveal/mask          | Circle iris, diamond iris, diagonal split, clock wipe, shutter                                                                                                                                                        |
+| Dissolve             | Crossfade, blur crossfade, focus pull, color dip                                                                                                                                                                      |
+| Cover                | Staggered blocks, horizontal blinds, vertical blinds                                                                                                                                                                  |
+| Light                | Light leak, overexposure burn, film burn                                                                                                                                                                              |
+| Distortion           | Glitch, chromatic aberration, ripple, VHS tape                                                                                                                                                                        |
+| Pattern              | Grid dissolve                                                                                                                                                                                                         |
+| Instant              | Flash cut, morph circle                                                                                                                                                                                               |
+| Shader (WebGL)       | Domain warp, ridged burn, whip pan, SDF iris, ripple waves, gravitational lens, cinematic zoom, chromatic split, glitch, swirl vortex, thermal distortion, flash through white, cross-warp morph, light leak (shader) |
 
 ## Transitions That Don't Work in CSS
 
 Avoid: star iris, tilt-shift, lens flare, hinge/door. See catalog.md for why.
+
+## CSS vs Shader: When to Use Which
+
+Most compositions should use **CSS/GSAP transitions** (the other categories above). They're simpler, lighter, and handle most needs. Use **shader transitions** only when you need an effect that CSS can't achieve:
+
+| Use CSS/GSAP when                              | Use Shader when                                 |
+| ---------------------------------------------- | ----------------------------------------------- |
+| Opacity, transform, clip-path, filter effects  | Per-pixel noise dissolves, domain warping       |
+| Simple crossfades, wipes, slides               | Both scenes actively morph into each other      |
+| No images/video in scenes (text + shapes only) | Live video needs to play through the transition |
+| Quick to set up, no boilerplate                | Willing to add WebGL setup layer (~200 lines)   |
+
+Shader transitions require setup boilerplate (canvas, scene capture, WebGL init). Read [references/shader-setup.md](./references/shader-setup.md) for the complete code. The fragment shaders themselves are in the Shader section of [catalog.md](./catalog.md).
+
+## Visual Pattern Warning
+
+Avoid transitions that create visible repeating geometric patterns — grids of tiles, hexagonal cells, uniform dot arrays, evenly-spaced blob circles. These look cheap and artificial regardless of the math behind them. Organic noise (FBM, domain warping) is good because it's irregular. Geometric repetition is bad because the eye instantly sees the grid.
