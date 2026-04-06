@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import type { Example } from "./_examples.js";
-import { existsSync, mkdirSync, statSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync, rmSync } from "node:fs";
 
 export const examples: Example[] = [
   ["Render to MP4", "hyperframes render --output output.mp4"],
@@ -11,7 +11,7 @@ export const examples: Example[] = [
 ];
 import { cpus, freemem, tmpdir } from "node:os";
 import { resolve, dirname, join, basename } from "node:path";
-import { execSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { resolveProject } from "../utils/project.js";
 import { lintProject, shouldBlockRender } from "../utils/lintProject.js";
 import { formatLintFindings } from "../utils/lintFormat.js";
@@ -271,18 +271,12 @@ interface RenderOptions {
   browserPath?: string;
 }
 
-// ── Docker image name + Dockerfile template ────────────────────────────────
-
 const DOCKER_IMAGE_PREFIX = "hyperframes-renderer";
 
 function dockerImageTag(version: string): string {
   return `${DOCKER_IMAGE_PREFIX}:${version}`;
 }
 
-/**
- * Generate the Dockerfile content for the render image.
- * Installs the same hyperframes version as the running CLI.
- */
 function generateDockerfile(version: string): string {
   return `FROM node:22-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \\
@@ -311,22 +305,15 @@ ENTRYPOINT ["hf-render"]
 `;
 }
 
-/**
- * Check if a Docker image exists locally.
- */
 function dockerImageExists(tag: string): boolean {
   try {
-    execSync(`docker image inspect ${tag}`, { stdio: "pipe", timeout: 10_000 });
+    execFileSync("docker", ["image", "inspect", tag], { stdio: "pipe", timeout: 10_000 });
     return true;
   } catch {
     return false;
   }
 }
 
-/**
- * Build the Docker render image if it doesn't already exist.
- * Returns the image tag.
- */
 function ensureDockerImage(version: string, quiet: boolean): string {
   const tag = dockerImageTag(version);
 
@@ -337,27 +324,24 @@ function ensureDockerImage(version: string, quiet: boolean): string {
 
   if (!quiet) console.log(c.dim(`  Building Docker image: ${tag}...`));
 
-  // Write Dockerfile to a temp directory
   const tmpDir = join(tmpdir(), `hyperframes-docker-${Date.now()}`);
   mkdirSync(tmpDir, { recursive: true });
   const dockerfilePath = join(tmpDir, "Dockerfile");
   writeFileSync(dockerfilePath, generateDockerfile(version));
 
-  // Build for linux/amd64 — chrome-headless-shell doesn't ship ARM Linux
-  // binaries, so we use x86 emulation via Docker Desktop's Rosetta/QEMU.
+  // linux/amd64 forced — chrome-headless-shell doesn't ship ARM Linux binaries
   try {
-    execSync(`docker build --platform linux/amd64 -t ${tag} -f ${dockerfilePath} ${tmpDir}`, {
-      stdio: quiet ? "pipe" : "inherit",
-      timeout: 600_000, // 10 minutes
-    });
+    execFileSync(
+      "docker",
+      ["build", "--platform", "linux/amd64", "-t", tag, "-f", dockerfilePath, tmpDir],
+      { stdio: quiet ? "pipe" : "inherit", timeout: 600_000 },
+    );
   } catch (error: unknown) {
-    // Clean up temp dir before throwing
-    rmSync(tmpDir, { recursive: true, force: true });
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to build Docker image: ${message}`);
+  } finally {
+    rmSync(tmpDir, { recursive: true, force: true });
   }
-
-  rmSync(tmpDir, { recursive: true, force: true });
 
   if (!quiet) console.log(c.dim(`  Docker image: ${tag} (built)`));
   return tag;
@@ -370,27 +354,26 @@ async function renderDocker(
 ): Promise<void> {
   const startTime = Date.now();
 
-  // ── Verify Docker is available ───────────────────────────────────────────
+  // ensureDockerImage calls `docker image inspect` which fails with a clear
+  // error if Docker isn't running — no need for a separate `docker info` check.
+  let imageTag: string;
   try {
-    execSync("docker info", { stdio: "pipe", timeout: 10_000 });
-  } catch {
+    imageTag = ensureDockerImage(VERSION, options.quiet);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isDockerMissing = /connect|not found|ENOENT/i.test(message);
     errorBox(
-      "Docker not available",
-      "Docker is not running or not installed.",
-      "Start Docker Desktop or install from https://docs.docker.com/get-docker/",
+      isDockerMissing ? "Docker not available" : "Docker image build failed",
+      message,
+      isDockerMissing
+        ? "Start Docker Desktop or install from https://docs.docker.com/get-docker/"
+        : "Check Docker is running: docker info",
     );
     process.exit(1);
   }
 
-  // ── Build or reuse the render image ──────────────────────────────────────
-  const imageTag = ensureDockerImage(VERSION, options.quiet);
-
-  // ── Prepare output directory ─────────────────────────────────────────────
   const outputDir = dirname(outputPath);
   const outputFilename = basename(outputPath);
-  mkdirSync(outputDir, { recursive: true });
-
-  // ── Run the render inside Docker ─────────────────────────────────────────
   const dockerArgs = [
     "run",
     "--rm",
@@ -567,9 +550,10 @@ function printRenderComplete(outputPath: string, elapsedMs: number, quiet: boole
   if (quiet) return;
 
   let fileSize = "unknown";
-  if (existsSync(outputPath)) {
-    const stat = statSync(outputPath);
-    fileSize = formatBytes(stat.size);
+  try {
+    fileSize = formatBytes(statSync(outputPath).size);
+  } catch {
+    // file doesn't exist or is inaccessible
   }
 
   const duration = formatDuration(elapsedMs);

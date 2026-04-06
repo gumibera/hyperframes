@@ -63,6 +63,13 @@ RUN npx --yes @puppeteer/browsers install chrome-headless-shell@stable \
 # Install hyperframes CLI (bundles producer, engine, core)
 RUN npm install -g hyperframes@${HYPERFRAMES_VERSION}
 
+# Wrapper script: resolves chrome-headless-shell path at build time,
+# sets PRODUCER_HEADLESS_SHELL_PATH at runtime so the engine uses
+# BeginFrame rendering instead of falling back to system Chromium.
+RUN SHELL_PATH=$(find /root/.cache/puppeteer/chrome-headless-shell -name "chrome-headless-shell" -type f | head -1) \
+    && printf '#!/bin/sh\nexport PRODUCER_HEADLESS_SHELL_PATH=%s\nexec hyperframes render "$@"\n' "$SHELL_PATH" > /usr/local/bin/hf-render \
+    && chmod +x /usr/local/bin/hf-render
+
 WORKDIR /project
 
-ENTRYPOINT ["hyperframes", "render"]
+ENTRYPOINT ["hf-render"]
