@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import type { Example } from "./_examples.js";
-import { existsSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, statSync, writeFileSync, rmSync } from "node:fs";
 
 export const examples: Example[] = [
   ["Render to MP4", "hyperframes render --output output.mp4"],
@@ -9,8 +9,9 @@ export const examples: Example[] = [
   ["Deterministic render via Docker", "hyperframes render --docker --output deterministic.mp4"],
   ["Parallel rendering with 6 workers", "hyperframes render --workers 6 --output fast.mp4"],
 ];
-import { cpus, freemem } from "node:os";
-import { resolve, dirname, join } from "node:path";
+import { cpus, freemem, tmpdir } from "node:os";
+import { resolve, dirname, join, basename } from "node:path";
+import { execSync, spawn } from "node:child_process";
 import { resolveProject } from "../utils/project.js";
 import { lintProject, shouldBlockRender } from "../utils/lintProject.js";
 import { formatLintFindings } from "../utils/lintFormat.js";
@@ -20,6 +21,7 @@ import { formatBytes, formatDuration, errorBox } from "../ui/format.js";
 import { renderProgress } from "../ui/progress.js";
 import { trackRenderComplete, trackRenderError } from "../telemetry/events.js";
 import { bytesToMb } from "../telemetry/system.js";
+import { VERSION } from "../version.js";
 import type { RenderJob } from "@hyperframes/producer";
 
 const VALID_FPS = new Set([24, 30, 60]);
@@ -269,30 +271,188 @@ interface RenderOptions {
   browserPath?: string;
 }
 
+// ── Docker image name + Dockerfile template ────────────────────────────────
+
+const DOCKER_IMAGE_PREFIX = "hyperframes-renderer";
+
+function dockerImageTag(version: string): string {
+  return `${DOCKER_IMAGE_PREFIX}:${version}`;
+}
+
+/**
+ * Generate the Dockerfile content for the render image.
+ * Installs the same hyperframes version as the running CLI.
+ */
+function generateDockerfile(version: string): string {
+  return `FROM node:22-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    ca-certificates curl unzip ffmpeg chromium \\
+    libgbm1 libnss3 libatk-bridge2.0-0 libdrm2 libxcomposite1 \\
+    libxdamage1 libxrandr2 libcups2 libasound2 libpangocairo-1.0-0 \\
+    libxshmfence1 libgtk-3-0 \\
+    fonts-liberation fonts-noto-color-emoji fonts-noto-cjk fonts-noto-core \\
+    fonts-noto-extra fonts-noto-ui-core fonts-freefont-ttf fonts-dejavu-core \\
+    fontconfig \\
+    && rm -rf /var/lib/apt/lists/* && apt-get clean && fc-cache -fv
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV CONTAINER=true
+RUN npx --yes @puppeteer/browsers install chrome-headless-shell@stable \\
+      --path /root/.cache/puppeteer
+RUN npm install -g hyperframes@${version}
+# Wrapper script: resolves chrome-headless-shell path at build time,
+# sets PRODUCER_HEADLESS_SHELL_PATH at runtime so the engine uses
+# BeginFrame rendering instead of falling back to system Chromium.
+RUN SHELL_PATH=$(find /root/.cache/puppeteer/chrome-headless-shell -name "chrome-headless-shell" -type f | head -1) \\
+    && printf '#!/bin/sh\\nexport PRODUCER_HEADLESS_SHELL_PATH=%s\\nexec hyperframes render "$@"\\n' "$SHELL_PATH" > /usr/local/bin/hf-render \\
+    && chmod +x /usr/local/bin/hf-render
+WORKDIR /project
+ENTRYPOINT ["hf-render"]
+`;
+}
+
+/**
+ * Check if a Docker image exists locally.
+ */
+function dockerImageExists(tag: string): boolean {
+  try {
+    execSync(`docker image inspect ${tag}`, { stdio: "pipe", timeout: 10_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build the Docker render image if it doesn't already exist.
+ * Returns the image tag.
+ */
+function ensureDockerImage(version: string, quiet: boolean): string {
+  const tag = dockerImageTag(version);
+
+  if (dockerImageExists(tag)) {
+    if (!quiet) console.log(c.dim(`  Docker image: ${tag} (cached)`));
+    return tag;
+  }
+
+  if (!quiet) console.log(c.dim(`  Building Docker image: ${tag}...`));
+
+  // Write Dockerfile to a temp directory
+  const tmpDir = join(tmpdir(), `hyperframes-docker-${Date.now()}`);
+  mkdirSync(tmpDir, { recursive: true });
+  const dockerfilePath = join(tmpDir, "Dockerfile");
+  writeFileSync(dockerfilePath, generateDockerfile(version));
+
+  // Build for linux/amd64 — chrome-headless-shell doesn't ship ARM Linux
+  // binaries, so we use x86 emulation via Docker Desktop's Rosetta/QEMU.
+  try {
+    execSync(`docker build --platform linux/amd64 -t ${tag} -f ${dockerfilePath} ${tmpDir}`, {
+      stdio: quiet ? "pipe" : "inherit",
+      timeout: 600_000, // 10 minutes
+    });
+  } catch (error: unknown) {
+    // Clean up temp dir before throwing
+    rmSync(tmpDir, { recursive: true, force: true });
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to build Docker image: ${message}`);
+  }
+
+  rmSync(tmpDir, { recursive: true, force: true });
+
+  if (!quiet) console.log(c.dim(`  Docker image: ${tag} (built)`));
+  return tag;
+}
+
 async function renderDocker(
   projectDir: string,
   outputPath: string,
   options: RenderOptions,
 ): Promise<void> {
-  const producer = await loadProducer();
   const startTime = Date.now();
 
-  let job: RenderJob;
+  // ── Verify Docker is available ───────────────────────────────────────────
   try {
-    job = producer.createRenderJob({
-      fps: options.fps,
-      quality: options.quality,
-      format: options.format,
-      workers: options.workers,
-      useGpu: options.gpu,
+    execSync("docker info", { stdio: "pipe", timeout: 10_000 });
+  } catch {
+    errorBox(
+      "Docker not available",
+      "Docker is not running or not installed.",
+      "Start Docker Desktop or install from https://docs.docker.com/get-docker/",
+    );
+    process.exit(1);
+  }
+
+  // ── Build or reuse the render image ──────────────────────────────────────
+  const imageTag = ensureDockerImage(VERSION, options.quiet);
+
+  // ── Prepare output directory ─────────────────────────────────────────────
+  const outputDir = dirname(outputPath);
+  const outputFilename = basename(outputPath);
+  mkdirSync(outputDir, { recursive: true });
+
+  // ── Run the render inside Docker ─────────────────────────────────────────
+  const dockerArgs = [
+    "run",
+    "--rm",
+    "--platform",
+    "linux/amd64",
+    "--security-opt",
+    "seccomp=unconfined",
+    "--shm-size=2g",
+    // Mount project read-only, output directory read-write
+    "-v",
+    `${resolve(projectDir)}:/project:ro`,
+    "-v",
+    `${resolve(outputDir)}:/output`,
+    imageTag,
+    // Arguments to `hyperframes render` inside the container
+    "/project",
+    "--output",
+    `/output/${outputFilename}`,
+    "--fps",
+    String(options.fps),
+    "--quality",
+    options.quality,
+    "--format",
+    options.format,
+    "--workers",
+    String(options.workers),
+  ];
+  if (options.gpu) dockerArgs.push("--gpu");
+
+  if (!options.quiet) {
+    console.log(c.dim("  Running render in Docker container..."));
+    console.log("");
+  }
+
+  try {
+    await new Promise<void>((resolvePromise, reject) => {
+      const child = spawn("docker", dockerArgs, {
+        stdio: options.quiet ? "pipe" : "inherit",
+      });
+      child.on("close", (code) => {
+        if (code === 0) resolvePromise();
+        else reject(new Error(`Docker render exited with code ${code}`));
+      });
+      child.on("error", (err) => reject(err));
     });
-    await producer.executeRenderJob(job, projectDir, outputPath);
   } catch (error: unknown) {
     handleRenderError(error, options, startTime, true, "Check Docker is running: docker info");
   }
 
   const elapsed = Date.now() - startTime;
-  trackRenderMetrics(job, elapsed, options, true);
+
+  // Track metrics (no job object available from Docker — use a minimal stub)
+  trackRenderComplete({
+    durationMs: elapsed,
+    fps: options.fps,
+    quality: options.quality,
+    workers: options.workers,
+    docker: true,
+    gpu: options.gpu,
+    ...getMemorySnapshot(),
+  });
+
   printRenderComplete(outputPath, elapsed, options.quiet);
 }
 
