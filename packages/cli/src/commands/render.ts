@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import type { Example } from "./_examples.js";
-import { mkdirSync, statSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync, rmSync } from "node:fs";
 
 export const examples: Example[] = [
   ["Render to MP4", "hyperframes render --output output.mp4"],
@@ -22,6 +22,7 @@ import { renderProgress } from "../ui/progress.js";
 import { trackRenderComplete, trackRenderError } from "../telemetry/events.js";
 import { bytesToMb } from "../telemetry/system.js";
 import { VERSION } from "../version.js";
+import { isDevMode } from "../utils/env.js";
 import type { RenderJob } from "@hyperframes/producer";
 
 const VALID_FPS = new Set([24, 30, 60]);
@@ -277,32 +278,20 @@ function dockerImageTag(version: string): string {
   return `${DOCKER_IMAGE_PREFIX}:${version}`;
 }
 
-function generateDockerfile(version: string): string {
-  return `FROM node:22-bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends \\
-    ca-certificates curl unzip ffmpeg chromium \\
-    libgbm1 libnss3 libatk-bridge2.0-0 libdrm2 libxcomposite1 \\
-    libxdamage1 libxrandr2 libcups2 libasound2 libpangocairo-1.0-0 \\
-    libxshmfence1 libgtk-3-0 \\
-    fonts-liberation fonts-noto-color-emoji fonts-noto-cjk fonts-noto-core \\
-    fonts-noto-extra fonts-noto-ui-core fonts-freefont-ttf fonts-dejavu-core \\
-    fontconfig \\
-    && rm -rf /var/lib/apt/lists/* && apt-get clean && fc-cache -fv
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV CONTAINER=true
-RUN npx --yes @puppeteer/browsers install chrome-headless-shell@stable \\
-      --path /root/.cache/puppeteer
-RUN npm install -g hyperframes@${version}
-# Wrapper script: resolves chrome-headless-shell path at build time,
-# sets PRODUCER_HEADLESS_SHELL_PATH at runtime so the engine uses
-# BeginFrame rendering instead of falling back to system Chromium.
-RUN SHELL_PATH=$(find /root/.cache/puppeteer/chrome-headless-shell -name "chrome-headless-shell" -type f | head -1) \\
-    && printf '#!/bin/sh\\nexport PRODUCER_HEADLESS_SHELL_PATH=%s\\nexec hyperframes render "$@"\\n' "$SHELL_PATH" > /usr/local/bin/hf-render \\
-    && chmod +x /usr/local/bin/hf-render
-WORKDIR /project
-ENTRYPOINT ["hf-render"]
-`;
+function resolveDockerfilePath(): string {
+  // Built CLI: dist/docker/Dockerfile.render
+  const builtPath = resolve(__dirname, "docker", "Dockerfile.render");
+  // Dev mode: src/docker/Dockerfile.render
+  const devPath = resolve(__dirname, "..", "src", "docker", "Dockerfile.render");
+  for (const p of [builtPath, devPath]) {
+    try {
+      statSync(p);
+      return p;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error("Dockerfile.render not found — CLI package may be corrupted");
 }
 
 function dockerImageExists(tag: string): boolean {
@@ -324,16 +313,27 @@ function ensureDockerImage(version: string, quiet: boolean): string {
 
   if (!quiet) console.log(c.dim(`  Building Docker image: ${tag}...`));
 
+  const dockerfilePath = resolveDockerfilePath();
+
+  // Copy Dockerfile to a temp build context so docker build has a clean context
   const tmpDir = join(tmpdir(), `hyperframes-docker-${Date.now()}`);
   mkdirSync(tmpDir, { recursive: true });
-  const dockerfilePath = join(tmpDir, "Dockerfile");
-  writeFileSync(dockerfilePath, generateDockerfile(version));
+  writeFileSync(join(tmpDir, "Dockerfile"), readFileSync(dockerfilePath));
 
   // linux/amd64 forced — chrome-headless-shell doesn't ship ARM Linux binaries
   try {
     execFileSync(
       "docker",
-      ["build", "--platform", "linux/amd64", "-t", tag, "-f", dockerfilePath, tmpDir],
+      [
+        "build",
+        "--platform",
+        "linux/amd64",
+        "--build-arg",
+        `HYPERFRAMES_VERSION=${version}`,
+        "-t",
+        tag,
+        tmpDir,
+      ],
       { stdio: quiet ? "pipe" : "inherit", timeout: 600_000 },
     );
   } catch (error: unknown) {
@@ -354,21 +354,15 @@ async function renderDocker(
 ): Promise<void> {
   const startTime = Date.now();
 
-  // VERSION is "0.0.0-dev" when running from source (tsx/ts-node) because
-  // __CLI_VERSION__ is only defined by tsup at build time. The Docker image
-  // installs from npm, so it needs a real published version.
-  if (VERSION === "0.0.0-dev") {
-    errorBox(
-      "Docker rendering requires a published version",
-      'Running from source sets VERSION to "0.0.0-dev" which does not exist on npm.',
-      "Build the CLI first (bun run build) or use a published release (npx hyperframes render --docker)",
-    );
-    process.exit(1);
+  // Dev mode (tsx/ts-node) uses "latest" since the local version isn't on npm
+  const dockerVersion = isDevMode() ? "latest" : VERSION;
+  if (!options.quiet && isDevMode()) {
+    console.log(c.dim("  Dev mode: using hyperframes@latest in Docker image"));
   }
 
   let imageTag: string;
   try {
-    imageTag = ensureDockerImage(VERSION, options.quiet);
+    imageTag = ensureDockerImage(dockerVersion, options.quiet);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     const isDockerMissing = /connect|not found|ENOENT/i.test(message);
@@ -376,7 +370,7 @@ async function renderDocker(
       isDockerMissing ? "Docker not available" : "Docker image build failed",
       message,
       isDockerMissing
-        ? "Start Docker Desktop or install from https://docs.docker.com/get-docker/"
+        ? "Install Docker: https://docs.docker.com/get-docker/"
         : "Check Docker is running: docker info",
     );
     process.exit(1);
