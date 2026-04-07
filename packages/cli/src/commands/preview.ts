@@ -173,7 +173,7 @@ async function runDevMode(dir: string, projectName?: string): Promise<void> {
       console.log(`  ${c.dim("Press Ctrl+C to stop")}`);
       console.log();
 
-      const urlToOpen = `${frontendUrl}#/project/${pName}`;
+      const urlToOpen = `${frontendUrl}#project/${pName}`;
       import("open").then((mod) => mod.default(urlToOpen)).catch(() => {});
 
       child.stdout?.removeListener("data", handleOutput);
