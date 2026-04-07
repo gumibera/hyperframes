@@ -440,6 +440,22 @@ export async function bundleToSingleHtml(
       ? contentDoc.querySelector(`[data-composition-id="${compId}"]`)
       : contentDoc.querySelector("[data-composition-id]");
 
+    // When a sub-composition is a full HTML document (no <template>), styles
+    // and scripts in <head> are not part of contentDoc (which only has body
+    // content). Extract them so backgrounds, positioning, fonts, and library
+    // scripts (e.g. GSAP CDN) are not silently dropped.
+    if (!contentRoot && compDoc.head) {
+      for (const s of [...compDoc.head.querySelectorAll("style")]) {
+        compStyleChunks.push(rewriteCssAssetUrls(s.textContent || "", src));
+      }
+      for (const s of [...compDoc.head.querySelectorAll("script")]) {
+        const externalSrc = (s.getAttribute("src") || "").trim();
+        if (externalSrc && !compExternalScriptSrcs.includes(externalSrc)) {
+          compExternalScriptSrcs.push(externalSrc);
+        }
+      }
+    }
+
     for (const s of [...contentDoc.querySelectorAll("style")]) {
       compStyleChunks.push(rewriteCssAssetUrls(s.textContent || "", src));
       s.remove();
