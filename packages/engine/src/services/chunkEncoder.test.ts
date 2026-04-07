@@ -108,7 +108,7 @@ describe("buildEncoderArgs anti-banding", () => {
     );
     const paramIdx = args.indexOf("-x264-params");
     expect(paramIdx).toBeGreaterThan(-1);
-    expect(args[paramIdx + 1]).toBe("aq-mode=3");
+    expect(args[paramIdx + 1]).toContain("aq-mode=3");
     expect(args[paramIdx + 1]).not.toContain("deblock");
   });
 
@@ -130,5 +130,105 @@ describe("buildEncoderArgs anti-banding", () => {
     );
     expect(args.indexOf("-x264-params")).toBe(-1);
     expect(args.indexOf("-x265-params")).toBe(-1);
+  });
+});
+
+describe("buildEncoderArgs color space", () => {
+  const baseOptions = { fps: 30, width: 1920, height: 1080 };
+  const inputArgs = ["-framerate", "30", "-i", "frames/%04d.png"];
+
+  it("adds bt709 color space metadata for h264 CPU encoding", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "h264", preset: "medium", quality: 23 },
+      inputArgs,
+      "out.mp4",
+    );
+    // FFmpeg-level metadata tags
+    expect(args).toContain("-colorspace:v");
+    expect(args[args.indexOf("-colorspace:v") + 1]).toBe("bt709");
+    expect(args[args.indexOf("-color_primaries:v") + 1]).toBe("bt709");
+    expect(args[args.indexOf("-color_trc:v") + 1]).toBe("bt709");
+    expect(args[args.indexOf("-color_range") + 1]).toBe("tv");
+    // x264-params VUI embedding
+    const paramIdx = args.indexOf("-x264-params");
+    expect(args[paramIdx + 1]).toContain("colorprim=bt709");
+    expect(args[paramIdx + 1]).toContain("transfer=bt709");
+    expect(args[paramIdx + 1]).toContain("colormatrix=bt709");
+  });
+
+  it("adds bt709 color space metadata for h265 CPU encoding", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "h265", preset: "medium", quality: 23 },
+      inputArgs,
+      "out.mp4",
+    );
+    expect(args).toContain("-colorspace:v");
+    expect(args[args.indexOf("-colorspace:v") + 1]).toBe("bt709");
+    // x265-params VUI embedding
+    const paramIdx = args.indexOf("-x265-params");
+    expect(args[paramIdx + 1]).toContain("colorprim=bt709");
+  });
+
+  it("adds range conversion filter for CPU h264 encoding", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "h264", preset: "medium", quality: 23 },
+      inputArgs,
+      "out.mp4",
+    );
+    const vfIdx = args.indexOf("-vf");
+    expect(vfIdx).toBeGreaterThan(-1);
+    expect(args[vfIdx + 1]).toContain("scale=in_range=pc:out_range=tv");
+  });
+
+  it("prepends range conversion to VAAPI filter chain", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "h264", preset: "medium", quality: 23, useGpu: true },
+      inputArgs,
+      "out.mp4",
+      "vaapi",
+    );
+    const vfIdx = args.indexOf("-vf");
+    expect(vfIdx).toBeGreaterThan(-1);
+    expect(args[vfIdx + 1]).toBe("scale=in_range=pc:out_range=tv,format=nv12,hwupload");
+  });
+
+  it("skips range conversion filter for non-VAAPI GPU encoding", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "h264", preset: "medium", quality: 23, useGpu: true },
+      inputArgs,
+      "out.mp4",
+      "nvenc",
+    );
+    expect(args.indexOf("-vf")).toBe(-1);
+    // but still has color metadata
+    expect(args).toContain("-colorspace:v");
+  });
+
+  it("does not add color metadata for VP9", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "vp9", preset: "good", quality: 23 },
+      inputArgs,
+      "out.webm",
+    );
+    expect(args).not.toContain("-colorspace:v");
+  });
+
+  it("adds video_track_timescale for h264", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "h264", preset: "medium", quality: 23 },
+      inputArgs,
+      "out.mp4",
+    );
+    expect(args).toContain("-video_track_timescale");
+    expect(args[args.indexOf("-video_track_timescale") + 1]).toBe("90000");
+  });
+
+  it("does not add timescale for VP9", () => {
+    const args = buildEncoderArgs(
+      { ...baseOptions, codec: "vp9", preset: "good", quality: 23 },
+      inputArgs,
+      "out.webm",
+    );
+    expect(args).not.toContain("-video_track_timescale");
   });
 });

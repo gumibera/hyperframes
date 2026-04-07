@@ -100,13 +100,15 @@ export function buildEncoderArgs(
       if (bitrate) args.push("-b:v", bitrate);
       else args.push("-crf", String(quality));
 
-      // Anti-banding: aq-mode=3 redistributes bits to dark flat areas (gradients),
-      // deblock smooths quantization boundaries that cause visible bands.
+      // Encoder-specific params: anti-banding + bt709 color space.
+      // aq-mode=3 redistributes bits to dark flat areas (gradients).
+      // colorprim/transfer/colormatrix embed bt709 in the H.264/H.265 VUI.
       const xParamsFlag = codec === "h264" ? "-x264-params" : "-x265-params";
+      const colorParams = "colorprim=bt709:transfer=bt709:colormatrix=bt709";
       if (preset === "ultrafast") {
-        args.push(xParamsFlag, "aq-mode=3");
+        args.push(xParamsFlag, `aq-mode=3:${colorParams}`);
       } else {
-        args.push(xParamsFlag, "aq-mode=3:aq-strength=0.8:deblock=1,1");
+        args.push(xParamsFlag, `aq-mode=3:aq-strength=0.8:deblock=1,1:${colorParams}`);
       }
     }
   } else if (codec === "vp9") {
@@ -120,6 +122,36 @@ export function buildEncoderArgs(
   } else if (codec === "prores") {
     args.push("-c:v", "prores_ks", "-profile:v", preset, "-vendor", "apl0");
     return [...args, "-y", outputPath];
+  }
+
+  // BT.709 color space metadata — Chrome screenshots are sRGB which maps to bt709.
+  // Tags the output so players interpret colors correctly across devices.
+  if (codec === "h264" || codec === "h265") {
+    args.push(
+      "-colorspace:v",
+      "bt709",
+      "-color_primaries:v",
+      "bt709",
+      "-color_trc:v",
+      "bt709",
+      "-color_range",
+      "tv",
+    );
+
+    // Convert full-range RGB input (Chrome screenshots) to limited/TV range for H.264.
+    // VAAPI already has a -vf chain for hwupload; prepend range conversion to it.
+    if (gpuEncoder === "vaapi") {
+      // Replace the existing VAAPI -vf with one that includes range conversion
+      const vfIdx = args.indexOf("-vf");
+      if (vfIdx !== -1) {
+        args[vfIdx + 1] = `scale=in_range=pc:out_range=tv,${args[vfIdx + 1]}`;
+      }
+    } else if (!shouldUseGpu) {
+      args.push("-vf", "scale=in_range=pc:out_range=tv");
+    }
+
+    // Fixed timescale for consistent A/V timing across platforms.
+    args.push("-video_track_timescale", "90000");
   }
 
   if (gpuEncoder !== "vaapi") {
