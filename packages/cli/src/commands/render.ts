@@ -354,8 +354,18 @@ async function renderDocker(
 ): Promise<void> {
   const startTime = Date.now();
 
-  // ensureDockerImage calls `docker image inspect` which fails with a clear
-  // error if Docker isn't running — no need for a separate `docker info` check.
+  // VERSION is "0.0.0-dev" when running from source (tsx/ts-node) because
+  // __CLI_VERSION__ is only defined by tsup at build time. The Docker image
+  // installs from npm, so it needs a real published version.
+  if (VERSION === "0.0.0-dev") {
+    errorBox(
+      "Docker rendering requires a published version",
+      'Running from source sets VERSION to "0.0.0-dev" which does not exist on npm.',
+      "Build the CLI first (bun run build) or use a published release (npx hyperframes render --docker)",
+    );
+    process.exit(1);
+  }
+
   let imageTag: string;
   try {
     imageTag = ensureDockerImage(VERSION, options.quiet);
@@ -382,13 +392,13 @@ async function renderDocker(
     "--security-opt",
     "seccomp=unconfined",
     "--shm-size=2g",
-    // Mount project read-only, output directory read-write
+    // GPU encoding requires host GPU passthrough
+    ...(options.gpu ? ["--gpus", "all"] : []),
     "-v",
     `${resolve(projectDir)}:/project:ro`,
     "-v",
     `${resolve(outputDir)}:/output`,
     imageTag,
-    // Arguments to `hyperframes render` inside the container
     "/project",
     "--output",
     `/output/${outputFilename}`,
@@ -400,13 +410,9 @@ async function renderDocker(
     options.format,
     "--workers",
     String(options.workers),
+    ...(options.quiet ? ["--quiet"] : []),
+    ...(options.gpu ? ["--gpu"] : []),
   ];
-  if (options.quiet) dockerArgs.push("--quiet");
-  // GPU encoding requires host GPU access via --gpus
-  if (options.gpu) {
-    dockerArgs.splice(dockerArgs.indexOf("--rm") + 1, 0, "--gpus", "all");
-    dockerArgs.push("--gpu");
-  }
 
   if (!options.quiet) {
     console.log(c.dim("  Running render in Docker container..."));
