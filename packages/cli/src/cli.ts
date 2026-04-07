@@ -43,6 +43,7 @@ const subCommands = {
   skills: () => import("./commands/skills.js").then((m) => m.default),
   telemetry: () => import("./commands/telemetry.js").then((m) => m.default),
   validate: () => import("./commands/validate.js").then((m) => m.default),
+  capture: () => import("./commands/capture.js").then((m) => m.default),
 };
 
 const main = defineCommand({
