@@ -482,6 +482,34 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
     return findings;
   },
 
+  // gsap_infinite_repeat
+  ({ scripts }) => {
+    const findings: HyperframeLintFinding[] = [];
+    for (const script of scripts) {
+      const content = script.content;
+      // Match repeat: -1 in GSAP tweens or timeline configs
+      const pattern = /repeat\s*:\s*-1/g;
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(content)) !== null) {
+        const contextStart = Math.max(0, match.index - 60);
+        const contextEnd = Math.min(content.length, match.index + match[0].length + 60);
+        const snippet = content.slice(contextStart, contextEnd).trim();
+        findings.push({
+          code: "gsap_infinite_repeat",
+          severity: "error",
+          message:
+            "GSAP tween uses `repeat: -1` (infinite). Infinite repeats break the deterministic " +
+            "capture engine which seeks to exact frame times. Use a finite repeat count calculated " +
+            "from the composition duration: `repeat: Math.ceil(duration / cycleDuration) - 1`.",
+          fixHint:
+            "Replace `repeat: -1` with a finite count, e.g. `repeat: Math.ceil(totalDuration / singleCycleDuration) - 1`.",
+          snippet: truncateSnippet(snippet),
+        });
+      }
+    }
+    return findings;
+  },
+
   // scene_layer_missing_visibility_kill
   ({ scripts, tags }) => {
     const findings: HyperframeLintFinding[] = [];

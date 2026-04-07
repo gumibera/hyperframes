@@ -411,4 +411,40 @@ describe("GSAP rules", () => {
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe("error");
   });
+
+  it("errors on repeat: -1 (infinite repeat breaks capture engine)", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#spinner", { rotation: 360, duration: 0.8, repeat: -1, ease: "none" }, 0);
+    window.__timelines["main"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_infinite_repeat");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+    expect(finding?.message).toContain("repeat: -1");
+  });
+
+  it("does not error on finite repeat values", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080"></div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#spinner", { rotation: 360, duration: 0.8, repeat: 4, ease: "none" }, 0);
+    window.__timelines["main"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_infinite_repeat");
+    expect(finding).toBeUndefined();
+  });
 });
