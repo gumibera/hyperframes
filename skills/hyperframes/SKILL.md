@@ -102,6 +102,14 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 
 **Synchronous timeline construction:** Never build timelines inside `async`/`await`, `setTimeout`, or Promises. The capture engine reads `window.__timelines` synchronously after page load. If you need fonts loaded first, use a synchronous `document.fonts.load()` call or rely on `font-display: block` — the engine waits for the page `load` event.
 
+**Centering text:** Use `width: 100%; left: 0; text-align: center` — NOT `left: 50%; transform: translateX(-50%)`. The second approach breaks when GSAP animates `x`, because GSAP's `x` compounds with the existing translateX.
+
+**GSAP `x` and `y` are RELATIVE offsets, not screen coordinates.** An element at CSS `left: 400px` with GSAP `x: 200` renders at 600px. Never use GSAP `x` values above 300 or below -300 for content slides — those are almost certainly absolute coordinates confused for relative offsets.
+
+**Preventing overlap:** Calculate the actual bottom edge of every element before placing the next one. Bottom edge = `top` + (`fontSize` × `lineHeight` × `numberOfLines`). A 200px font with `line-height: 1` and a `<br>` (2 lines) at `top: 350px` has its bottom at 350 + 200×1×2 = 750px — the next element must start at 770px+, not 610px. Always do this math. After placing all elements in a scene, check for collisions: list every element visible at the same timestamp with its top and bottom edge, and verify no ranges overlap.
+
+**Safe zones:** Keep text inset 40px from all edges. The bottom 80px is too close to playback controls — keep baselines above `data-height - 80`.
+
 **Never do:**
 
 1. Forget `window.__timelines` registration
@@ -160,6 +168,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - **[references/captions.md](references/captions.md)** — Captions, subtitles, lyrics, karaoke synced to audio. Tone-adaptive style detection, per-word styling, text overflow prevention, caption exit guarantees, word grouping. Read when adding any text synced to audio timing.
 - **[references/tts.md](references/tts.md)** — Text-to-speech with Kokoro-82M. Voice selection, speed tuning, TTS+captions workflow. Read when generating narration or voiceover.
 - **[references/audio-reactive.md](references/audio-reactive.md)** — Audio-reactive animation: map frequency bands and amplitude to GSAP properties. Read when visuals should respond to music, voice, or sound.
+- **[references/audio-choreography.md](references/audio-choreography.md)** — Beat-mapped choreography: analyze audio energy/structure, time animation events to beats, match intensity to energy phases. Read when visuals should be synced to music structure without per-frame pulsing — reveals land on beats, transitions match energy changes.
 - **[references/marker-highlight.md](references/marker-highlight.md)** — Animated text highlighting via canvas overlays: marker pen, circle, burst, scribble, sketchout. Read when adding visual emphasis to text.
 - **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no style is specified.
 - **[patterns.md](patterns.md)** — PiP, title cards, slide show patterns.
