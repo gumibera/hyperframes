@@ -66,7 +66,7 @@ interface RenderInput {
   outputPath?: string | null;
   fps: 24 | 30 | 60;
   quality: "draft" | "standard" | "high";
-  format?: "mp4" | "webm";
+  format?: "mp4" | "webm" | "mov";
   workers?: number;
   useGpu: boolean;
   debug: boolean;
@@ -98,10 +98,9 @@ function parseRenderOptions(body: Record<string, unknown>): Omit<RenderInput, "p
       ? body.entryFile.trim()
       : undefined;
 
-  const format = (["mp4", "webm"].includes(body.format as string) ? body.format : undefined) as
-    | "mp4"
-    | "webm"
-    | undefined;
+  const format = (
+    ["mp4", "webm", "mov"].includes(body.format as string) ? body.format : undefined
+  ) as "mp4" | "webm" | "mov" | undefined;
 
   return { outputPath, fps, quality, workers, useGpu, debug, entryFile, format };
 }

@@ -59,7 +59,7 @@ export function useRenderQueue(projectId: string | null) {
 
   // Start a render and track progress via SSE
   const startRender = useCallback(
-    async (fps = 30, quality = "standard", format: "mp4" | "webm" = "mp4") => {
+    async (fps = 30, quality = "standard", format: "mp4" | "webm" | "mov" = "mp4") => {
       if (!projectId) return;
 
       const startTime = Date.now();
@@ -96,7 +96,7 @@ export function useRenderQueue(projectId: string | null) {
       }
       const { jobId } = await res.json();
 
-      const ext = format === "webm" ? ".webm" : ".mp4";
+      const ext = format === "webm" ? ".webm" : format === "mov" ? ".mov" : ".mp4";
       const job: RenderJob = {
         id: jobId,
         status: "rendering",

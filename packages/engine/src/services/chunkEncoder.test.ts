@@ -56,6 +56,21 @@ describe("getEncoderPreset", () => {
     }
   });
 
+  it("returns prores 4444 with yuva444p10le for mov format", () => {
+    const preset = getEncoderPreset("standard", "mov");
+    expect(preset.codec).toBe("prores");
+    expect(preset.preset).toBe("4444");
+    expect(preset.pixelFormat).toBe("yuva444p10le");
+  });
+
+  it("uses prores 4444 for all mov quality levels", () => {
+    for (const q of ["draft", "standard", "high"] as const) {
+      const preset = getEncoderPreset(q, "mov");
+      expect(preset.codec).toBe("prores");
+      expect(preset.preset).toBe("4444");
+    }
+  });
+
   it("defaults to mp4 when format is omitted", () => {
     const preset = getEncoderPreset("standard");
     expect(preset.codec).toBe("h264");

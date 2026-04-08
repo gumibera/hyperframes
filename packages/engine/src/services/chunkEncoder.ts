@@ -23,12 +23,13 @@ export const ENCODER_PRESETS = {
 
 /**
  * Get encoder preset for a given quality and output format.
- * WebM uses VP9 with alpha-capable pixel format; MP4 uses h264.
+ * WebM uses VP9 with alpha-capable pixel format; MP4 uses h264;
+ * MOV uses ProRes 4444 with alpha for editor-compatible transparency.
  */
 export function getEncoderPreset(
   quality: "draft" | "standard" | "high",
-  format: "mp4" | "webm" = "mp4",
-): { preset: string; quality: number; codec: "h264" | "vp9"; pixelFormat: string } {
+  format: "mp4" | "webm" | "mov" = "mp4",
+): { preset: string; quality: number; codec: "h264" | "vp9" | "prores"; pixelFormat: string } {
   const base = ENCODER_PRESETS[quality];
   if (format === "webm") {
     return {
@@ -36,6 +37,14 @@ export function getEncoderPreset(
       quality: base.quality,
       codec: "vp9",
       pixelFormat: "yuva420p",
+    };
+  }
+  if (format === "mov") {
+    return {
+      preset: "4444",
+      quality: base.quality,
+      codec: "prores",
+      pixelFormat: "yuva444p10le",
     };
   }
   return { ...base, pixelFormat: "yuv420p" };
@@ -415,10 +424,13 @@ export async function muxVideoWithAudio(
   if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
 
   const isWebm = outputPath.endsWith(".webm");
+  const isMov = outputPath.endsWith(".mov");
   const args = ["-i", videoPath, "-i", audioPath, "-c:v", "copy"];
 
   if (isWebm) {
     args.push("-c:a", "libopus", "-b:a", "128k");
+  } else if (isMov) {
+    args.push("-c:a", "aac", "-b:a", "192k");
   } else {
     args.push("-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart");
   }
@@ -453,8 +465,9 @@ export async function applyFaststart(
   signal?: AbortSignal,
   config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
 ): Promise<MuxResult> {
-  // faststart is MP4-only (moves moov atom to file start for streaming)
-  if (outputPath.endsWith(".webm")) {
+  // faststart is MP4-only (moves moov atom to file start for streaming).
+  // WebM and MOV don't need it — skip the re-mux.
+  if (outputPath.endsWith(".webm") || outputPath.endsWith(".mov")) {
     if (inputPath !== outputPath) copyFileSync(inputPath, outputPath);
     return { success: true, outputPath, durationMs: 0 };
   }

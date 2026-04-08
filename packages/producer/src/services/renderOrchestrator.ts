@@ -99,8 +99,8 @@ export type RenderStatus =
 export interface RenderConfig {
   fps: 24 | 30 | 60;
   quality: "draft" | "standard" | "high";
-  /** Output container format. WebM uses VP9+alpha for transparency. */
-  format?: "mp4" | "webm";
+  /** Output container format. WebM uses VP9+alpha, MOV uses ProRes 4444+alpha for transparency. */
+  format?: "mp4" | "webm" | "mov";
   workers?: number;
   useGpu?: boolean;
   debug?: boolean;
@@ -369,10 +369,12 @@ export async function executeRenderJob(
   const perfStages: Record<string, number> = {};
   const perfOutputPath = join(workDir, "perf-summary.json");
   const cfg = { ...(job.config.producerConfig ?? resolveConfig()) };
-  const outputFormat = (job.config.format ?? "mp4") as "mp4" | "webm";
+  const outputFormat = (job.config.format ?? "mp4") as "mp4" | "webm" | "mov";
   const isWebm = outputFormat === "webm";
-  // WebM/transparency requires screenshot mode — beginFrame doesn't support alpha channel
-  if (isWebm) {
+  const isMov = outputFormat === "mov";
+  const needsAlpha = isWebm || isMov;
+  // Transparency requires screenshot mode — beginFrame doesn't support alpha channel
+  if (needsAlpha) {
     cfg.forceScreenshot = true;
   }
   const enableChunkedEncode = cfg.enableChunkedEncode;
@@ -478,8 +480,8 @@ export async function executeRenderJob(
         width,
         height,
         fps: job.config.fps,
-        format: isWebm ? "png" : "jpeg",
-        quality: isWebm ? undefined : 80,
+        format: needsAlpha ? "png" : "jpeg",
+        quality: needsAlpha ? undefined : 80,
       };
       probeSession = await createCaptureSession(
         fileServer.url,
@@ -775,13 +777,13 @@ export async function executeRenderJob(
       width,
       height,
       fps: job.config.fps,
-      format: isWebm ? "png" : "jpeg",
-      quality: isWebm ? undefined : job.config.quality === "draft" ? 80 : 95,
+      format: needsAlpha ? "png" : "jpeg",
+      quality: needsAlpha ? undefined : job.config.quality === "draft" ? 80 : 95,
     };
 
     const workerCount = calculateOptimalWorkers(job.totalFrames!, job.config.workers, cfg);
 
-    const videoExt = isWebm ? ".webm" : ".mp4";
+    const videoExt = isMov ? ".mov" : isWebm ? ".webm" : ".mp4";
     const videoOnlyPath = join(workDir, `video-only${videoExt}`);
     const preset = getEncoderPreset(job.config.quality, outputFormat);
 
@@ -1015,7 +1017,7 @@ export async function executeRenderJob(
       const stage5Start = Date.now();
       updateJobStatus(job, "encoding", "Encoding video", 75, onProgress);
 
-      const frameExt = isWebm ? "png" : "jpg";
+      const frameExt = needsAlpha ? "png" : "jpg";
       const framePattern = `frame_%06d.${frameExt}`;
       const encoderOpts = {
         fps: job.config.fps,
@@ -1131,7 +1133,7 @@ export async function executeRenderJob(
     if (job.config.debug) {
       // Copy output MP4 into debug dir for easy access
       if (existsSync(outputPath)) {
-        const debugOutput = join(workDir, isWebm ? "output.webm" : "output.mp4");
+        const debugOutput = join(workDir, `output${videoExt}`);
         copyFileSync(outputPath, debugOutput);
       }
     } else {

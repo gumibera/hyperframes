@@ -7,7 +7,7 @@ interface RenderQueueProps {
   projectId: string;
   onDelete: (jobId: string) => void;
   onClearCompleted: () => void;
-  onStartRender: (format: "mp4" | "webm") => void;
+  onStartRender: (format: "mp4" | "webm" | "mov") => void;
   isRendering: boolean;
 }
 
@@ -15,20 +15,21 @@ function FormatExportButton({
   onStartRender,
   isRendering,
 }: {
-  onStartRender: (format: "mp4" | "webm") => void;
+  onStartRender: (format: "mp4" | "webm" | "mov") => void;
   isRendering: boolean;
 }) {
-  const [format, setFormat] = useState<"mp4" | "webm">("mp4");
+  const [format, setFormat] = useState<"mp4" | "webm" | "mov">("mp4");
 
   return (
     <div className="flex items-center gap-0.5">
       <select
         value={format}
-        onChange={(e) => setFormat(e.target.value as "mp4" | "webm")}
+        onChange={(e) => setFormat(e.target.value as "mp4" | "webm" | "mov")}
         disabled={isRendering}
         className="h-5 px-1 text-[10px] rounded-l bg-neutral-800 border border-neutral-700 text-neutral-300 outline-none disabled:opacity-50"
       >
         <option value="mp4">MP4</option>
+        <option value="mov">MOV</option>
         <option value="webm">WebM</option>
       </select>
       <button

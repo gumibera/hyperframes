@@ -57,7 +57,7 @@ export interface StudioApiAdapter {
   startRender(opts: {
     project: ResolvedProject;
     outputPath: string;
-    format: "mp4" | "webm";
+    format: "mp4" | "webm" | "mov";
     fps: number;
     quality: string;
     jobId: string;

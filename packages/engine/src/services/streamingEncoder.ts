@@ -190,6 +190,7 @@ function buildStreamingArgs(
     }
   } else if (codec === "prores") {
     args.push("-c:v", "prores_ks", "-profile:v", preset, "-vendor", "apl0");
+    args.push("-pix_fmt", pixelFormat);
     return [...args, "-y", outputPath];
   }
 
