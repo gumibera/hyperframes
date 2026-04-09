@@ -95,7 +95,15 @@ Real-time animation events captured during page scroll. Useful for understanding
 If scroll targets include a `.logo-carousel` element, add a horizontal scroll animation:
 
 ```javascript
-tl.fromTo("#logo-row", { x: 0 }, { x: -200, duration: 8, ease: "none", repeat: -1 }, 0);
+// Never use repeat: -1 — infinite loops break the capture engine.
+// Calculate exact repeats from scene duration:
+var sceneDuration = 8; // match your data-duration
+tl.fromTo(
+  "#logo-row",
+  { x: 0 },
+  { x: -200, duration: 8, ease: "none", repeat: Math.ceil(sceneDuration / 8) - 1 },
+  0,
+);
 ```
 
 ### Staggered card entrance

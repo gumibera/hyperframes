@@ -63,7 +63,7 @@ When arranging captured sections into a video, ensure visual variety between adj
 - Don't put two light scenes next to each other
 - Alternate light/dark or use gradient scenes as transitions
 - If the website has a consistent dark theme (like Linear), the variety comes from content differences, not background changes
-- When building custom scenes (not from capture), follow the site's color palette from `visual-style.md`
+- When building custom scenes (not from capture), follow the site's color palette from `DESIGN.md`
 
 ## Elements Must DO Something (Not Just Sit There)
 
@@ -73,15 +73,15 @@ When arranging captured sections into a video, ensure visual variety between adj
 
 Every CSS-built element MUST have at least one continuous animation during its hold phase:
 
-| Element           | Entrance                           | Mid-scene activity (REQUIRED)                                                                                                                                                    | Exit |
-| ----------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| Payment card      | Slide in from left with 3D rotateY | **Amount counter animates from $0 to $2,499.00** (1.5s, power2.out). Checkmark circle draws in (stroke-dashoffset). Subtle float (y plus/minus 4px, sine.inOut, repeat:-1, yoyo) | Fade |
-| Code terminal     | Slide in from right                | **Lines appear one by one** (stagger: 0.4 per line, opacity 0 to 1, y: 8 to 0). Cursor blinks at end (repeat:-1, yoyo).                                                          | Fade |
-| Dashboard chart   | Scale up                           | **Bars grow to their target heights** (stagger: 0.15, elastic.out). Values tick up as bars grow.                                                                                 | Fade |
-| Stats counter     | Scale in with back.out             | **Number counts from 0 to target** using gsap.to with onUpdate callback that sets textContent to Math.round(obj.val). Label fades in after count completes.                      | Fade |
-| Progress bar      | Fade in empty                      | **Fill animates from 0% to target%** (1.2s, power2.out). Percentage text updates live.                                                                                           | Fade |
-| Logo grid         | Stagger in                         | **Subtle shimmer sweep** (child div gradient slides across each logo, 2s) or **gentle pulse** (scale 1 to 1.02 to 1, sine.inOut, yoyo, repeat:-1)                                | Fade |
-| Subscription card | Scale in                           | **Icon rotates or pulses**. Progress indicator fills. Text highlights or underlines animate in.                                                                                  | Fade |
+| Element           | Entrance                           | Mid-scene activity (REQUIRED)                                                                                                                                              | Exit |
+| ----------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| Payment card      | Slide in from left with 3D rotateY | **Amount counter animates from $0 to $2,499.00** (1.5s, power2.out). Checkmark circle draws in (stroke-dashoffset). Subtle float (y ±4px, sine.inOut, yoyo, finite repeat) | Fade |
+| Code terminal     | Slide in from right                | **Lines appear one by one** (stagger: 0.4 per line, opacity 0 to 1, y: 8 to 0). Cursor blinks at end (yoyo, finite repeat).                                                | Fade |
+| Dashboard chart   | Scale up                           | **Bars grow to their target heights** (stagger: 0.15, elastic.out). Values tick up as bars grow.                                                                           | Fade |
+| Stats counter     | Scale in with back.out             | **Number counts from 0 to target** using gsap.to with onUpdate callback that sets textContent to Math.round(obj.val). Label fades in after count completes.                | Fade |
+| Progress bar      | Fade in empty                      | **Fill animates from 0% to target%** (1.2s, power2.out). Percentage text updates live.                                                                                     | Fade |
+| Logo grid         | Stagger in                         | **Subtle shimmer sweep** (child div gradient slides across each logo, 2s) or **gentle pulse** (scale 1 to 1.02 to 1, sine.inOut, yoyo, finite repeat)                      | Fade |
+| Subscription card | Scale in                           | **Icon rotates or pulses**. Progress indicator fills. Text highlights or underlines animate in.                                                                            | Fade |
 
 ### Counter Animation Pattern (For Stats)
 
@@ -106,11 +106,25 @@ tl.to(
 
 ```javascript
 // Subtle float — makes static elements feel alive
-tl.to("#card", { y: "-=6", duration: 2, ease: "sine.inOut", yoyo: true, repeat: -1 }, 0);
+// Never use repeat: -1 — infinite loops break the capture engine.
+// Calculate repeats from scene duration:
+var sceneDur = 5; // match your data-duration
+tl.to(
+  "#card",
+  { y: "-=6", duration: 2, ease: "sine.inOut", yoyo: true, repeat: Math.ceil(sceneDur / 2) - 1 },
+  0,
+);
 // Pulse glow
 tl.to(
   "#glow",
-  { scale: 1.05, opacity: 0.8, duration: 1.5, ease: "sine.inOut", yoyo: true, repeat: -1 },
+  {
+    scale: 1.05,
+    opacity: 0.8,
+    duration: 1.5,
+    ease: "sine.inOut",
+    yoyo: true,
+    repeat: Math.ceil(sceneDur / 1.5) - 1,
+  },
   0,
 );
 ```
@@ -131,17 +145,20 @@ tl.fromTo(
   },
   0.5,
 );
-// Blinking cursor at end
+// Blinking cursor — calculate repeats from remaining scene time
+// Never use repeat: -1 — infinite loops break the capture engine.
+var cursorStart = 2.5;
+var cursorCycle = 1; // 0.5s on + 0.5s off
 tl.fromTo(
   "#cursor",
   { opacity: 1 },
   {
     opacity: 0,
     duration: 0.5,
-    repeat: -1,
+    repeat: Math.ceil((sceneDur - cursorStart) / cursorCycle) - 1,
     yoyo: true,
   },
-  2.5,
+  cursorStart,
 );
 ```
 
@@ -295,7 +312,7 @@ Scene 2 — Products (5-15s)
     - Code terminal: lines type in one by one with blinking cursor
     - Progress bar: fills from 0% to target
     - Chart: bars grow with elastic ease
-    All elements should have subtle float (y +/-4px, sine.inOut, yoyo, repeat:-1)
+    All elements should have subtle float (y +/-4px, sine.inOut, yoyo, finite repeat calculated from scene duration)
   Animation: card from left with 3D rotateY, terminal from right, staggered 0.3s
   Narration: "[what the product does in 2-3 sentences]"
 
@@ -330,12 +347,12 @@ Scene 4 — CTA (25-30s)
 
 ### Content Sourcing
 
-| Scene    | Source                                                                                             |
-| -------- | -------------------------------------------------------------------------------------------------- |
-| Hook     | Use the captured hero section composition, or build from logo SVG + tagline from `visual-style.md` |
-| Products | Use captured feature/product section compositions — they already have the real UI                  |
-| Trust    | Use captured logos/testimonials section composition, or build from SVGs in `assets/`               |
-| CTA      | Use captured CTA/footer section composition, or build from CTA text in `capture-summary.md`        |
+| Scene    | Source                                                                                       |
+| -------- | -------------------------------------------------------------------------------------------- |
+| Hook     | Use the captured hero section composition, or build from logo SVG + tagline from `DESIGN.md` |
+| Products | Use captured feature/product section compositions — they already have the real UI            |
+| Trust    | Use captured logos/testimonials section composition, or build from SVGs in `assets/`         |
+| CTA      | Use captured CTA/footer section composition, or build from CTA text in `DESIGN.md`           |
 
 **Prefer captured sections over building from scratch.** The real website HTML looks better than recreations.
 
