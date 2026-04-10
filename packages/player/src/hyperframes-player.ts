@@ -116,6 +116,11 @@ class HyperframesPlayer extends HTMLElement {
 
   // ── Public API ──
 
+  /** Access the inner iframe element (for advanced consumers like the studio). */
+  get iframeElement(): HTMLIFrameElement {
+    return this.iframe;
+  }
+
   play() {
     this._hidePoster();
     this._sendControl("play");

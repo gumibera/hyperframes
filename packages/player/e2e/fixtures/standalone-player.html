@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Standalone Player Test</title>
+    <script src="../../dist/hyperframes-player.global.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #0a0a0a; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+      hyperframes-player { width: 800px; height: 450px; display: block; }
+    </style>
+  </head>
+  <body>
+    <hyperframes-player
+      id="player"
+      src="./test-composition.html"
+      width="1920"
+      height="1080"
+      controls
+    ></hyperframes-player>
+
+    <script>
+      const player = document.getElementById("player");
+      player.addEventListener("ready", (e) => {
+        document.title = `Ready | Duration: ${e.detail.duration.toFixed(1)}s`;
+      });
+      player.addEventListener("error", (e) => {
+        document.title = `Error: ${e.detail.message}`;
+      });
+    </script>
+  </body>
+</html>

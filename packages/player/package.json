@@ -11,11 +11,12 @@
     "dist"
   ],
   "type": "module",
-  "main": "./dist/hyperframes-player.js",
-  "types": "./dist/hyperframes-player.d.ts",
+  "main": "./src/hyperframes-player.ts",
+  "types": "./src/hyperframes-player.ts",
   "exports": {
     ".": {
-      "import": "./dist/hyperframes-player.js",
+      "types": "./src/hyperframes-player.ts",
+      "import": "./src/hyperframes-player.ts",
       "require": "./dist/hyperframes-player.cjs",
       "script": "./dist/hyperframes-player.global.js"
     }

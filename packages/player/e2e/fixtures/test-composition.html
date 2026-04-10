@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Test Composition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #111; overflow: hidden; }
+      #root {
+        width: 1920px; height: 1080px;
+        position: relative; overflow: hidden;
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+      }
+      .box {
+        position: absolute; width: 200px; height: 200px;
+        border-radius: 16px; top: 50%; left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+      }
+      .box-1 { background: #3CE6AC; }
+      .box-2 { background: #2BBFA0; left: 30%; }
+      .box-3 { background: #1A8A70; left: 70%; }
+      .title {
+        position: absolute; bottom: 80px; left: 0; right: 0;
+        text-align: center; font-family: system-ui, sans-serif;
+        font-size: 48px; font-weight: 700; color: #fff; opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"
+      data-composition-id="test-comp"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="4">
+
+      <div class="box box-1 clip" data-start="0" data-duration="4" data-track-index="0"></div>
+      <div class="box box-2 clip" data-start="0.5" data-duration="3.5" data-track-index="1"></div>
+      <div class="box box-3 clip" data-start="1" data-duration="3" data-track-index="2"></div>
+      <div class="title clip" data-start="1.5" data-duration="2.5" data-track-index="3">HyperFrames Player Test</div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.to(".box-1", { scale: 1, x: "-50%", y: "-50%", duration: 0.6, ease: "back.out(1.7)" }, 0);
+      tl.to(".box-2", { scale: 1, x: "-50%", y: "-50%", duration: 0.6, ease: "back.out(1.7)" }, 0.5);
+      tl.to(".box-3", { scale: 1, x: "-50%", y: "-50%", duration: 0.6, ease: "back.out(1.7)" }, 1);
+      tl.to(".title", { opacity: 1, y: -20, duration: 0.8, ease: "power2.out" }, 1.5);
+      tl.to(".title", { opacity: 0, duration: 0.5 }, 3.5);
+      tl.to(".box", { scale: 0, duration: 0.4, stagger: 0.1, ease: "back.in(1.7)" }, 3.2);
+
+      window.__timelines = { "test-comp": tl };
+    </script>
+  </body>
+</html>
