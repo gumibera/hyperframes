@@ -116,6 +116,7 @@ export class HyperframesRenderer {
       codec,
       bitrate,
       format,
+      workerUrl: this.config.workerUrl,
       onFrameEncoded: (index) => {
         const encodingProgress = (index + 1) / totalFrames;
         report({

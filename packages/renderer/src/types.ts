@@ -90,6 +90,7 @@ export interface RenderConfig {
   concurrency?: number;
   onProgress?: (progress: RenderProgress) => void;
   frameSource?: "snapdom" | "draw-element-image";
+  workerUrl?: URL | string;
 }
 
 export interface RenderProgress {

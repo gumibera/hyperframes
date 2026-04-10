@@ -130,7 +130,7 @@ export class SnapdomFrameSource implements FrameSource {
           reject(new Error("Timed out waiting for window.__hf protocol"));
           return;
         }
-        requestAnimationFrame(poll);
+        setTimeout(poll, 50);
       };
       poll();
     });

@@ -15,6 +15,7 @@ export interface EncoderOptions {
   bitrate: number;
   format: "mp4" | "webm";
   onFrameEncoded?: (index: number) => void;
+  workerUrl?: URL | string;
 }
 
 export class Encoder {
@@ -29,7 +30,8 @@ export class Encoder {
   }
 
   async init(): Promise<void> {
-    this.worker = new Worker(new URL("./worker.js", import.meta.url), {
+    const workerUrl = this.options.workerUrl ?? new URL("./worker.js", import.meta.url);
+    this.worker = new Worker(workerUrl, {
       type: "module",
     });
 
