@@ -7,6 +7,7 @@
  */
 
 import { snapdom } from "@zumer/snapdom";
+import { VideoFrameInjector } from "../capture/video-frame-injector.js";
 import type { FrameSource, FrameSourceConfig, HfMediaElement } from "../types.js";
 
 interface HfProtocol {
@@ -23,6 +24,7 @@ export class SnapdomFrameSource implements FrameSource {
   private hf: HfProtocol | null = null;
   private _duration = 0;
   private _media: HfMediaElement[] = [];
+  private videoInjector: VideoFrameInjector | null = null;
 
   get duration(): number {
     return this._duration;
@@ -65,6 +67,15 @@ export class SnapdomFrameSource implements FrameSource {
     this.hf = hf;
     this._duration = hf.duration;
     this._media = hf.media ?? [];
+
+    const videoMedia = this._media.filter((m) => {
+      const el = this.iframe!.contentDocument?.getElementById(m.elementId);
+      return el?.tagName === "VIDEO";
+    });
+    if (videoMedia.length > 0) {
+      this.videoInjector = new VideoFrameInjector();
+      await this.videoInjector.init(videoMedia, this.iframe!.contentDocument!);
+    }
   }
 
   async capture(time: number): Promise<ImageBitmap> {
@@ -73,6 +84,10 @@ export class SnapdomFrameSource implements FrameSource {
     }
 
     this.hf.seek(time);
+
+    if (this.videoInjector) {
+      await this.videoInjector.injectFrame(time);
+    }
 
     const doc = this.iframe.contentDocument;
     if (!doc?.documentElement) {
@@ -89,6 +104,9 @@ export class SnapdomFrameSource implements FrameSource {
   }
 
   async dispose(): Promise<void> {
+    this.videoInjector?.dispose();
+    this.videoInjector = null;
+
     if (this.iframe) {
       this.iframe.remove();
       this.iframe = null;
