@@ -69,11 +69,11 @@ export default defineCommand({
       process.exit(1);
     }
 
-    // Determine output directory
+    // Determine output directory — default to captures/<hostname> to keep repo root clean
     let outputName = args.output as string | undefined;
     if (!outputName) {
       const hostname = new URL(url).hostname.replace(/^www\./, "");
-      outputName = hostname.replace(/\./g, "-") + "-capture";
+      outputName = `captures/${hostname.replace(/\./g, "-")}`;
     }
     const outputDir = resolve(outputName);
 

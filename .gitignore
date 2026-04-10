@@ -47,6 +47,7 @@ packages/producer/src/services/fontData.generated.ts
 
 # Test artifacts
 my-video/
+examples/
 packages/studio/data/
 .desloppify/
 .worktrees/
@@ -59,6 +60,26 @@ packages/studio/data/
 .claude/skills/
 skills-lock.json
 
-# Test/demo captures
+# Capture outputs (new captures go to captures/ by default)
+captures/
 notion-promo/
 notion-com-capture/
+
+# Existing test captures at repo root (legacy)
+notion-demo/
+notion-ai-agents/
+stripe-launch/
+stripe-investor/
+stripe-website/
+linear-ad/
+soulscape-demo/
+soulscape-film/
+midjourney/
+vercel-tour/
+figma-ad/
+arc-browser/
+raycast-demo/
+rive-demo/
+lusion-brand/
+motion-zajno/
+notion/

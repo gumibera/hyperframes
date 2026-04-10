@@ -91,32 +91,58 @@ export async function downloadAssets(
     }
   }
 
-  // Download up to 25 images, skipping duplicates and tiny files
-  let imgIdx = 0;
+  // Download up to 25 images in parallel batches, skipping duplicates and tiny files
+  // Pre-filter to deduplicate and cap before downloading
+  const toDownload: { url: string; isPoster: boolean; normalized: string }[] = [];
   for (const { url, isPoster } of imageUrls) {
-    if (imgIdx >= 25) break;
+    if (toDownload.length >= 25) break;
     const normalized = normalizeUrl(url);
     if (downloadedUrls.has(normalized)) continue;
+    downloadedUrls.add(normalized); // Reserve to prevent duplicates in parallel batches
+    toDownload.push({ url, isPoster, normalized });
+  }
 
-    try {
-      const parsedUrl = new URL(url);
-      const pathExt = extname(parsedUrl.pathname);
-      const ext = pathExt && pathExt.length <= 5 ? pathExt : ".jpg";
-      const prefix = isPoster ? "poster" : "image";
-      const name = `${prefix}-${imgIdx}${ext}`;
-      const localPath = `assets/${name}`;
-
-      const buffer = await fetchBuffer(url);
-      if (!buffer) continue;
-      // Skip tiny images (tracking pixels, 1x1 spacers, thumbnails < 10KB)
-      if (buffer.length < 10000) continue;
-
-      writeFileSync(join(outputDir, localPath), buffer);
-      assets.push({ url, localPath, type: "image" });
-      downloadedUrls.add(normalized);
-      imgIdx++;
-    } catch {
-      /* skip */
+  // Download in parallel batches of 5
+  const BATCH_SIZE = 5;
+  let imgIdx = 0;
+  for (let i = 0; i < toDownload.length; i += BATCH_SIZE) {
+    const batch = toDownload.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async ({ url, isPoster }) => {
+        const parsedUrl = new URL(url);
+        const pathExt = extname(parsedUrl.pathname);
+        const ext = pathExt && pathExt.length <= 5 ? pathExt : ".jpg";
+        const buffer = await fetchBuffer(url);
+        if (!buffer || buffer.length < 10000) return null;
+        return { url, isPoster, parsedUrl, ext, buffer };
+      }),
+    );
+    for (const result of results) {
+      if (result.status !== "fulfilled" || !result.value) continue;
+      const { url, isPoster, parsedUrl, ext, buffer } = result.value;
+      try {
+        const prefix = isPoster ? "poster" : "image";
+        const rawName =
+          parsedUrl.pathname
+            .split("/")
+            .pop()
+            ?.replace(/\.[^.]+$/, "") || "";
+        const isMeaningful =
+          rawName.length > 2 &&
+          rawName.length < 50 &&
+          !/^[a-f0-9]{8,}$/i.test(rawName) &&
+          !/^\d+$/.test(rawName) &&
+          !rawName.includes("_next") &&
+          !rawName.includes("?");
+        const slug = isMeaningful ? slugify(rawName) : `${prefix}-${imgIdx}`;
+        const name = `${slug}${ext}`;
+        const localPath = `assets/${name}`;
+        writeFileSync(join(outputDir, localPath), buffer);
+        assets.push({ url, localPath, type: "image" });
+        imgIdx++;
+      } catch {
+        /* skip */
+      }
     }
   }
 
@@ -166,7 +192,7 @@ export async function downloadAndRewriteFonts(css: string, outputDir: string): P
   const fontUrls = new Set<string>();
   let match;
   while ((match = fontUrlRegex.exec(css)) !== null) {
-    fontUrls.add(match[1]);
+    if (match[1]) fontUrls.add(match[1]);
   }
 
   if (fontUrls.size === 0) return css;

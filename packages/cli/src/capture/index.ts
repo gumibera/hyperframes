@@ -96,17 +96,14 @@ export async function captureWebsite(
     await setupAnimationCapture(page1);
     const { cdp, animations: cdpAnims } = await startCdpAnimationCapture(page1);
 
-    // Patch WebGL to preserve drawing buffer + capture shader source code
+    // Hook WebGL to capture shader source code (GLSL)
+    // Captured shaders inform Claude Code about the site's visual effects
+    // and enable reliable library detection (Three.js/PixiJS/Babylon.js uniforms survive bundling)
     await page1.evaluateOnNewDocument(`
       var origGetContext = HTMLCanvasElement.prototype.getContext;
       window.__capturedShaders = [];
-      window.__capturedLottieData = [];
       HTMLCanvasElement.prototype.getContext = function(type, attrs) {
-        if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
-          attrs = Object.assign({}, attrs || {}, { preserveDrawingBuffer: true });
-        }
         var ctx = origGetContext.call(this, type, attrs);
-        // Hook gl.shaderSource to capture all GLSL code
         if (ctx && (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl')) {
           if (ctx.shaderSource && !ctx.__hfHooked) {
             var origShaderSource = ctx.shaderSource.bind(ctx);
@@ -175,13 +172,7 @@ export async function captureWebsite(
     await page1.goto(url, { waitUntil: "networkidle0", timeout });
     await new Promise((r) => setTimeout(r, settleTime));
 
-    // Screenshot canvas elements using CDP captureScreenshot with clip
-    // This captures from the compositor surface (includes WebGL content)
-    // Must scroll each canvas into view, wait for Three.js render, then clip-capture
-    let canvasCount = 0;
-    const cdpCapture = await page1.createCDPSession();
-
-    // First, scroll through to trigger lazy-loaded canvases
+    // Scroll through page to trigger lazy-loaded images and Lottie animations
     await page1.evaluate(`(async () => {
       var h = document.body.scrollHeight;
       for (var y = 0; y < h; y += window.innerHeight * 0.7) {
@@ -192,50 +183,8 @@ export async function captureWebsite(
       await new Promise(function(r) { setTimeout(r, 500); });
     })()`);
 
-    // Now capture each canvas
-    const canvasEls = await page1.$$("canvas");
-    for (const handle of canvasEls) {
-      try {
-        const box = await handle.boundingBox();
-        if (!box || box.width < 50 || box.height < 50) continue;
-
-        // Scroll canvas into view and wait for render
-        await handle.evaluate(`((el) => el.scrollIntoView({ block: "center" }))`);
-        await new Promise((r) => setTimeout(r, 500));
-
-        // Get updated bounding box after scroll
-        const box2 = await handle.boundingBox();
-        if (!box2) continue;
-
-        // CDP screenshot with clip — captures WebGL compositor surface
-        const result = await cdpCapture.send("Page.captureScreenshot", {
-          format: "png",
-          fromSurface: true,
-          clip: {
-            x: box2.x,
-            y: box2.y,
-            width: box2.width,
-            height: box2.height,
-            scale: 1,
-          },
-        });
-        const buffer = Buffer.from(result.data, "base64");
-        if (buffer.length > 5000) {
-          const filename = `canvas-${canvasCount}.png`;
-          writeFileSync(join(outputDir, "assets", filename), buffer);
-          canvasCount++;
-        }
-      } catch {
-        /* not visible or capture failed */
-      }
-    }
-
-    await cdpCapture.detach();
     await page1.evaluate(`window.scrollTo(0, 0)`);
     await new Promise((r) => setTimeout(r, 300));
-    if (canvasCount > 0) {
-      progress("canvas", `${canvasCount} canvas screenshots saved`);
-    }
 
     // Save discovered Lottie animations
     // Also scan DOM for Lottie web components not caught by network interception
@@ -421,11 +370,10 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
       }
     }
 
-    // Save captured WebGL shaders
+    // Save captured WebGL shaders (useful context for shader transitions + library detection)
     try {
       const shaders = await page1.evaluate(`window.__capturedShaders || []`);
       if (Array.isArray(shaders) && shaders.length > 0) {
-        // Deduplicate shaders by source content
         const seen = new Set<string>();
         const unique = (shaders as Array<{ type: string; source: string }>).filter((s) => {
           if (seen.has(s.source)) return false;
@@ -810,23 +758,6 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
           `${purgeResults.length} files purged (${(totalBefore / 1024).toFixed(0)} KB -> ${(totalAfter / 1024).toFixed(0)} KB, -${pct}%)`,
         );
       }
-    }
-
-    // Generate CLAUDE.md + .cursorrules (AI agent instructions)
-    try {
-      const { generateAgentPrompt } = await import("./agentPromptGenerator.js");
-      generateAgentPrompt(
-        outputDir,
-        url,
-        tokens,
-        animationCatalog,
-        !!fullPageScreenshot,
-        true, // DESIGN.md is always generated
-        discoveredLotties.length > 0,
-        existsSync(join(outputDir, "extracted", "shaders.json")),
-      );
-    } catch {
-      // Non-blocking
     }
 
     // Ensure capture output is a valid HyperFrames project (index.html + meta.json)

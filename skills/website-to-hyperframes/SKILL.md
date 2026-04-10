@@ -135,7 +135,7 @@ Notion's visual identity is characterized by a "Digital Paper" aesthetic—clean
 - **Font**: https://www.notion.com/_next/static/media/LyonText-Regular-Web.woff2 — Lyon Text Regular
 - **Icon**: https://www.notion.com/front-static/favicon.ico — Notion favicon
 - **Video**: https://www.notion.com/front-static/nosey/fall/clip_customAgents.mp4 — Custom Agents clip
-- And etc... (the list is shorten version for example purposes)
+- And etc...
 ```
 
 **Confirm:** DESIGN.md written. Print the section headings and 2-3 key values from each.
@@ -155,6 +155,20 @@ LOOK AND VIEW the screenshot, the text, the brand personality, every available a
 
 Don't think about code yet. Think about storytelling, pacing, and emotion.
 
+**Before planning scenes, understand what's visually possible.** Read these now:
+
+- Invoke `/hyperframes-compose` and read `references/transitions/catalog.md` — all available transitions with mood mapping
+- Read `references/transitions/shader-transitions.md` — the 14 shader effects (domain warp, ridged burn, gravitational lens, etc.)
+- Read `house-style.md` Anti-Defaults table — things the LLM defaults to that look generic. Do the OPPOSITE.
+
+#### Choose your transitions
+
+Every scene change is an opportunity for visual storytelling. Don't default to fade-to-black.
+
+**Pick ONE primary transition for your video** (used 60-70% of scene changes) and ONE accent (for the most dramatic moment). Add your transition choices to the scene plan table.
+
+Shader transitions are HyperFrames' biggest visual differentiator — per-pixel compositing effects that CSS literally cannot do. Use them by default.
+
 #### Write the narration script FIRST
 
 Every good video has a voice. Write the voiceover script BEFORE finalizing scene durations — the narration drives the pacing, not the other way around.
@@ -162,13 +176,11 @@ Every good video has a voice. Write the voiceover script BEFORE finalizing scene
 **Rules for the script:**
 
 - 2.5 words per second is natural speaking pace (15s = ~37 words, 30s = ~75 words)
-- Write like you're showing someone a product — NOT reading a press release
-- Start with energy: "So this is..." / "Check this out..." / "Meet [product]... and similar"
+- Write like a real human being
 - Use contractions (it's, you'll, that's) and try to write like a real human because robotic speech kills the vibe
 - Numbers become words: "135+" → "more than a hundred thirty five", "$1.9T" → "nearly two trillion dollars" and etc.
-- End with a casual CTA: "Check it out at stripe dot com" not "Get started at stripe.com"
 
-**Your opening line is the most important sentence in the video.** It must create tension, curiosity, or surprise. Find the most surprising number, the most impressive claim, or the most provocative fact — and lead with that.
+**Your opening line is the most important sentence in the video.** It must create tension, curiosity, or surprise.
 
 Save the script as `narration-script.txt`.
 
@@ -176,27 +188,19 @@ Save the script as `narration-script.txt`.
 
 Map each sentence or phrase of the narration to a scene. The narration IS the timeline.
 
-| Type         | Duration | Rhythm                                                   |
-| ------------ | -------- | -------------------------------------------------------- |
-| Social Ad    | 15s      | Hook (2-3s) → Value (5-7s) → Proof (3-4s) → CTA (2-3s)   |
-| Product Tour | 30s      | Hero (5s) → Features (12s) → Trust (6s) → CTA (4s)       |
-| Launch Video | 60s      | Problem (10s) → Solution (20s) → Proof (15s) → CTA (10s) |
-
-Keep it short — 15-20 seconds for ads, 20-30 for demos unless USER request specific duration. Shorter videos are easier to nail and perform better.
-
 **Confirm:** Print your scene plan:
 
-| Scene    | Duration | What viewer sees       | What viewer feels | Assets to use                              | Narration                |
-| -------- | -------- | ---------------------- | ----------------- | ------------------------------------------ | ------------------------ |
-| Hook     | 0-3s     | Hero gradient wave     | Curiosity         | canvas-0.png, stripe-logo.svg              | "Nearly two trillion..." |
-| Features | 3-10s    | Product UI screenshots | "I need this"     | image-1.jpg, image-3.jpg, remote bento URL | "Purpose-built for..."   |
-| ...      | ...      | ...                    | ...               | ...                                        | ...                      |
+| Scene | Duration | What viewer sees | What viewer feels | Assets to use | Transition OUT | Narration |
+| ----- | -------- | ---------------- | ----------------- | ------------- | -------------- | --------- |
+|       |          |                  |                   |               |                |           |
 
 If the user explicitly says "no narration" or "no voiceover", skip the script and plan scenes with visual-only timing.
 
 ### Step 5: Build the video (think like a Senior HyperFrames Engineer)
 
 Switch roles. You are now a senior engineer who specializes in video creation with HyperFrames. A client (the creative director from Step 4) just handed you a video plan with a narration script and you need to execute it at 200% quality.
+
+**Your goal is not just "working video." Your goal is a video that makes viewers say "how the hell did they make this from just a URL?"** Use shader transitions between scenes. Use the website's real assets creatively — not just as static images, but as elements that move, transform, and surprise. The captured shaders, animations, and Lottie files are inspiration for what the original site's creators thought was visually impactful — channel that same energy.
 
 #### First: generate the audio
 
@@ -228,19 +232,6 @@ Now invoke `/hyperframes-compose`. Read the entire skill — every rule, every p
 
 **IMPORTANT. Before writing ANY HTML, create an asset plan for each scene.** List every file from assets/ and every URL from assets-catalog.json that you'll embed. If a scene uses zero captured assets, explain why.
 
-```
-Scene 1:
-- Background: assets/canvas-0.png (hero WebGL capture) OR assets/image-0.png (hero image)
-- Logo: assets/svgs/stripe-logo.svg (inline SVG)
-- Remote: https://example.com/product-screenshot.jpg (from assets-catalog.json)
-- Font: assets/fonts/Sohne.woff2
-
-Scene 2:
-- Image: assets/image-1.jpg (product UI screenshot)
-- Remote: https://example.com/bento-card.png (from assets-catalog.json)
-- SVGs: assets/svgs/logo-3.svg through logo-8.svg (customer logos)
-```
-
 **Remote URLs from assets-catalog.json work directly in compositions:**
 
 ```html
@@ -249,13 +240,15 @@ Scene 2:
 
 These load in preview and render. Don't limit yourself to local files — product screenshots, headshots, hero images from the catalog are all usable.
 
+> **⚠ Always check `assets/` before using remote URLs.** Images downloaded during capture are already in `assets/` — prefer local files if possible
+
 Build each scene as a separate sub-composition in `compositions/`. Follow these non-negotiable rules:
 
 **Use real assets — never placeholders:**
 
 - EXACT colors from DESIGN.md (hex values)
 - EXACT fonts via @font-face with URLs from assets catalog
-- Real product screenshots, SVG logos from assets/svgs/ (IDEALLY AS MANY AS APPROPRIATE)
+- Real product brand-kit, identity, style, fonts, SVG logos from assets/svgs/ (IDEALLY AS MANY AS APPROPRIATE)
 - If the capture has an asset for something, USE IT!!!
 
 **How to reference assets in compositions** (compositions live in `compositions/`, assets in `assets/`):
@@ -314,7 +307,18 @@ Build each scene as a separate sub-composition in `compositions/`. Follow these 
 </script>
 ```
 
-If `extracted/shaders.json` exists, you can reference the captured GLSL source code to recreate similar WebGL visual effects.
+Check if `extracted/shaders.json` exists, you can reference the captured GLSL source code to recreate similar WebGL visual effects.
+
+**Wire up shader transitions (if your scene plan includes them):**
+
+Read `references/transitions/shader-setup.md` for the complete WebGL boilerplate and `references/transitions/shader-transitions.md` for the fragment shaders. The shader system composites scenes as WebGL textures — each scene's DOM is captured to a texture, then the shader blends between them with GSAP driving `u_progress` from 0 to 1.
+
+Key points:
+
+- Shader transitions go in the **root `index.html`**, not in individual scene files
+- Scenes with shader transitions do NOT need fade-in/fade-out — the shader handles the visual blend
+- The root timeline orchestrates: show scene 1 via passthrough shader → `beginTrans(shaderProg, "scene1", "scene2")` → GSAP tweens progress 0→1 → `endTrans("scene2")`
+- Pick transition duration from the catalog (0.3-0.8s depending on energy level)
 
 **Wire up the audio:**
 
@@ -340,20 +344,22 @@ Fix ALL errors before previewing. Give specific feedback on what you see in the 
 
 ### Video Types
 
-| Type                  | Duration | Scenes                                           | Best For                    |
-| --------------------- | -------- | ------------------------------------------------ | --------------------------- |
-| Social Ad             | 15s      | 4 (hook, feature, proof, CTA)                    | Instagram, TikTok, LinkedIn |
-| Product Tour          | 30s      | 5-6 (hero, features, proof, stats, pricing, CTA) | Website, YouTube            |
-| Feature Announcement  | 15s      | 3 (feature name, demo, CTA)                      | Product Hunt, Twitter       |
-| Testimonial Spotlight | 15s      | 3 (logo, quote, attribution)                     | LinkedIn, case study        |
-| Launch Video          | 60s      | 4 acts (hook, solution, proof, CTA)              | Product Hunt, landing page  |
+| Type | Typical Duration | Best For |
+| ---- | ---------------- | -------- |
 
-### Energy Modifiers
+Don't follow a fixed scene formula. Let the content, brand-identity dictate the structure.
 
-- **Energetic**: fast cuts (2-3s), back.out easing, 0.08s stagger
-- **Corporate**: smooth 0.6s transitions, gentle fades, generous holds
-- **Cinematic**: slow power4.out reveals, dramatic scale, long holds
-- **Playful**: bounce easing, colorful accents, rotation pops
+### Energy & Visual Vocabulary
+
+Don't just pick timing — pick a VISUAL IDENTITY for the video:
+
+| Energy                                | Motion feel                              | Transitions                                   | Easing                         | What it looks like                      |
+| ------------------------------------- | ---------------------------------------- | --------------------------------------------- | ------------------------------ | --------------------------------------- |
+| **Explosive** (launches, reveals)     | Elements slam in, shatter out            | Ridged Burn, Glitch (shader)                  | `expo.out`, `back.out(2.5)`    | Like a movie trailer — every cut hits   |
+| **Cinematic** (stories, tours)        | Slow reveals, dramatic scale, long holds | Gravitational Lens, Domain Warp (shader)      | `power4.out`, `sine.inOut`     | Like a Netflix opening sequence         |
+| **Fluid** (luxury, wellness, brand)   | Everything flows, nothing snaps          | Cross-Warp Morph, Thermal Distortion (shader) | `sine.inOut`, `power1`         | Like ink in water — smooth and organic  |
+| **Technical** (dev tools, APIs, SaaS) | Precise, geometric, grid-aware           | Cinematic Zoom, SDF Iris (shader)             | `power3.out`, `circ.out`       | Like a HUD system booting up            |
+| **Chaotic** (social, memes, viral)    | Unexpected motion, broken rules          | Glitch, Whip Pan (shader)                     | `elastic.out(1.5)`, `steps(4)` | Like TikTok creators with After Effects |
 
 ### Format
 

@@ -17,34 +17,13 @@ export async function extractHtml(
   const settleTime = opts.settleTime ?? DEFAULT_SETTLE_TIME;
 
   // Step 1: Trigger lazy loading by scrolling through the page
-  // Also snapshot canvases AT EACH SCROLL POSITION (before they get GC'd)
   await page.evaluate(`(async () => {
-    var snapshotted = new Set();
     var pageHeight = document.body.scrollHeight;
     var viewportH = window.innerHeight;
     var step = Math.floor(viewportH * 0.7);
     for (var y = 0; y < pageHeight + viewportH; y += step) {
       window.scrollTo(0, y);
       await new Promise(function(r) { setTimeout(r, 200); });
-      // Snapshot any visible canvases at this scroll position
-      document.querySelectorAll("canvas").forEach(function(canvas) {
-        if (snapshotted.has(canvas)) return;
-        try {
-          if (canvas.width < 50 || canvas.height < 50) return;
-          if (!canvas.offsetWidth || !canvas.offsetHeight) return;
-          var dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-          if (dataUrl.length < 1000) return;
-          var img = document.createElement("img");
-          img.src = dataUrl;
-          img.width = canvas.width;
-          img.height = canvas.height;
-          img.style.cssText = canvas.style.cssText;
-          img.className = canvas.className;
-          if (canvas.getAttribute("aria-hidden")) img.setAttribute("aria-hidden", "true");
-          canvas.parentNode.replaceChild(img, canvas);
-          snapshotted.add(canvas);
-        } catch(e) {}
-      });
     }
     window.scrollTo(0, pageHeight);
     await new Promise(function(r) { setTimeout(r, 300); });
@@ -165,16 +144,7 @@ export async function extractHtml(
     }
   })()`);
 
-  // Step 4: Canvas elements are handled by the orchestrator using Puppeteer
-  // element screenshots (page.$$('canvas') → handle.screenshot()) which is
-  // more reliable than in-page toDataURL because React re-renders overwrite
-  // DOM replacements.
-
-  // Note: Canvas snapshot via toDataURL is unreliable because React re-renders
-  // overwrite in-page replacements. The Puppeteer element screenshots above
-  // are saved as canvas-*.png files and referenced in capture-summary.md.
-
-  // Step 5: Extract everything
+  // Step 4: Extract everything
   const result = (await page.evaluate(`(() => {
     // Capture styles AND scripts from head separately then combine
     // Scripts include Three.js, animation libraries that we want to preserve
