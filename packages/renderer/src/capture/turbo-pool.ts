@@ -62,16 +62,19 @@ export class TurboPool {
       const workerId = `w${i}-${this.sessionId}`;
       const workerUrl = `${config.turboWorkerUrl}?channel=${encodeURIComponent(channelName)}&workerId=${encodeURIComponent(workerId)}`;
 
-      const win = window.open(
-        workerUrl,
-        "_blank",
-        `noopener,width=1,height=1,left=-9999,top=-9999`,
-      );
+      const win = window.open(workerUrl, "_blank", "width=1,height=1,left=-9999,top=-9999");
 
       if (!win) {
         // Popup blocked — clean up and signal failure
         await this.dispose();
         throw new Error("POPUP_BLOCKED");
+      }
+
+      // Minimize the popup to reduce visual noise
+      try {
+        win.blur();
+      } catch {
+        // cross-origin after navigation — expected
       }
 
       const worker: WorkerState = { id: workerId, window: win, ready: false, done: false };
