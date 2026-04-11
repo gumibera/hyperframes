@@ -66,6 +66,10 @@ export function refreshRuntimeMediaCache(params?: {
   return { timedMediaEls: mediaEls, mediaClips, videoClips, maxMediaEnd };
 }
 
+// Elements with a pending deferred play — prevents re-calling load()/addEventListener
+// on every tick while the media is still buffering.
+const pendingPlay = new WeakSet<HTMLMediaElement>();
+
 export function syncRuntimeMedia(params: {
   clips: RuntimeMediaClip[];
   timeSeconds: number;
@@ -100,8 +104,24 @@ export function syncRuntimeMedia(params: {
           // ignore browser seek restrictions
         }
       }
-      if (params.playing && el.paused) {
-        void el.play().catch(() => {});
+      if (params.playing && el.paused && !pendingPlay.has(el)) {
+        if (el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+          void el.play().catch(() => {});
+        } else {
+          pendingPlay.add(el);
+          if (el.preload !== "auto") el.preload = "auto";
+          el.addEventListener(
+            "canplay",
+            () => {
+              pendingPlay.delete(el);
+              if (!el.paused) return;
+              void el.play().catch(() => {});
+            },
+            { once: true },
+          );
+          el.addEventListener("error", () => pendingPlay.delete(el), { once: true });
+          el.load();
+        }
       } else if (!params.playing && !el.paused) {
         el.pause();
       }

@@ -43,6 +43,33 @@ export interface BeginFrameResult {
 // the compositor is paused).
 const lastFrameCache = new WeakMap<Page, Buffer>();
 
+const PENDING_FRAME_RETRIES = 5;
+
+async function sendBeginFrame(
+  client: import("puppeteer-core").CDPSession,
+  params: Parameters<typeof client.send<"HeadlessExperimental.beginFrame">>[1],
+) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await client.send("HeadlessExperimental.beginFrame", params);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isPending = msg.includes("Another frame is pending");
+      if (isPending && attempt < PENDING_FRAME_RETRIES) {
+        await new Promise((r) => setTimeout(r, 50 * 2 ** attempt));
+        continue;
+      }
+      if (isPending) {
+        throw new Error(
+          `[BeginFrame] Frame still pending after ${PENDING_FRAME_RETRIES} retries — CPU overloaded by parallel renders. ` +
+            `Reduce concurrent renders or use --docker for isolation.`,
+        );
+      }
+      throw err;
+    }
+  }
+}
+
 export async function beginFrameCapture(
   page: Page,
   options: CaptureOptions,
@@ -51,39 +78,34 @@ export async function beginFrameCapture(
 ): Promise<BeginFrameResult> {
   const client = await getCdpSession(page);
 
-  const format = options.format === "png" ? "png" : "jpeg";
-  const result = await client.send("HeadlessExperimental.beginFrame", {
-    frameTimeTicks,
-    interval,
-    screenshot: {
-      format,
-      quality: format === "jpeg" ? (options.quality ?? 80) : undefined,
-      optimizeForSpeed: true,
-    },
-  });
+  const isPng = options.format === "png";
+  const screenshot = {
+    format: isPng ? "png" : "jpeg",
+    quality: isPng ? undefined : (options.quality ?? 80),
+    optimizeForSpeed: true,
+  } as const;
+
+  const result = await sendBeginFrame(client, { frameTimeTicks, interval, screenshot });
 
   let buffer: Buffer;
   if (result.screenshotData) {
     buffer = Buffer.from(result.screenshotData, "base64");
     lastFrameCache.set(page, buffer);
   } else {
-    // hasDamage=false — nothing changed visually. Reuse the last frame.
     const cached = lastFrameCache.get(page);
     if (cached) {
       buffer = cached;
     } else {
-      // No cached frame yet (shouldn't happen — frame 0 always has damage).
-      // Issue another beginFrame with a tiny time advance to force a composite.
-      const retry = await client.send("HeadlessExperimental.beginFrame", {
+      // Frame 0 always has damage, so this path is near-unreachable.
+      // Force a composite with a tiny time advance.
+      const fallback = await sendBeginFrame(client, {
         frameTimeTicks: frameTimeTicks + 0.001,
         interval,
-        screenshot: {
-          format,
-          quality: format === "jpeg" ? (options.quality ?? 80) : undefined,
-          optimizeForSpeed: true,
-        },
+        screenshot,
       });
-      buffer = retry.screenshotData ? Buffer.from(retry.screenshotData, "base64") : Buffer.alloc(0);
+      buffer = fallback.screenshotData
+        ? Buffer.from(fallback.screenshotData, "base64")
+        : Buffer.alloc(0);
       if (buffer.length > 0) lastFrameCache.set(page, buffer);
     }
   }

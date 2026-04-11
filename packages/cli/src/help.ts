@@ -53,6 +53,7 @@ const GROUPS: Group[] = [
         "transcribe",
         "Transcribe audio/video to word-level timestamps, or import an existing transcript",
       ],
+      ["tts", "Generate speech audio from text using a local AI model (Kokoro-82M)"],
     ],
   },
   {

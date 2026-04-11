@@ -48,11 +48,6 @@ const _thumbnailInflight = new Map<string, Promise<Buffer>>();
 // ── Vite adapter for the shared studio API ───────────────────────────────────
 
 function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAdapter {
-  const PRODUCER_URL = (process.env.PRODUCER_SERVER_URL || "http://127.0.0.1:9847").replace(
-    /\/+$/,
-    "",
-  );
-
   // Lazy-load the bundler via Vite's SSR module loader
   let _bundler: ((dir: string) => Promise<string>) | null = null;
   const getBundler = async () => {
@@ -158,83 +153,53 @@ function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAda
         outputPath: opts.outputPath,
       };
 
-      // Proxy to producer server
       const startTime = Date.now();
-      fetch(`${PRODUCER_URL}/render/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectDir: opts.project.dir,
-          outputPath: opts.outputPath,
-          fps: opts.fps,
-          quality: opts.quality,
-          format: opts.format,
-        }),
-      })
-        .then(async (resp) => {
-          if (!resp.ok || !resp.body) {
-            state.status = "failed";
-            return;
+      (async () => {
+        try {
+          // Help the producer find a browser — it checks PRODUCER_HEADLESS_SHELL_PATH
+          // but doesn't search system Chrome paths. Reuse the same discovery as thumbnails.
+          if (!process.env.PRODUCER_HEADLESS_SHELL_PATH) {
+            const systemChrome = [
+              "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+              "/usr/bin/google-chrome",
+              "/usr/bin/chromium-browser",
+            ].find((p) => existsSync(p));
+            if (systemChrome) process.env.PRODUCER_HEADLESS_SHELL_PATH = systemChrome;
           }
-          const reader = resp.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const blocks = buffer.split("\n\n");
-            buffer = blocks.pop() || "";
-            for (const block of blocks) {
-              const data = block
-                .split("\n")
-                .filter((l) => l.startsWith("data:"))
-                .map((l) => l.slice(5).trim())
-                .join("");
-              if (!data) continue;
-              try {
-                const evt = JSON.parse(data);
-                if (evt.type === "progress") {
-                  state.progress = evt.progress;
-                  if (evt.stage || evt.message) state.stage = evt.stage || evt.message;
-                }
-                if (evt.type === "complete") {
-                  state.status = "complete";
-                  state.outputPath = evt.outputPath || opts.outputPath;
-                  const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
-                  writeFileSync(
-                    metaPath,
-                    JSON.stringify({ status: "complete", durationMs: Date.now() - startTime }),
-                  );
-                }
-                if (evt.type === "error") {
-                  state.status = "failed";
-                  const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
-                  writeFileSync(metaPath, JSON.stringify({ status: "failed" }));
-                }
-              } catch {
-                /* ignore parse errors */
-              }
-            }
-          }
-          if (state.status === "rendering") {
-            state.status = "complete";
-            const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
-            writeFileSync(
-              metaPath,
-              JSON.stringify({ status: "complete", durationMs: Date.now() - startTime }),
-            );
-          }
-        })
-        .catch(() => {
+          // Dynamic import hidden from esbuild's static analysis (vite.config.ts is
+          // bundled by esbuild at startup; a bare specifier would fail the externalize-deps plugin).
+          const producerPkg = "@hyperframes/producer";
+          const { createRenderJob, executeRenderJob } = await import(
+            /* @vite-ignore */ producerPkg
+          );
+          const job = createRenderJob({
+            fps: opts.fps as 24 | 30 | 60,
+            quality: opts.quality as "draft" | "standard" | "high",
+            format: opts.format,
+          });
+          const onProgress = (j: { progress: number; currentStage?: string }) => {
+            state.progress = j.progress;
+            if (j.currentStage) state.stage = j.currentStage;
+          };
+          await executeRenderJob(job, opts.project.dir, opts.outputPath, onProgress);
+          state.status = "complete";
+          state.progress = 100;
+          const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
+          writeFileSync(
+            metaPath,
+            JSON.stringify({ status: "complete", durationMs: Date.now() - startTime }),
+          );
+        } catch (err) {
           state.status = "failed";
+          state.error = err instanceof Error ? err.message : String(err);
           try {
             const metaPath = opts.outputPath.replace(/\.(mp4|webm|mov)$/, ".meta.json");
             writeFileSync(metaPath, JSON.stringify({ status: "failed" }));
           } catch {
             /* ignore */
           }
-        });
+        }
+      })();
 
       return state;
     },

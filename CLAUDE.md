@@ -72,7 +72,9 @@ When adding a new CLI command:
 1. Define the command in `packages/cli/src/commands/<name>.ts` using `defineCommand` from citty
 2. **Export `examples`** in the same file — `export const examples: Example[] = [...]` (import `Example` from `./_examples.js`). These are displayed by `--help`.
 3. Register it in `packages/cli/src/cli.ts` under `subCommands` (lazy-loaded)
-4. Validate by running `npx tsx packages/cli/src/cli.ts <name> --help` and verifying the examples section appears
+4. **Add to help groups** in `packages/cli/src/help.ts` — add the command name and description to the appropriate `GROUPS` entry. Without this, the command won't appear in `hyperframes --help` even though it works.
+5. **Document it** in `docs/packages/cli.mdx` — add a section with usage examples and flags.
+6. Validate by running `npx tsx packages/cli/src/cli.ts --help` (command appears in the list) and `npx tsx packages/cli/src/cli.ts <name> --help` (examples appear).
 
 ## Key Concepts
 

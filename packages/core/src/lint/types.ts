@@ -21,6 +21,7 @@ export type HyperframeLintResult = {
 
 export type HyperframeLinterOptions = {
   filePath?: string;
+  isSubComposition?: boolean;
 };
 
 // A rule is a pure function: receives parsed context, returns zero or more findings.

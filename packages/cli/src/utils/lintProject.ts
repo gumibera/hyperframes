@@ -40,7 +40,7 @@ export function lintProject(project: ProjectDir): ProjectLintResult {
       const filePath = join(compositionsDir, file);
       const html = readFileSync(filePath, "utf-8");
       allHtmlSources.push(html);
-      const result = lintHyperframeHtml(html, { filePath });
+      const result = lintHyperframeHtml(html, { filePath, isSubComposition: true });
       results.push({ file: `compositions/${file}`, result });
       totalErrors += result.errorCount;
       totalWarnings += result.warningCount;

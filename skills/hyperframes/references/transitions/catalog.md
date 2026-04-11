@@ -8,7 +8,7 @@ These cause real bugs if violated.
 
 **Scene visibility:** Scene 1 visible by default (no `opacity: 0`). Scenes 2+ have `opacity: 0` on the CONTAINER div. GSAP reveals them. No visibility shim (`timedEls`).
 
-**Iframe compatibility:** No external font links (`<link>` to Google Fonts, `@import`). They block sandboxed iframes. Use system fonts.
+**Fonts:** Just write the `font-family` you want — the compiler embeds supported fonts automatically via `@font-face` with inline data URIs. No need for `<link>` tags or `@import`. Works in all contexts including sandboxed iframes.
 
 **Element structure:** No `class="clip"` on scene divs in standalone compositions. Only the root div gets `data-composition-id`/`data-start`/`data-duration`.
 
@@ -57,7 +57,7 @@ Read [shader-setup.md](./shader-setup.md) for the full setup code these rules ap
         height: 1080px;
         overflow: hidden;
         background: #000;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-family: "YOUR FONT", sans-serif; /* compiler embeds supported fonts automatically */
       }
       .scene {
         position: absolute;

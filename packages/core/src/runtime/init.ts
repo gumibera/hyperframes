@@ -1167,6 +1167,16 @@ export function initSandboxRuntimeModular(): void {
       metadataBoundMedia.add(mediaEl);
       mediaEl.addEventListener("loadedmetadata", scheduleMetadataDurationHydration);
       mediaEl.addEventListener("durationchange", scheduleMetadataDurationHydration);
+
+      // Eagerly preload media data so audio/video is buffered before the user
+      // clicks play. Without this, the first play() call fires on un-fetched
+      // media, producing silence or choppy audio until the browser caches it.
+      if (mediaEl.preload !== "auto") {
+        mediaEl.preload = "auto";
+      }
+      if (mediaEl.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+        mediaEl.load();
+      }
     }
   };
 

@@ -171,10 +171,42 @@ describe("syncRuntimeMedia", () => {
     document.body.innerHTML = "";
   });
 
-  it("plays active clip when playing", () => {
+  it("plays active clip when playing and buffered", () => {
     const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 4, writable: true });
     syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
     expect(clip.el.play).toHaveBeenCalled();
+  });
+
+  it("defers play on unbuffered media and calls load()", () => {
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 0, writable: true });
+    const loadSpy = vi.spyOn(clip.el, "load").mockImplementation(() => {});
+    const addEventSpy = vi.spyOn(clip.el, "addEventListener");
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
+    expect(clip.el.play).not.toHaveBeenCalled();
+    expect(loadSpy).toHaveBeenCalledOnce();
+    expect(addEventSpy).toHaveBeenCalledWith("canplay", expect.any(Function), { once: true });
+  });
+
+  it("plays when canplay fires after deferred play", () => {
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 0, writable: true });
+    vi.spyOn(clip.el, "load").mockImplementation(() => {});
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
+    expect(clip.el.play).not.toHaveBeenCalled();
+    clip.el.dispatchEvent(new Event("canplay"));
+    expect(clip.el.play).toHaveBeenCalled();
+  });
+
+  it("does not re-register listener on repeated ticks while unbuffered", () => {
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 0, writable: true });
+    const loadSpy = vi.spyOn(clip.el, "load").mockImplementation(() => {});
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5.1, playing: true, playbackRate: 1 });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5.2, playing: true, playbackRate: 1 });
+    expect(loadSpy).toHaveBeenCalledOnce();
   });
 
   it("pauses active clip when not playing", () => {

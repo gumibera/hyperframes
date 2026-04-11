@@ -692,6 +692,7 @@ export async function executeRenderJob(
     updateJobStatus(job, "preprocessing", "Extracting video frames", 10, onProgress);
 
     let frameLookup: FrameLookupTable | null = null;
+    const compiledDir = join(workDir, "compiled");
 
     if (composition.videos.length > 0) {
       const extractionResult = await extractAllVideoFrames(
@@ -699,6 +700,8 @@ export async function executeRenderJob(
         projectDir,
         { fps: job.config.fps, outputDir: join(workDir, "video-frames") },
         abortSignal,
+        undefined,
+        compiledDir,
       );
       assertNotAborted();
 
@@ -747,6 +750,8 @@ export async function executeRenderJob(
         audioOutputPath,
         job.duration,
         abortSignal,
+        undefined,
+        compiledDir,
       );
       assertNotAborted();
 

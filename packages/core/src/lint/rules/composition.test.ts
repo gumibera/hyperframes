@@ -201,6 +201,149 @@ describe("composition rules", () => {
     });
   });
 
+  describe("root_composition_missing_html_wrapper", () => {
+    it("flags bare composition div as error", () => {
+      // Exact scenario from the screenshot — bare div with composition attributes, no HTML wrapper
+      const html = `<div
+  id="comp-main"
+  data-composition-id="no-limits"
+  data-start="0"
+  data-duration="15"
+  data-width="1920"
+  data-height="1080"
+>
+  <!-- Sub-composition: the visual spectacle -->
+  <div
+    id="el-visuals"
+    data-composition-id="visuals"
+    data-composition-src="compositions/visuals.html"
+    data-duration="15"
+    data-track-index="0"
+  ></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["no-limits"] = tl;
+  </script>
+</div>`;
+      const result = lintHyperframeHtml(html, { filePath: "index.html" });
+      const finding = result.findings.find(
+        (f) => f.code === "root_composition_missing_html_wrapper",
+      );
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe("error");
+      expect(result.ok).toBe(false);
+    });
+
+    it("does not flag properly wrapped HTML composition", () => {
+      const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="10">
+    <div class="clip" data-start="0" data-duration="5">Hello</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      const finding = result.findings.find(
+        (f) => f.code === "root_composition_missing_html_wrapper",
+      );
+      expect(finding).toBeUndefined();
+    });
+
+    it("does not flag composition starting with <html> (no doctype)", () => {
+      const html = `<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="5"></div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = gsap.timeline({ paused: true });
+  </script>
+</body></html>`;
+      const result = lintHyperframeHtml(html);
+      const finding = result.findings.find(
+        (f) => f.code === "root_composition_missing_html_wrapper",
+      );
+      expect(finding).toBeUndefined();
+    });
+
+    it("does not flag sub-compositions", () => {
+      const html = `<div data-composition-id="sub" data-width="1920" data-height="1080">
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["sub"] = gsap.timeline({ paused: true });
+  </script>
+</div>`;
+      const result = lintHyperframeHtml(html, { isSubComposition: true });
+      const finding = result.findings.find(
+        (f) => f.code === "root_composition_missing_html_wrapper",
+      );
+      expect(finding).toBeUndefined();
+    });
+
+    it("does not flag HTML without composition attributes", () => {
+      const html = `<div id="hello"><p>Not a composition</p></div>`;
+      const result = lintHyperframeHtml(html);
+      const finding = result.findings.find(
+        (f) => f.code === "root_composition_missing_html_wrapper",
+      );
+      expect(finding).toBeUndefined();
+    });
+
+    it("includes root tag snippet in finding", () => {
+      const html = `<div data-composition-id="bare" data-width="1920" data-height="1080">
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["bare"] = gsap.timeline({ paused: true });
+  </script>
+</div>`;
+      const result = lintHyperframeHtml(html);
+      const finding = result.findings.find(
+        (f) => f.code === "root_composition_missing_html_wrapper",
+      );
+      expect(finding).toBeDefined();
+      expect(finding?.snippet).toContain("data-composition-id");
+    });
+  });
+
+  describe("standalone_composition_wrapped_in_template", () => {
+    it("flags root index.html wrapped in template", () => {
+      const html = `<template id="main-template">
+  <div data-composition-id="main" data-width="1920" data-height="1080">
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+    </script>
+  </div>
+</template>`;
+      const result = lintHyperframeHtml(html);
+      const finding = result.findings.find(
+        (f) => f.code === "standalone_composition_wrapped_in_template",
+      );
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe("warning");
+    });
+
+    it("does not flag sub-compositions in template", () => {
+      const html = `<template id="sub-template">
+  <div data-composition-id="sub" data-width="1920" data-height="1080">
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["sub"] = gsap.timeline({ paused: true });
+    </script>
+  </div>
+</template>`;
+      const result = lintHyperframeHtml(html, { isSubComposition: true });
+      const finding = result.findings.find(
+        (f) => f.code === "standalone_composition_wrapped_in_template",
+      );
+      expect(finding).toBeUndefined();
+    });
+  });
+
   describe("requestanimationframe_in_composition", () => {
     it("flags requestAnimationFrame usage in script content", () => {
       const html = `

@@ -14,6 +14,7 @@ export type { OpenTag, ExtractedBlock };
 
 export type LintContext = {
   source: string;
+  rawSource: string;
   tags: OpenTag[];
   styles: ExtractedBlock[];
   scripts: ExtractedBlock[];
@@ -27,7 +28,8 @@ export type LintContext = {
 export type { HyperframeLintFinding };
 
 export function buildLintContext(html: string, options: HyperframeLinterOptions = {}): LintContext {
-  let source = html || "";
+  const rawSource = html || "";
+  let source = rawSource;
   const templateMatch = source.match(/<template[^>]*>([\s\S]*)<\/template>/i);
   if (templateMatch?.[1]) source = templateMatch[1];
 
@@ -40,6 +42,7 @@ export function buildLintContext(html: string, options: HyperframeLinterOptions 
 
   return {
     source,
+    rawSource,
     tags,
     styles,
     scripts,

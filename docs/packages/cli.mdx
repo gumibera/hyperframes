@@ -226,6 +226,42 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     <Tip>
       For music or noisy audio, use `--model medium.en` for better accuracy. For the best results with production content, transcribe via the OpenAI or Groq Whisper API and import the JSON.
     </Tip>
+
+    ### `tts`
+
+    Generate speech audio from text using a local AI model (Kokoro-82M). No API key required — runs entirely on-device.
+
+    ```bash
+    # Generate speech from text
+    npx hyperframes tts "Welcome to HyperFrames"
+
+    # Choose a voice
+    npx hyperframes tts "Hello world" --voice am_adam
+
+    # Save to a specific file
+    npx hyperframes tts "Intro" --voice bf_emma --output narration.wav
+
+    # Adjust speech speed
+    npx hyperframes tts "Slow and clear" --speed 0.8
+
+    # Read text from a file
+    npx hyperframes tts script.txt
+
+    # List available voices
+    npx hyperframes tts --list
+    ```
+
+    | Flag | Description |
+    |------|-------------|
+    | `--output, -o` | Output file path (default: `speech.wav` in current directory) |
+    | `--voice, -v` | Voice ID (run `--list` to see options) |
+    | `--speed, -s` | Speech speed multiplier (default: 1.0) |
+    | `--list` | List available voices and exit |
+    | `--json` | Output result as JSON |
+
+    <Tip>
+      Combine `tts` with `transcribe` to generate narration and word-level timestamps for captions in a single workflow: generate the audio with `tts`, then transcribe the output with `transcribe` to get word-level timing.
+    </Tip>
   </Tab>
   <Tab title="Preview">
     ### `preview`

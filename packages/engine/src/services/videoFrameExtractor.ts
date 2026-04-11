@@ -201,6 +201,7 @@ export async function extractAllVideoFrames(
   options: ExtractionOptions,
   signal?: AbortSignal,
   config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
+  compiledDir?: string,
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
   const extracted: ExtractedFrames[] = [];
@@ -216,7 +217,9 @@ export async function extractAllVideoFrames(
       try {
         let videoPath = video.src;
         if (!videoPath.startsWith("/") && !isHttpUrl(videoPath)) {
-          videoPath = join(baseDir, videoPath);
+          const fromCompiled = compiledDir ? join(compiledDir, videoPath) : null;
+          videoPath =
+            fromCompiled && existsSync(fromCompiled) ? fromCompiled : join(baseDir, videoPath);
         }
 
         if (isHttpUrl(videoPath)) {

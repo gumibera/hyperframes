@@ -49,7 +49,7 @@
     style="
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    font-family: 'Inter', sans-serif; font-size: 72px; color: #fff;
+    font-family: 'Bricolage Grotesque', sans-serif; font-size: 72px; color: #fff;
     background: #111;
   "
   >

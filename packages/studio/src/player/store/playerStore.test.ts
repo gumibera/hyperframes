@@ -112,13 +112,13 @@ describe("usePlayerStore", () => {
     });
   });
 
-  describe("updateElementStart", () => {
+  describe("updateElement", () => {
     it("updates the start time of a specific element", () => {
       usePlayerStore.getState().setElements([
         { id: "el-1", tag: "div", start: 0, duration: 5, track: 0 },
         { id: "el-2", tag: "div", start: 5, duration: 5, track: 1 },
       ]);
-      usePlayerStore.getState().updateElementStart("el-1", 3);
+      usePlayerStore.getState().updateElement("el-1", { start: 3 });
       const elements = usePlayerStore.getState().elements;
       expect(elements[0].start).toBe(3);
       expect(elements[1].start).toBe(5); // unchanged
@@ -129,7 +129,7 @@ describe("usePlayerStore", () => {
         { id: "el-1", tag: "div", start: 0, duration: 5, track: 0 },
       ];
       usePlayerStore.getState().setElements(original);
-      usePlayerStore.getState().updateElementStart("nonexistent", 10);
+      usePlayerStore.getState().updateElement("nonexistent", { start: 10 });
       expect(usePlayerStore.getState().elements[0].start).toBe(0);
     });
   });

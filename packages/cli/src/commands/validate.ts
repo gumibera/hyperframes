@@ -44,7 +44,7 @@ async function validateInBrowser(
     const runtimeSource = readFileSync(runtimePath, "utf-8");
     html = html.replace(
       /<script[^>]*data-hyperframes-preview-runtime[^>]*src="[^"]*"[^>]*><\/script>/,
-      `<script data-hyperframes-preview-runtime="1">${runtimeSource}</script>`,
+      () => `<script data-hyperframes-preview-runtime="1">${runtimeSource}</script>`,
     );
   }
 

@@ -129,4 +129,4 @@ tl.seek(0);
 - Sync to transcript timestamps.
 - One group visible at a time.
 - Every group must have a hard `tl.set` kill at `group.end`.
-- Check project root for font files before defaulting to Google Fonts.
+- The compiler embeds supported fonts automatically — just declare `font-family` in CSS.

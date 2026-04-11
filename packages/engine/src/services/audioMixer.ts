@@ -308,6 +308,7 @@ export async function processCompositionAudio(
   totalDuration: number,
   signal?: AbortSignal,
   config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout" | "audioGain">>,
+  compiledDir?: string,
 ): Promise<MixResult> {
   const startMs = Date.now();
   const tracks: AudioTrack[] = [];
@@ -324,7 +325,9 @@ export async function processCompositionAudio(
       try {
         let srcPath = element.src;
         if (!srcPath.startsWith("/") && !isHttpUrl(srcPath)) {
-          srcPath = join(baseDir, srcPath);
+          const fromCompiled = compiledDir ? join(compiledDir, srcPath) : null;
+          srcPath =
+            fromCompiled && existsSync(fromCompiled) ? fromCompiled : join(baseDir, srcPath);
         }
 
         if (isHttpUrl(srcPath)) {
@@ -339,7 +342,7 @@ export async function processCompositionAudio(
         }
 
         if (!existsSync(srcPath)) {
-          errors.push(`Source not found: ${element.id}`);
+          errors.push(`Source not found: ${element.id} (${element.src})`);
           return;
         }
 

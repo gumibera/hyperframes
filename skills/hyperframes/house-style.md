@@ -6,7 +6,7 @@ Defaults when no `visual-style.md` or animation direction is provided. These rai
 
 1. **Interpret the prompt.** Generate real content for the topic — don't use the prompt text as body copy. A recipe lists real ingredients. A stats dashboard shows the actual numbers given. A product showcase names real features and specs. A sci-fi HUD has actual crosshairs and readouts, not a heading that says "sci-fi HUD."
 2. **Pick a palette.** First decide: does this content call for a light or dark canvas? Then load the file most appropriate for the theme and pick one palette at random from the file. Declare your bg, fg, and accent colors before writing any code.
-3. **Pick a typeface.** Don't reach for Sora, Space Grotesk, Outfit, Playfair Display, Cormorant Garamond, or Bodoni Moda — they're overused. Explore the full range of Google Fonts. Serif for editorial, mono for technical, display for impact, handwritten for personal.
+3. **Pick a typeface.** Don't reach for Sora, Space Grotesk, Outfit, Playfair Display, Cormorant Garamond, or Bodoni Moda — they're overused. Read [references/fonts.md](references/fonts.md) and pick a font that matches the content mood. Serif for editorial, mono for technical, display for impact, handwritten for personal. Just write the `font-family` in CSS — the compiler embeds supported fonts automatically.
 4. **Pick a layout approach.** Don't default to the same structure every time.
 5. **Pick your entrance patterns.** Plan how elements enter — never use the same entrance pattern twice in a composition.
 
