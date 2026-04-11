@@ -12,9 +12,18 @@
  *   npx tsx packages/renderer/scripts/regression-parity.ts  # runs all tests
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import { resolve, join } from "node:path";
-import { execSync, spawnSync } from "node:child_process";
+import { execSync, spawnSync, spawn as spawnChild } from "node:child_process";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
@@ -110,40 +119,20 @@ function discoverTests(filterNames: string[]): TestSuite[] {
 
 // ── Step 1: Compile ─────────────────────────────────────────────────────────
 
-async function compileComposition(suite: TestSuite, outputDir: string): Promise<string> {
-  const compiledPath = join(outputDir, "compiled.html");
+async function compileComposition(suite: TestSuite, _outputDir: string): Promise<string> {
+  const compiledPath = join(_outputDir, "compiled.html");
 
-  // Use the producer's compileForRender via a small script
-  const compileScript = `
-    import { compileForRender } from "${resolve("packages/producer/src/services/htmlCompiler.js")}";
-    const result = await compileForRender(
-      "${suite.srcDir}",
-      "${join(suite.srcDir, "index.html")}",
-      "${outputDir}",
-    );
-    // Write the compiled HTML with runtime injected
-    const fs = await import("fs");
-    fs.writeFileSync("${compiledPath}", result.html);
-    // Write metadata
-    fs.writeFileSync("${join(outputDir, "compile-meta.json")}", JSON.stringify({
-      width: result.width,
-      height: result.height,
-      staticDuration: result.staticDuration,
-      videoCount: result.videos.length,
-      audioCount: result.audios.length,
-    }));
-    console.log(JSON.stringify({ ok: true, width: result.width, height: result.height }));
-  `;
-
-  const scriptPath = join(outputDir, "_compile.ts");
-  writeFileSync(scriptPath, compileScript);
-
-  const result = spawnSync("npx", ["tsx", scriptPath], {
-    cwd: resolve("."),
-    encoding: "utf-8",
-    timeout: 60_000,
-    env: { ...process.env, NODE_NO_WARNINGS: "1" },
-  });
+  // Use compile-test.ts which injects the HyperFrames runtime + __hf bridge
+  const result = spawnSync(
+    "npx",
+    ["tsx", resolve("packages/renderer/scripts/compile-test.ts"), suite.id],
+    {
+      cwd: resolve("."),
+      encoding: "utf-8",
+      timeout: 60_000,
+      env: { ...process.env, NODE_NO_WARNINGS: "1" },
+    },
+  );
 
   if (result.status !== 0) {
     throw new Error(`Compilation failed for ${suite.id}: ${result.stderr?.slice(-500)}`);
@@ -156,11 +145,64 @@ async function compileComposition(suite: TestSuite, outputDir: string): Promise<
   return compiledPath;
 }
 
+// ── Upload server ──────────────────────────────────────────────────────────
+
+const UPLOAD_PORT = SERVER_PORT + 1;
+const pendingUploads = new Map<
+  string,
+  { resolve: (path: string) => void; reject: (err: Error) => void; outputPath: string }
+>();
+
+function startUploadServer(): ReturnType<typeof createServer> {
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    // CORS preflight
+    if (req.method === "OPTIONS") {
+      res.writeHead(200, corsHeaders);
+      res.end();
+      return;
+    }
+
+    if (req.method === "POST" && req.url?.startsWith("/upload/")) {
+      const testId = req.url.slice("/upload/".length);
+      const pending = pendingUploads.get(testId);
+      if (!pending) {
+        res.writeHead(404, corsHeaders);
+        res.end("Unknown test");
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        const data = Buffer.concat(chunks);
+        writeFileSync(pending.outputPath, data);
+        res.writeHead(200, corsHeaders);
+        res.end("OK");
+        pending.resolve(pending.outputPath);
+        pendingUploads.delete(testId);
+      });
+      return;
+    }
+
+    res.writeHead(404, corsHeaders);
+    res.end("Not found");
+  });
+
+  server.listen(UPLOAD_PORT);
+  return server;
+}
+
 // ── Step 2: Render client-side ──────────────────────────────────────────────
 
 async function renderClientSide(
   suite: TestSuite,
-  compiledHtmlPath: string,
+  _compiledHtmlPath: string,
   outputDir: string,
 ): Promise<{ videoPath: string; durationMs: number }> {
   const metaJson = JSON.parse(readFileSync(join(outputDir, "compile-meta.json"), "utf-8"));
@@ -168,56 +210,117 @@ async function renderClientSide(
   const height = metaJson.height || 1920;
   const fps = suite.meta.renderConfig.fps;
 
-  // Create a test page that loads the compiled HTML and renders it
   const testPagePath = join(outputDir, "render-test.html");
   const videoOutputPath = join(outputDir, "client-render.mp4");
 
+  // The test page renders client-side, then POSTs the blob to our upload server
   const testPage = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Parity Test: ${suite.id}</title></head>
 <body>
 <script type="module">
-  const { render } = await import('http://localhost:${SERVER_PORT}/dist/renderer.bundle.js');
+  const { render } = await import('http://localhost:${SERVER_PORT}/packages/renderer/dist/renderer.bundle.js');
 
   try {
+    document.title = 'rendering...';
     const result = await render({
-      composition: 'http://localhost:${SERVER_PORT}/parity/${suite.id}/compiled.html',
+      composition: 'http://localhost:${SERVER_PORT}/renders/parity-regression/${suite.id}/compiled.html',
       fps: ${fps},
       width: ${width},
       height: ${height},
       codec: 'h264',
       format: 'mp4',
+      frameSource: 'snapdom',
       concurrency: 1,
-      workerUrl: 'http://localhost:${SERVER_PORT}/dist/worker.bundle.js',
+      workerUrl: 'http://localhost:${SERVER_PORT}/packages/renderer/dist/worker.bundle.js',
       onProgress: (p) => {
         document.title = p.stage + ' ' + Math.round(p.progress * 100) + '%';
       },
     });
 
-    // Store result globally so the harness can read it
-    window.__renderResult = {
-      ok: true,
-      blobSize: result.blob.size,
-      durationMs: result.durationMs,
-      mimeType: result.mimeType,
-    };
+    // Upload blob to the Node harness
+    document.title = 'uploading...';
+    const resp = await fetch('http://localhost:${UPLOAD_PORT}/upload/${suite.id}', {
+      method: 'POST',
+      body: result.blob,
+    });
 
-    // Create download link with the blob
-    const url = URL.createObjectURL(result.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'output.mp4';
-    a.id = 'download-link';
-    document.body.appendChild(a);
-    document.title = 'DONE';
+    if (!resp.ok) throw new Error('Upload failed: ' + resp.status);
+
+    document.title = 'DONE:' + result.durationMs;
   } catch (err) {
-    window.__renderResult = { ok: false, error: err.message };
     document.title = 'ERROR: ' + err.message;
   }
 </script>
 </body></html>`;
 
   writeFileSync(testPagePath, testPage);
-  return { videoPath: videoOutputPath, durationMs: 0 };
+
+  // Register upload promise
+  const uploadPromise = new Promise<string>((resolve, reject) => {
+    pendingUploads.set(suite.id, { resolve, reject, outputPath: videoOutputPath });
+  });
+
+  // Open in browser — use spawn (async) so the upload server can process requests
+  execSync(
+    `agent-browser --session parity-${suite.id} open "http://localhost:${SERVER_PORT}/renders/parity-regression/${suite.id}/render-test.html"`,
+    {
+      encoding: "utf-8",
+      timeout: 10_000,
+    },
+  );
+
+  // Wait for title to indicate completion — use spawn (async) so the event loop
+  // stays active for the upload HTTP server to process the POST from the browser
+  await new Promise<string>((resolve) => {
+    const child = spawnChild(
+      "agent-browser",
+      [
+        "--session",
+        `parity-${suite.id}`,
+        "wait",
+        "--fn",
+        "document.title.startsWith('DONE') || document.title.startsWith('ERROR')",
+        "--timeout",
+        "180000",
+      ],
+      { encoding: "utf-8", timeout: 190_000, stdio: ["ignore", "pipe", "pipe"] } as any,
+    );
+    let out = "";
+    child.stdout?.on("data", (d: Buffer) => {
+      out += d.toString();
+    });
+    child.stderr?.on("data", (d: Buffer) => {
+      out += d.toString();
+    });
+    child.on("close", () => resolve(out));
+  });
+
+  const titleResult = spawnSync(
+    "agent-browser",
+    ["--session", `parity-${suite.id}`, "get", "title"],
+    { encoding: "utf-8", timeout: 5_000 },
+  );
+  const title = (titleResult.stdout || "").trim();
+
+  execSync(`agent-browser --session parity-${suite.id} close 2>/dev/null || true`, {
+    encoding: "utf-8",
+    timeout: 5_000,
+  });
+
+  if (title.startsWith("ERROR")) {
+    throw new Error(title);
+  }
+
+  // Wait for upload to complete (render can take minutes for long compositions)
+  await Promise.race([
+    uploadPromise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Upload timeout")), 300_000),
+    ),
+  ]);
+
+  const durationMs = title.startsWith("DONE:") ? parseInt(title.slice(5)) : 0;
+  return { videoPath: videoOutputPath, durationMs };
 }
 
 // ── Step 3: PSNR comparison ─────────────────────────────────────────────────
@@ -284,75 +387,14 @@ async function runTest(suite: TestSuite): Promise<TestResult> {
     return result;
   }
 
-  // Step 2: Render via browser (agent-browser)
+  // Step 2: Render via browser
   console.log(`  [${suite.id}] Rendering client-side...`);
   const renderStart = Date.now();
   try {
-    await renderClientSide(suite, compiledPath, testOutputDir);
+    const { videoPath, durationMs } = await renderClientSide(suite, compiledPath, testOutputDir);
+    result.renderTimeMs = durationMs || Date.now() - renderStart;
 
-    // Use agent-browser to open the test page and wait for render
-    const testPageUrl = `http://localhost:${SERVER_PORT}/parity/${suite.id}/render-test.html`;
-
-    execSync(`agent-browser --session parity-${suite.id} open "${testPageUrl}"`, {
-      encoding: "utf-8",
-      timeout: 10_000,
-    });
-
-    // Wait for render to complete (title changes to DONE or ERROR)
-    spawnSync(
-      "agent-browser",
-      [
-        "--session",
-        `parity-${suite.id}`,
-        "wait",
-        "--fn",
-        "document.title.startsWith('DONE') || document.title.startsWith('ERROR')",
-        "--timeout",
-        "120000",
-      ],
-      { encoding: "utf-8", timeout: 130_000 },
-    );
-
-    // Check result
-    const titleResult = spawnSync(
-      "agent-browser",
-      ["--session", `parity-${suite.id}`, "get", "title"],
-      { encoding: "utf-8", timeout: 5_000 },
-    );
-    const title = (titleResult.stdout || "").trim();
-
-    if (title.startsWith("ERROR")) {
-      result.error = `Client-side render failed: ${title}`;
-      console.log(`  [${suite.id}] ✗ ${result.error}`);
-      execSync(`agent-browser --session parity-${suite.id} close`, {
-        encoding: "utf-8",
-        timeout: 5_000,
-      }).toString();
-      return result;
-    }
-
-    // Download the rendered video
-    spawnSync(
-      "agent-browser",
-      [
-        "--session",
-        `parity-${suite.id}`,
-        "download",
-        "#download-link",
-        join(testOutputDir, "client-render.mp4"),
-      ],
-      { encoding: "utf-8", timeout: 30_000 },
-    );
-
-    execSync(`agent-browser --session parity-${suite.id} close`, {
-      encoding: "utf-8",
-      timeout: 5_000,
-    }).toString();
-
-    result.renderTimeMs = Date.now() - renderStart;
-    const clientVideoPath = join(testOutputDir, "client-render.mp4");
-
-    if (!existsSync(clientVideoPath)) {
+    if (!existsSync(videoPath)) {
       result.error = "Client-side render produced no output file";
       console.log(`  [${suite.id}] ✗ No output file`);
       return result;
@@ -364,17 +406,16 @@ async function runTest(suite: TestSuite): Promise<TestResult> {
     // Step 3: PSNR comparison
     console.log(`  [${suite.id}] Comparing PSNR...`);
 
-    // Get video duration
     const probeResult = spawnSync(
       "ffprobe",
-      ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", clientVideoPath],
+      ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", videoPath],
       { encoding: "utf-8", timeout: 10_000 },
     );
     const videoDuration = parseFloat((probeResult.stdout || "0").trim()) || 3;
 
     for (let i = 0; i < CHECKPOINTS; i++) {
       const time = (videoDuration * i) / CHECKPOINTS;
-      const psnr = psnrAtCheckpoint(clientVideoPath, suite.goldenVideo, time);
+      const psnr = psnrAtCheckpoint(videoPath, suite.goldenVideo, time);
       const passed = psnr >= (suite.meta.minPsnr || MIN_PSNR);
       result.checkpoints.push({ time, psnr, passed });
     }
@@ -426,26 +467,29 @@ async function main() {
     );
   }
 
-  // Start static file server
+  // Start static file server + upload server
   mkdirSync(PARITY_OUTPUT_DIR, { recursive: true });
 
   console.log(`Starting file server on port ${SERVER_PORT}...`);
-  const serverProcess = require("child_process").spawn(
-    "npx",
-    ["serve", "-l", String(SERVER_PORT), "-C", "."],
-    { cwd: resolve("packages/renderer"), detached: true, stdio: "ignore" },
+  // Write serve config to disable cleanUrls (which strips .html and causes 301 redirects)
+  const serveConfigPath = resolve("serve.json");
+  writeFileSync(
+    serveConfigPath,
+    JSON.stringify({
+      cleanUrls: false,
+      headers: [{ source: "**", headers: [{ key: "Access-Control-Allow-Origin", value: "*" }] }],
+    }),
   );
-  serverProcess.unref();
 
-  // Also serve the parity output directory
-  // Actually, serve from the repo root so both dist/ and parity/ are accessible
-  serverProcess.kill();
-  const rootServer = require("child_process").spawn(
-    "npx",
-    ["serve", "-l", String(SERVER_PORT), "-C", "."],
-    { cwd: resolve("."), detached: true, stdio: "ignore" },
-  );
+  const rootServer = spawnChild("npx", ["serve", "-l", String(SERVER_PORT), "-C", "."], {
+    cwd: resolve("."),
+    detached: true,
+    stdio: "ignore",
+  });
   rootServer.unref();
+
+  console.log(`Starting upload server on port ${UPLOAD_PORT}...`);
+  const uploadServer = startUploadServer();
 
   // Wait for server to start
   await new Promise((r) => setTimeout(r, 2000));
@@ -453,7 +497,6 @@ async function main() {
   // Symlink renderer dist into a place the server can find
   const distLink = join(PARITY_OUTPUT_DIR, "..", "dist");
   if (!existsSync(distLink)) {
-    const { symlinkSync } = require("fs");
     try {
       symlinkSync(RENDERER_DIST, distLink);
     } catch {}
@@ -491,9 +534,15 @@ async function main() {
   writeFileSync(reportPath, JSON.stringify(results, null, 2));
   console.log(`Report: ${reportPath}`);
 
-  // Cleanup server
+  // Cleanup servers and temp files
   try {
     rootServer.kill();
+  } catch {}
+  try {
+    uploadServer.close();
+  } catch {}
+  try {
+    rmSync(resolve("serve.json"));
   } catch {}
 
   process.exit(totalFailed > 0 ? 1 : 0);

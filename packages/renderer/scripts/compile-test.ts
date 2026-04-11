@@ -2,7 +2,7 @@
  * Compile a single test composition via the producer's htmlCompiler.
  * Usage: npx tsx --esm packages/renderer/scripts/compile-test.ts <test-name>
  */
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, cpSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { compileForRender } from "../../producer/src/services/htmlCompiler.js";
 import { getVerifiedHyperframeRuntimeSource } from "../../producer/src/services/hyperframeRuntimeLoader.js";
@@ -19,6 +19,10 @@ const outputDir = resolve(`renders/parity-regression/${testName}`);
 mkdirSync(outputDir, { recursive: true });
 
 console.log(`Compiling ${testName}...`);
+
+// Copy all source assets to output dir so the composition can resolve relative paths
+cpSync(srcDir, outputDir, { recursive: true, force: true });
+
 const result = await compileForRender(srcDir, htmlPath, outputDir);
 
 // Inject the HyperFrames runtime IIFE and the __player → __hf bridge.
