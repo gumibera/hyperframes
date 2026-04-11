@@ -101,8 +101,8 @@ export class SnapdomFrameSource implements FrameSource {
     const doc = this.iframe.contentDocument!;
     void doc.documentElement.offsetHeight;
 
-    // Yield once so any async side-effects (sub-composition syncs) settle.
-    await new Promise<void>((r) => setTimeout(r, 0));
+    // Yield for sub-composition syncs and GSAP nested timeline updates to settle.
+    await new Promise<void>((r) => setTimeout(r, 4));
 
     if (this.videoInjector) {
       await this.videoInjector.injectFrame(time);
@@ -179,22 +179,50 @@ export class SnapdomFrameSource implements FrameSource {
   private async warmup(): Promise<void> {
     if (!this.iframe || !this.hf) return;
 
+    // Seek to a small time first to trigger sub-composition loading,
+    // then seek back to 0 for the actual first frame
+    this.hf.seek(0.1);
+    await new Promise<void>((r) => setTimeout(r, 100));
     this.hf.seek(0);
 
-    // Wait for fonts to load inside the iframe
     const iframeDoc = this.iframe.contentDocument;
+
+    // Wait for fonts in the main iframe
+    const fontPromises: Promise<void>[] = [];
     if (iframeDoc?.fonts) {
+      fontPromises.push(iframeDoc.fonts.ready.then(() => {}).catch(() => {}));
+    }
+
+    // Wait for fonts in all sub-composition iframes
+    const subIframes = iframeDoc?.querySelectorAll("iframe") ?? [];
+    for (const sub of subIframes) {
       try {
-        await Promise.race([iframeDoc.fonts.ready, new Promise<void>((r) => setTimeout(r, 3000))]);
+        const subDoc = (sub as HTMLIFrameElement).contentDocument;
+        if (subDoc?.fonts) {
+          fontPromises.push(subDoc.fonts.ready.then(() => {}).catch(() => {}));
+        }
       } catch {
-        // fonts.ready not available — continue
+        // cross-origin iframe — skip
       }
     }
 
-    // Let GSAP, Lottie, and layout settle — multiple event loop ticks
-    for (let i = 0; i < 5; i++) {
-      await new Promise<void>((r) => setTimeout(r, 0));
+    // Wait for all fonts with a generous timeout (CDN fonts can be slow)
+    await Promise.race([Promise.all(fontPromises), new Promise<void>((r) => setTimeout(r, 5000))]);
+
+    // Force reflow + extra settle time for GSAP, Lottie, layout
+    if (iframeDoc?.documentElement) {
+      void iframeDoc.documentElement.offsetHeight;
     }
+    for (let i = 0; i < 10; i++) {
+      await new Promise<void>((r) => setTimeout(r, 10));
+    }
+
+    // Seek to 0 once more after everything has settled
+    this.hf.seek(0);
+    if (iframeDoc?.documentElement) {
+      void iframeDoc.documentElement.offsetHeight;
+    }
+    await new Promise<void>((r) => setTimeout(r, 50));
   }
 
   private waitForHfProtocol(iframe: HTMLIFrameElement, timeoutMs = 10_000): Promise<HfProtocol> {
