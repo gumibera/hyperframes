@@ -85,6 +85,9 @@ export class SnapdomFrameSource implements FrameSource {
 
     this.hf.seek(time);
 
+    // Wait for seek to take effect — one rAF cycle for layout + paint
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
     if (this.videoInjector) {
       await this.videoInjector.injectFrame(time);
     }

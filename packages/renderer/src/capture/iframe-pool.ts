@@ -70,6 +70,9 @@ export class IframePool {
           const time = frameTimes[i]!;
           const bitmap = await source.capture(time);
           onFrame({ bitmap, index: i, time });
+          // Yield to event loop every frame so Chrome can process CDP,
+          // repaint UI, and handle user interactions during long renders
+          await new Promise<void>((r) => setTimeout(r, 0));
         }
       }),
     );
