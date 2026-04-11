@@ -35,6 +35,7 @@ export function useBrowserRender(projectId: string | null) {
           fps: 30,
           codec: "h264",
           frameSource: "snapdom",
+          concurrency: 1,
           workerUrl: "/node_modules/@hyperframes/renderer/dist/worker.bundle.js",
           onProgress: (p) => {
             setJob((prev) =>
