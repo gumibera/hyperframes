@@ -1,6 +1,6 @@
 {
   "name": "@hyperframes/player",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Embeddable web component for HyperFrames compositions",
   "repository": {
     "type": "git",
@@ -11,13 +11,13 @@
     "dist"
   ],
   "type": "module",
-  "main": "./src/hyperframes-player.ts",
-  "types": "./src/hyperframes-player.ts",
+  "main": "./dist/hyperframes-player.js",
+  "types": "./dist/hyperframes-player.d.ts",
   "exports": {
     ".": {
-      "types": "./src/hyperframes-player.ts",
+      "types": "./dist/hyperframes-player.d.ts",
       "script": "./dist/hyperframes-player.global.js",
-      "import": "./src/hyperframes-player.ts",
+      "import": "./dist/hyperframes-player.js",
       "require": "./dist/hyperframes-player.cjs"
     }
   },

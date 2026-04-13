@@ -314,7 +314,16 @@ class HyperframesPlayer extends HTMLElement {
           if (win.__timelines) {
             const keys = Object.keys(win.__timelines);
             if (keys.length > 0) {
-              const tl = win.__timelines[keys[keys.length - 1]];
+              // Resolve the root composition id from the DOM — the outermost
+              // `[data-composition-id]` element is the master. Bundled previews
+              // register the root composition alongside sub-compositions, and
+              // without this lookup Object.keys() order would make a
+              // sub-composition's duration hijack the overall video length.
+              const rootId = this.iframe.contentDocument
+                ?.querySelector("[data-composition-id]")
+                ?.getAttribute("data-composition-id");
+              const key = rootId && rootId in win.__timelines ? rootId : keys[keys.length - 1];
+              const tl = win.__timelines[key];
               return { getDuration: () => tl.duration() };
             }
           }

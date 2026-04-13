@@ -238,7 +238,17 @@ export function useTimelinePlayer() {
 
       if (win.__timelines) {
         const keys = Object.keys(win.__timelines);
-        if (keys.length > 0) return wrapTimeline(win.__timelines[keys[keys.length - 1]]);
+        if (keys.length > 0) {
+          // Resolve the root composition id from the DOM — the outermost
+          // `[data-composition-id]` element is the master. Without this,
+          // Object.keys() order would let a sub-composition's timeline
+          // hijack play/pause/seek and the duration readout.
+          const rootId = iframe?.contentDocument
+            ?.querySelector("[data-composition-id]")
+            ?.getAttribute("data-composition-id");
+          const key = rootId && rootId in win.__timelines ? rootId : keys[keys.length - 1];
+          return wrapTimeline(win.__timelines[key]);
+        }
       }
 
       return null;
