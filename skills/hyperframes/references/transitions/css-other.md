@@ -1,16 +1,5 @@
 ## Other
 
-### Flash Cut
-
-White full-screen overlay flashes at swap point. 0.03s on, 0.1s off.
-
-```js
-tl.to("#flash-overlay", { opacity: 1, duration: 0.03, ease: "power4.out" }, T);
-tl.set(old, { opacity: 0 }, T + 0.03);
-tl.set(new, { opacity: 1 }, T + 0.03);
-tl.to("#flash-overlay", { opacity: 0, duration: 0.1, ease: "power2.out" }, T + 0.05);
-```
-
 ### Gravity Drop
 
 Old scene falls down with slight rotation. New scene was behind it. Needs z-index.

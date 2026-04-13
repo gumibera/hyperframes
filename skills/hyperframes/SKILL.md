@@ -30,31 +30,44 @@ Position every element where it should be at its **most visible moment** — the
 ### The process
 
 1. **Identify the hero frame** for each scene — the moment when the most elements are simultaneously visible. This is the layout you build.
-2. **Write static CSS** for that frame. Every element at its final `top`, `left`, `width`, `height`. Use the browser or `npx hyperframes preview` to visually verify nothing overlaps unintentionally.
+2. **Write static CSS** for that frame. The `.scene-content` container MUST fill the full scene using `width: 100%; height: 100%; padding: Npx;` with `display: flex; flex-direction: column; gap: Npx; box-sizing: border-box`. Use padding to push content inward — NEVER `position: absolute; top: Npx` on a content container. Absolute-positioned content containers overflow when content is taller than the remaining space. Reserve `position: absolute` for decoratives only.
 3. **Add entrances with `gsap.from()`** — animate FROM offscreen/invisible TO the CSS position. The CSS position is the ground truth; the tween describes the journey to get there.
 4. **Add exits with `gsap.to()`** — animate TO offscreen/invisible FROM the CSS position.
 
 ### Example
 
 ```css
-/* Step 1-2: Layout the end state. This is what the viewer sees at peak visibility. */
+/* scene-content fills the scene, padding positions content */
+.scene-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 120px 160px;
+  gap: 24px;
+  box-sizing: border-box;
+}
 .title {
+  font-size: 120px;
+}
+.subtitle {
+  font-size: 42px;
+}
+/* Container fills any scene size (1920x1080, 1080x1920, etc).
+   Padding positions content. Flex + gap handles spacing. */
+```
+
+**WRONG — hardcoded dimensions and absolute positioning:**
+
+```css
+.scene-content {
   position: absolute;
   top: 200px;
   left: 160px;
-  opacity: 1;
-}
-.subtitle {
-  position: absolute;
-  top: 320px;
-  left: 160px;
-  opacity: 1;
-}
-.logo {
-  position: absolute;
-  bottom: 80px;
-  right: 80px;
-  opacity: 1;
+  width: 1920px;
+  height: 1080px;
+  display: flex; /* ... */
 }
 ```
 
@@ -104,7 +117,9 @@ Layered effects (glow behind text, shadow elements, background patterns) and z-s
 
 ## Composition Structure
 
-Every composition is a `<template>` wrapping a `<div>` with `data-composition-id`:
+Sub-compositions loaded via `data-composition-src` use a `<template>` wrapper. **Standalone compositions (the main index.html) do NOT use `<template>`** — they put the `data-composition-id` div directly in `<body>`. Using `<template>` on a standalone file hides all content from the browser and breaks rendering.
+
+Sub-composition structure:
 
 ```html
 <template id="my-comp-template">
@@ -183,23 +198,55 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 7. Create a top-level container without `data-composition-id`
 8. Use `repeat: -1` on any timeline or tween — always finite repeats
 9. Build timelines asynchronously (inside `async`, `setTimeout`, `Promise`)
+10. Use `gsap.set()` on clip elements from later scenes — they don't exist in the DOM at page load. Use `tl.set(selector, vars, timePosition)` inside the timeline at or after the clip's `data-start` time instead.
+11. Use `<br>` in content text — forced line breaks don't account for actual rendered font width. Text that wraps naturally + a `<br>` produces an extra unwanted break, causing overlap. Let text wrap via `max-width` instead. Exception: short display titles where each word is deliberately on its own line (e.g., "THE\nIMMORTAL\nGAME" at 130px).
+
+## Scene Transitions (Non-Negotiable)
+
+Every multi-scene composition MUST follow ALL of these rules. Violating any one of them is a broken composition.
+
+1. **ALWAYS use transitions between scenes.** No jump cuts. No exceptions.
+2. **ALWAYS use entrance animations on every scene.** Every element animates IN via `gsap.from()`. No element may appear fully-formed. If a scene has 5 elements, it needs 5 entrance tweens.
+3. **NEVER use exit animations** except on the final scene. This means: NO `gsap.to()` that animates opacity to 0, y offscreen, scale to 0, or any other "out" animation before a transition fires. The transition IS the exit. The outgoing scene's content MUST be fully visible at the moment the transition starts.
+4. **Final scene only:** The last scene may fade elements out (e.g., fade to black). This is the ONLY scene where `gsap.to(..., { opacity: 0 })` is allowed.
+
+**WRONG — exit animation before transition:**
+
+```js
+// BANNED — this empties the scene before the transition can use it
+tl.to("#s1-title", { opacity: 0, y: -40, duration: 0.4 }, 6.5);
+tl.to("#s1-subtitle", { opacity: 0, duration: 0.3 }, 6.7);
+// transition fires on empty frame
+```
+
+**RIGHT — entrance only, transition handles exit:**
+
+```js
+// Scene 1 entrance animations
+tl.from("#s1-title", { y: 50, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.3);
+tl.from("#s1-subtitle", { y: 30, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.6);
+// NO exit tweens — transition at 7.2s handles the scene change
+// Scene 2 entrance animations
+tl.from("#s2-heading", { x: -40, opacity: 0, duration: 0.6, ease: "expo.out" }, 8.0);
+```
+
+## Animation Guardrails
+
+- Offset first animation 0.1-0.3s (not t=0)
+- Vary eases across entrance tweens — use at least 3 different eases per scene
+- Don't repeat an entrance pattern within a scene
+- Avoid full-screen linear gradients on dark backgrounds (H.264 banding — use radial or solid + localized glow)
+- 60px+ headlines, 20px+ body, 16px+ data labels for rendered video
+- `font-variant-numeric: tabular-nums` on number columns
+
+When no `visual-style.md` or animation direction is provided, follow [house-style.md](./house-style.md) for aesthetic defaults.
 
 ## Typography and Assets
 
-- **Fonts:** Just write the `font-family` you want in CSS — the compiler embeds supported fonts automatically via `@font-face` with inline data URIs. No `<link>` tags or `@import` needed. If a font isn't in the supported set, the compiler warns and you should add it to `deterministicFonts.ts`.
+- **Fonts:** Just write the `font-family` you want in CSS — the compiler embeds supported fonts automatically. If a font isn't supported, the compiler warns.
 - Add `crossorigin="anonymous"` to external media
-- **Minimum font sizes for rendered video (1080p at DPR 1):**
-  - Body/label text: 20px minimum (landscape), 18px minimum (portrait)
-  - Data labels, axis labels, footnotes: 16px minimum — anything smaller becomes illegible after encoding
-  - Headlines: 36px+ recommended
-  - Avoid sub-14px text entirely — it will be unreadable in the final MP4
-- For dynamic text overflow, use `window.__hyperframes.fitTextFontSize(text, { maxWidth, fontFamily, fontWeight })` — returns `{ fontSize, fits }`
+- For dynamic text overflow, use `window.__hyperframes.fitTextFontSize(text, { maxWidth, fontFamily, fontWeight })`
 - All files live at the project root alongside `index.html`; sub-compositions use `../`
-
-### Backgrounds and Color
-
-- **Avoid full-screen linear gradients on dark backgrounds** — H.264 encoding creates visible color banding. Prefer: solid colors, radial gradients with limited range, or subtle noise/texture overlays to break up banding.
-- For dark themes, use solid `#000` or `#0A0A0A` with localized radial glows rather than a linear gradient spanning the full viewport.
 
 ## Editing Existing Compositions
 
@@ -209,17 +256,6 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 
 ## Output Checklist
 
-- [ ] Every top-level container has `data-composition-id`, `data-width`, `data-height`, `data-duration`
-- [ ] Compositions in own HTML files, loaded via `data-composition-src`
-- [ ] `<template>` wrapper on sub-compositions
-- [ ] `window.__timelines` registered for every composition
-- [ ] Timeline construction is synchronous (no async/await wrapping timeline code)
-- [ ] No `repeat: -1` on any tween or nested timeline
-- [ ] No text below 16px (data labels, footnotes) or 20px (body text)
-- [ ] No full-screen linear dark gradients (use radial or solid + localized glow)
-- [ ] Font families declared in CSS (compiler embeds them automatically)
-- [ ] 100% deterministic
-- [ ] Each composition includes GSAP script tag
 - [ ] `npx hyperframes lint` and `npx hyperframes validate` both pass
 
 ---
@@ -230,7 +266,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - **[references/tts.md](references/tts.md)** — Text-to-speech with Kokoro-82M. Voice selection, speed tuning, TTS+captions workflow. Read when generating narration or voiceover.
 - **[references/audio-reactive.md](references/audio-reactive.md)** — Audio-reactive animation: map frequency bands and amplitude to GSAP properties. Read when visuals should respond to music, voice, or sound.
 - **[references/marker-highlight.md](references/marker-highlight.md)** — Animated text highlighting via canvas overlays: marker pen, circle, burst, scribble, sketchout. Read when adding visual emphasis to text.
-- **[references/fonts.md](references/fonts.md)** — Typography: typographic tension and contrast principles, font pairing theory, case studies from SSENSE/Acne/Stripe/Fly.io/Collins, failure modes, runtime font discovery. Read when picking and pairing typefaces.
+- **[references/typography.md](references/typography.md)** — Typography: font pairing, OpenType features, dark-background adjustments, font discovery script. **Always read** — every composition has text.
 - **[references/motion-principles.md](references/motion-principles.md)** — Motion design principles: easing as emotion, timing as weight, choreography as hierarchy, scene pacing, ambient motion, anti-patterns. Read when choreographing GSAP animations.
 - **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no style is specified.
 - **[patterns.md](patterns.md)** — PiP, title cards, slide show patterns.
@@ -238,7 +274,7 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 - **[references/transcript-guide.md](references/transcript-guide.md)** — Transcription commands, whisper models, external APIs, troubleshooting.
 - **[references/dynamic-techniques.md](references/dynamic-techniques.md)** — Dynamic caption animation techniques (karaoke, clip-path, slam, scatter, elastic, 3D).
 
-- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions. Energy/mood selection, narrative position, CSS vs WebGL guidance. Read when a composition has multiple scenes that need visual handoffs.
+- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions. Energy/mood selection, CSS vs WebGL guidance. **Always read for multi-scene compositions** — scenes without transitions feel like jump cuts.
   - [transitions/catalog.md](references/transitions/catalog.md) — Hard rules, scene template, and routing to per-type implementation code.
   - [transitions/shader-setup.md](references/transitions/shader-setup.md) — WebGL boilerplate for shader transitions.
   - [transitions/shader-transitions.md](references/transitions/shader-transitions.md) — 14 fragment shaders.

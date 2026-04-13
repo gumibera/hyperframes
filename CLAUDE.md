@@ -48,10 +48,12 @@ packages/
 ## Development
 
 ```bash
-pnpm install    # Install dependencies
-pnpm build      # Build all packages
-pnpm test       # Run tests
+bun install     # Install dependencies
+bun run build   # Build all packages
+bun run test    # Run tests
 ```
+
+**This repo uses bun**, not pnpm. Do NOT run `pnpm install` — it creates a `pnpm-lock.yaml` that should not exist. Workspace linking relies on bun's resolution from `"workspaces"` in root `package.json`.
 
 ### Linting & Formatting
 

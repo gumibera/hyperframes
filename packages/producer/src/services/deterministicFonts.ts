@@ -1,3 +1,7 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
 import { parseHTML } from "linkedom";
 import { EMBEDDED_FONT_DATA } from "./fontData.generated.js";
 
@@ -204,37 +208,50 @@ function extractRequestedFontFamilies(html: string): Map<string, string> {
   return requested;
 }
 
-function buildFontFaceCss(requestedFamilies: Map<string, string>): {
+function buildFontFaceRule(familyName: string, src: string, weight: string, style: string): string {
+  return [
+    "@font-face {",
+    `  font-family: "${familyName}";`,
+    `  src: url("${src}") format("woff2");`,
+    `  font-style: ${style};`,
+    `  font-weight: ${weight};`,
+    "  font-display: block;",
+    "}",
+  ].join("\n");
+}
+
+async function buildFontFaceCss(requestedFamilies: Map<string, string>): Promise<{
   css: string;
   unresolved: string[];
-} {
+}> {
   const rules: string[] = [];
   const unresolved: string[] = [];
 
   for (const [normalizedFamily, originalCaseFamily] of requestedFamilies) {
+    // Path 1: pre-bundled fonts via FONT_ALIASES
     const canonicalKey = FONT_ALIASES[normalizedFamily];
-    if (!canonicalKey) {
-      unresolved.push(originalCaseFamily);
+    if (canonicalKey) {
+      const canonical = CANONICAL_FONTS[canonicalKey];
+      if (!canonical) continue;
+      for (const face of canonical.faces) {
+        const style = face.style || "normal";
+        const src = fontDataUri(canonical.packageName, face.weight, style);
+        rules.push(buildFontFaceRule(originalCaseFamily, src, face.weight, style));
+      }
       continue;
     }
 
-    const canonical = CANONICAL_FONTS[canonicalKey];
-    if (!canonical) continue;
-    for (const face of canonical.faces) {
-      const style = face.style || "normal";
-      const src = fontDataUri(canonical.packageName, face.weight, style);
-      rules.push(
-        [
-          "@font-face {",
-          `  font-family: "${originalCaseFamily}";`,
-          `  src: url("${src}") format("woff2");`,
-          `  font-style: ${style};`,
-          `  font-weight: ${face.weight};`,
-          "  font-display: block;",
-          "}",
-        ].join("\n"),
-      );
+    // Path 2: fetch from Google Fonts (with local cache)
+    const googleFaces = await fetchGoogleFont(originalCaseFamily);
+    if (googleFaces.length > 0) {
+      for (const face of googleFaces) {
+        rules.push(buildFontFaceRule(originalCaseFamily, face.dataUri, face.weight, face.style));
+      }
+      continue;
     }
+
+    // Neither path resolved
+    unresolved.push(originalCaseFamily);
   }
 
   return {
@@ -263,7 +280,103 @@ function warnUnresolvedFonts(unresolved: string[]): void {
   );
 }
 
-export function injectDeterministicFontFaces(html: string): string {
+// ---------------------------------------------------------------------------
+// Google Fonts on-demand fetch + local cache
+// ---------------------------------------------------------------------------
+
+const GOOGLE_FONTS_CACHE_DIR = join(homedir(), ".cache", "hyperframes", "fonts");
+
+// Chrome UA triggers woff2 responses from Google Fonts CSS API
+const WOFF2_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+function fontSlug(familyName: string): string {
+  return familyName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function fontCacheDir(slug: string): string {
+  const dir = join(GOOGLE_FONTS_CACHE_DIR, slug);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+function cachedWoff2Path(slug: string, weight: string, style: string): string {
+  return join(fontCacheDir(slug), `${weight}-${style}.woff2`);
+}
+
+type GoogleFontFace = {
+  weight: string;
+  style: string;
+  dataUri: string;
+};
+
+async function fetchGoogleFont(familyName: string): Promise<GoogleFontFace[]> {
+  const slug = fontSlug(familyName);
+  const encodedFamily = encodeURIComponent(familyName);
+  const url = `https://fonts.googleapis.com/css2?family=${encodedFamily}:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700`;
+
+  let cssText: string;
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": WOFF2_USER_AGENT },
+    });
+    if (!res.ok) {
+      return [];
+    }
+    cssText = await res.text();
+  } catch {
+    return [];
+  }
+
+  // Parse @font-face blocks from the CSS response
+  const faceRegex =
+    /@font-face\s*\{[^}]*font-style:\s*(normal|italic)[^}]*font-weight:\s*(\d+)[^}]*src:\s*url\(([^)]+)\)\s*format\(['"]woff2['"]\)[^}]*\}/gi;
+
+  const faces: GoogleFontFace[] = [];
+
+  for (const match of cssText.matchAll(faceRegex)) {
+    const style = match[1] || "normal";
+    const weight = match[2] || "400";
+    const woff2Url = match[3] || "";
+
+    if (!woff2Url) continue;
+
+    const cachePath = cachedWoff2Path(slug, weight, style);
+
+    // Check cache first
+    if (!existsSync(cachePath)) {
+      try {
+        const fontRes = await fetch(woff2Url);
+        if (!fontRes.ok) continue;
+        const buffer = Buffer.from(await fontRes.arrayBuffer());
+        writeFileSync(cachePath, buffer);
+      } catch {
+        continue;
+      }
+    }
+
+    const fontBytes = readFileSync(cachePath);
+    const dataUri = `data:font/woff2;base64,${fontBytes.toString("base64")}`;
+    faces.push({ weight, style, dataUri });
+  }
+
+  if (faces.length > 0) {
+    console.log(
+      `[Compiler] Fetched ${faces.length} font face(s) for "${familyName}" from Google Fonts (cached to ${fontCacheDir(slug)})`,
+    );
+  }
+
+  return faces;
+}
+
+// ---------------------------------------------------------------------------
+
+export async function injectDeterministicFontFaces(html: string): Promise<string> {
   const existingFaces = extractExistingFontFaces(html);
   const requestedFamilies = extractRequestedFontFamilies(html);
   const pendingFamilies = new Map<string, string>();
@@ -278,7 +391,7 @@ export function injectDeterministicFontFaces(html: string): string {
     return html;
   }
 
-  const { css, unresolved } = buildFontFaceCss(pendingFamilies);
+  const { css, unresolved } = await buildFontFaceCss(pendingFamilies);
   if (!css) {
     if (unresolved.length > 0) {
       warnUnresolvedFonts(unresolved);

@@ -905,7 +905,7 @@ export async function compileForRender(
     "$1",
   );
 
-  const coalescedHtml = injectDeterministicFontFaces(
+  const coalescedHtml = await injectDeterministicFontFaces(
     coalesceHeadStylesAndBodyScripts(promoteCssImportsToLinkTags(sanitizedHtml)),
   );
 

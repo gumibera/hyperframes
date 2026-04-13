@@ -4,7 +4,11 @@ The compiler embeds supported fonts — just write `font-family` in CSS.
 
 ## Banned
 
-Inter, Roboto, Open Sans, Noto Sans, Arimo, Lato, Source Sans, PT Sans, Nunito, Poppins, Outfit, Sora, Playfair Display, Cormorant Garamond, Bodoni Moda, EB Garamond, Cinzel, Prata
+Training-data defaults that every LLM reaches for. These produce monoculture across compositions.
+
+Inter, Roboto, Open Sans, Noto Sans, Arimo, Lato, Source Sans, PT Sans, Nunito, Poppins, Outfit, Sora, Playfair Display, Cormorant Garamond, Bodoni Moda, EB Garamond, Cinzel, Prata, Syne
+
+**Syne in particular** is the most overused "distinctive" display font. It is an instant AI design tell.
 
 ## Guardrails
 
@@ -34,8 +38,10 @@ Don't default to what you know. If the content is luxury, a grotesque sans might
 Save this script to `/tmp/fontquery.py` and run with `curl -s 'https://fonts.google.com/metadata/fonts' > /tmp/gfonts.json && python3 /tmp/fontquery.py /tmp/gfonts.json`:
 
 ```python
-import json, sys
+import json, sys, random
 from collections import OrderedDict
+
+random.seed()  # true random each run
 
 with open(sys.argv[1]) as f:
     data = json.load(f)
@@ -43,7 +49,7 @@ fonts = data.get("familyMetadataList", [])
 
 ban = {"Inter","Roboto","Open Sans","Noto Sans","Lato","Poppins","Source Sans 3",
        "PT Sans","Nunito","Outfit","Sora","Playfair Display","Cormorant Garamond",
-       "Bodoni Moda","EB Garamond","Cinzel","Prata","Arimo","Source Sans Pro"}
+       "Bodoni Moda","EB Garamond","Cinzel","Prata","Arimo","Source Sans Pro","Syne"}
 skip_pfx = ("Roboto","Noto ","Google Sans","Bpmf","Playwrite","Anek","BIZ ",
             "Nanum","Shippori","Sawarabi","Zen ","Kaisei","Kiwi ","Yuji ","Radio ")
 
@@ -77,27 +83,14 @@ for f in fonts:
     if f.get("category") == "Monospace" and f.get("dateAdded","") >= "2018-01-01" and f.get("popularity",9999) < 600:
         R["Monospace"].append(f); seen.add(f["family"])
 
-# Impact & Condensed — curated names + heavy display fonts
+# Impact & Condensed — heavy display fonts with 800+ weight
 R["Impact & Condensed"] = []
-impact = {"Bebas Neue","Archivo Black","Big Shoulders Display","Teko","League Gothic",
-          "Barlow Condensed","Staatliches","Anton","Oswald","Saira","Syne",
-          "Titillium Web","Alumni Sans","Advent Pro"}
 for f in fonts:
     if not ok(f) or f["family"] in seen: continue
-    is_impact = f["family"] in impact
-    is_heavy_display = ("Display" in (f.get("classifications") or [])
-        and any(k in list(f.get("fonts",{}).keys()) for k in ("800","900"))
-        and f.get("popularity",9999) < 400
-        and f.get("category") in ("Sans Serif","Display"))
-    if is_impact or is_heavy_display:
+    has_heavy = any(k in list(f.get("fonts",{}).keys()) for k in ("800","900"))
+    is_display = f.get("category") in ("Sans Serif","Display")
+    if has_heavy and is_display and f.get("popularity",9999) < 400:
         R["Impact & Condensed"].append(f); seen.add(f["family"])
-
-# Bold Geometric Display — curated
-R["Bold Geometric Display"] = []
-for f in fonts:
-    if not ok(f) or f["family"] in seen: continue
-    if f["family"] in {"DM Serif Display","Abril Fatface","Righteous","Orbitron","Black Ops One"}:
-        R["Bold Geometric Display"].append(f); seen.add(f["family"])
 
 # Script & Handwriting — popular (<300)
 R["Script & Handwriting"] = []
@@ -106,21 +99,16 @@ for f in fonts:
     if f.get("category") == "Handwriting" and f.get("popularity",9999) < 300:
         R["Script & Handwriting"].append(f); seen.add(f["family"])
 
-# Established Classics — good older fonts
-R["Established Classics"] = []
-classics = {"Josefin Sans","Raleway","Montserrat","Abel","Exo","Red Hat Display",
-            "Rubik","Alegreya","Arvo","Besley","Crimson Text","Fraunces",
-            "Lora","Merriweather","Vollkorn"}
-for f in fonts:
-    if f["family"] in classics and f["family"] not in seen:
-        R["Established Classics"].append(f); seen.add(f["family"])
 
-# Print
+# Randomize the top 5 in each category so the LLM doesn't always pick the same first result
 for cat in R:
     R[cat].sort(key=lambda x: x.get("popularity",9999))
+    top5 = R[cat][:5]
+    rest = R[cat][5:]
+    random.shuffle(top5)
+    R[cat] = top5 + rest
 limits = {"Trending Sans":15,"Trending Serif":12,"Monospace":8,
-          "Impact & Condensed":12,"Bold Geometric Display":8,
-          "Script & Handwriting":10,"Established Classics":20}
+          "Impact & Condensed":12,"Script & Handwriting":10}
 for cat in R:
     items = R[cat][:limits.get(cat,10)]
     if not items: continue
@@ -131,4 +119,57 @@ for cat in R:
     print()
 ```
 
-Seven categories: trending sans, trending serif, monospace, impact/condensed, bold geometric, script/handwriting, and established classics. Cross classification boundaries when pairing.
+Five categories: trending sans, trending serif, monospace, impact/condensed, script/handwriting. All dynamically filtered from Google Fonts metadata — no hardcoded font names. Cross classification boundaries when pairing.
+
+## Selection Thinking
+
+Don't pick fonts by category reflex (editorial → serif, tech → mono, modern → geometric sans). That's pattern matching, not design.
+
+1. **Name the register.** What voice is the content speaking in? Institutional authority? Personal confession? Technical precision? Casual irreverence? The register narrows the field more than the category.
+2. **Think physically.** Imagine the font as a physical object the brand could ship — a museum exhibit caption, a hand-painted shop sign, a 1970s mainframe terminal manual, a fabric label inside a coat, a children's book printed on cheap newsprint, a tax form. Whichever physical object fits the register is pointing at the right _kind_ of typeface.
+3. **Reject your first instinct.** The first font that feels right is usually your training-data default for that register. If you picked it last time too, find something else.
+4. **Cross-check the assumption.** An editorial brief does NOT need a serif. A technical brief does NOT need a sans. A children's product does NOT need a rounded display font. The most distinctive choice often contradicts the category expectation.
+
+## Similar-Font Pairing
+
+Never pair two fonts that are similar but not identical — two geometric sans-serifs, two transitional serifs, two humanist sans. They create visual friction without clear hierarchy. The viewer senses something is "off" but can't articulate it. Either use one font at two weights, or pair fonts that contrast on multiple axes: serif + sans, condensed + wide, geometric + humanist.
+
+## Dark Backgrounds
+
+Light text on dark backgrounds creates two optical illusions you need to compensate for:
+
+- **Increased apparent weight.** Light-on-dark reads heavier than dark-on-light at the same `font-weight`. Use 350 instead of 400 for body text. Headlines are less affected because size compensates.
+- **Tighter apparent spacing.** Light halos around letterforms reduce perceived gaps. Increase `line-height` by 0.05-0.1 beyond your light-background value. For display sizes, add 0.01em `letter-spacing` to counteract.
+
+## OpenType Features for Data
+
+Most fonts ship with OpenType features that are off by default. Turn them on for data compositions:
+
+```css
+/* Tabular numbers — digits align vertically in columns */
+.stat-value,
+.timer,
+.data-column {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Diagonal fractions — renders 1/2 as ½ */
+.recipe-amount,
+.ratio {
+  font-variant-numeric: diagonal-fractions;
+}
+
+/* Small caps for abbreviations — less visual shouting */
+.abbreviation,
+.unit {
+  font-variant-caps: all-small-caps;
+}
+
+/* Disable ligatures in code — fi, fl, ffi should stay separate */
+code,
+.code {
+  font-variant-ligatures: none;
+}
+```
+
+`tabular-nums` is essential any time numbers are stacked vertically — stat callouts, timers, scoreboards, data tables. Without it, digits have proportional widths and columns don't align.
