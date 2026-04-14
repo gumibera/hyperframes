@@ -1,0 +1,39 @@
+{
+  "$schema": "https://hyperframes.heygen.com/schema/registry.json",
+  "name": "hyperframes",
+  "homepage": "https://hyperframes.heygen.com",
+  "items": [
+    {
+      "name": "warm-grain",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "play-mode",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "swiss-grid",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "vignelli",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "decision-tree",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "kinetic-type",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "product-promo",
+      "type": "hyperframes:example"
+    },
+    {
+      "name": "nyt-graph",
+      "type": "hyperframes:example"
+    }
+  ]
+}

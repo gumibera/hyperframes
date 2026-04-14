@@ -1,4 +1,12 @@
-import { listRemoteTemplates, type RemoteTemplateInfo } from "./remote.js";
+// Compat shim — the registry resolver (packages/cli/src/registry/) is the
+// canonical implementation. Kept here so init.ts and any external imports that
+// still reference this path keep working through the PR 3 rollout.
+//
+// The shim converts new RegistryItem manifests back into the TemplateOption /
+// RemoteTemplateInfo shape the init wizard still uses. When init.ts is fully
+// ported to call the resolver directly, this file can be deleted.
+
+import { listRegistryItems, loadAllItems } from "../registry/index.js";
 
 export type TemplateSource = "bundled" | "remote";
 
@@ -20,27 +28,22 @@ export const BUNDLED_TEMPLATES: TemplateOption[] = [
 ];
 
 /**
- * Resolve the full template list by merging bundled and remote templates.
- * Fetches `registry/examples/templates.json` from GitHub (cached 24h). No CLI release needed to add templates.
- * If offline, returns only bundled templates.
+ * Resolve the full template list by merging bundled templates with remote
+ * examples fetched from the registry. Offline / unreachable → bundled only.
  */
 export async function resolveTemplateList(): Promise<TemplateOption[]> {
   const bundled = [...BUNDLED_TEMPLATES];
   const bundledIds = new Set(bundled.map((t) => t.id));
 
-  let remote: RemoteTemplateInfo[] = [];
-  try {
-    remote = await listRemoteTemplates();
-  } catch {
-    // Offline — return bundled only
-  }
+  const entries = await listRegistryItems({ type: "hyperframes:example" });
+  const items = await loadAllItems(entries);
 
-  const remoteOptions: TemplateOption[] = remote
-    .filter((r) => !r.bundled && !bundledIds.has(r.id))
-    .map((r) => ({
-      id: r.id,
-      label: r.label,
-      hint: r.hint,
+  const remoteOptions: TemplateOption[] = items
+    .filter((item) => !bundledIds.has(item.name))
+    .map((item) => ({
+      id: item.name,
+      label: item.title,
+      hint: item.description,
       source: "remote" as const,
     }));
 
