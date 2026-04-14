@@ -11,6 +11,72 @@ interface RenderQueueProps {
   isRendering: boolean;
 }
 
+const FORMAT_INFO: Record<"mp4" | "webm" | "mov", { label: string; desc: string }> = {
+  mp4: { label: "MP4", desc: "Best for general use. Smallest file, universal playback." },
+  mov: {
+    label: "MOV (ProRes 4444)",
+    desc: "Transparent video. Works in CapCut, Final Cut Pro, Premiere, DaVinci Resolve, After Effects. Large files.",
+  },
+  webm: {
+    label: "WebM (VP9)",
+    desc: "Transparent video for web. Smaller than MOV but limited editor support.",
+  },
+};
+
+function FormatInfoTooltip({ format }: { format: "mp4" | "webm" | "mov" }) {
+  const [open, setOpen] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const show = () => {
+    clearTimeout(timeoutRef.current);
+    setOpen(true);
+  };
+  const hide = () => {
+    timeoutRef.current = setTimeout(() => setOpen(false), 120);
+  };
+
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  const info = FORMAT_INFO[format];
+
+  return (
+    <div className="relative" onPointerEnter={show} onPointerLeave={hide}>
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-neutral-600 hover:text-neutral-400 transition-colors cursor-help"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      {open && (
+        <div className="absolute bottom-full right-0 mb-1.5 w-52 p-2 rounded bg-neutral-900 border border-neutral-700 shadow-lg z-50">
+          <p className="text-[10px] font-semibold text-neutral-200 mb-0.5">{info.label}</p>
+          <p className="text-[9px] text-neutral-400 leading-tight">{info.desc}</p>
+          <div className="mt-1.5 pt-1.5 border-t border-neutral-800">
+            {(["mp4", "mov", "webm"] as const)
+              .filter((f) => f !== format)
+              .map((f) => (
+                <p key={f} className="text-[9px] text-neutral-500 leading-relaxed">
+                  <span className="text-neutral-400 font-medium">{FORMAT_INFO[f].label}</span>
+                  {" — "}
+                  {FORMAT_INFO[f].desc}
+                </p>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FormatExportButton({
   onStartRender,
   isRendering,
@@ -21,7 +87,8 @@ function FormatExportButton({
   const [format, setFormat] = useState<"mp4" | "webm" | "mov">("mp4");
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1">
+      <FormatInfoTooltip format={format} />
       <select
         value={format}
         onChange={(e) => setFormat(e.target.value as "mp4" | "webm" | "mov")}
