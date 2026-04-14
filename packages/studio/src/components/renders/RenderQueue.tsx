@@ -57,7 +57,7 @@ function FormatInfoTooltip({ format }: { format: "mp4" | "webm" | "mov" }) {
         <line x1="12" y1="17" x2="12.01" y2="17" />
       </svg>
       {open && (
-        <div className="absolute bottom-full right-0 mb-1.5 w-52 p-2 rounded bg-neutral-900 border border-neutral-700 shadow-lg z-50">
+        <div className="absolute top-full right-0 mt-1.5 w-52 p-2 rounded bg-neutral-900 border border-neutral-700 shadow-lg z-50">
           <p className="text-[10px] font-semibold text-neutral-200 mb-0.5">{info.label}</p>
           <p className="text-[9px] text-neutral-400 leading-tight">{info.desc}</p>
           <div className="mt-1.5 pt-1.5 border-t border-neutral-800">
