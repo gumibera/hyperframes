@@ -156,6 +156,10 @@ function resolveAssetDir(devSegments: string[], builtSegments: string[]): string
   return existsSync(devPath) ? devPath : builtPath;
 }
 
+// Resolves bundled templates shipped inside the CLI package
+// (packages/cli/src/templates/<id> in dev, dist/templates/<id> when packed).
+// Not to be confused with the repo-root registry/examples/ directory, which
+// is fetched remotely via fetchRemoteTemplate.
 function getStaticTemplateDir(templateId: string): string {
   return resolveAssetDir(["..", "templates", templateId], ["templates", templateId]);
 }

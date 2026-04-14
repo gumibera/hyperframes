@@ -10,8 +10,9 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 const REPO = "heygen-com/hyperframes";
-const TEMPLATES_DIR = "registry/examples";
-const MANIFEST_FILENAME = "templates.json";
+// Exported for regression testing — see remote.test.ts.
+export const TEMPLATES_DIR = "registry/examples";
+export const MANIFEST_FILENAME = "templates.json";
 
 /** Cache directory for remote template metadata. */
 const CACHE_DIR = join(homedir(), ".hyperframes", "cache");
@@ -71,7 +72,7 @@ export async function listRemoteTemplates(): Promise<RemoteTemplateInfo[]> {
 
 /**
  * Download a template from GitHub into destDir using giget.
- * Fetches from `examples/<templateId>` in the hyperframes repo.
+ * Fetches from `registry/examples/<templateId>` in the hyperframes repo.
  */
 export async function fetchRemoteTemplate(
   templateId: string,
