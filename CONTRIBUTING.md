@@ -61,6 +61,42 @@ If you must add a cast, add a comment:
 const event = data as unknown as RuntimeEvent;
 ```
 
+## Adding Registry Items (Blocks & Components)
+
+The registry at `registry/` contains reusable items installable via `hyperframes add <name>`. Each item lives in its own directory under `registry/blocks/` or `registry/components/`.
+
+### Directory structure
+
+```
+registry/blocks/<name>/
+  registry-item.json     # Manifest (name, type, description, tags, files)
+  <name>.html            # The composition HTML
+
+registry/components/<name>/
+  registry-item.json     # Manifest (no dimensions/duration for components)
+  <name>.html            # The snippet HTML to paste into a composition
+  demo.html              # Required — standalone demo showing the effect
+```
+
+### The `demo.html` convention
+
+Every **component** must ship a companion `demo.html`. This file:
+
+1. Is a complete, standalone HTML document (with `<!doctype html>`, GSAP CDN, etc.)
+2. Shows the component effect applied to representative content
+3. Registers a GSAP timeline on `window.__timelines` so it can be previewed in the Studio and rendered by the CI preview pipeline
+4. Uses `data-composition-id="<name>-demo"` to avoid ID collisions
+
+Blocks don't need `demo.html` — they are already standalone compositions.
+
+### Checklist for new items
+
+1. Create `registry/<blocks|components>/<name>/registry-item.json` following the [schema](packages/core/schemas/registry-item.json)
+2. Add the item to `registry/registry.json`
+3. For components: include a `demo.html`
+4. Run `npx hyperframes lint` and `npx hyperframes validate` on your HTML
+5. Test the install flow: `hyperframes add <name> --dir /tmp/test-project`
+
 ## Pull Requests
 
 - Use [conventional commit](https://www.conventionalcommits.org/) format for **all commits** (e.g., `feat: add timeline export`, `fix: resolve seek overflow`). Enforced by a git hook.

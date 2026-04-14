@@ -46,6 +46,18 @@
     {
       "name": "logo-outro",
       "type": "hyperframes:block"
+    },
+    {
+      "name": "grain-overlay",
+      "type": "hyperframes:component"
+    },
+    {
+      "name": "shimmer-sweep",
+      "type": "hyperframes:component"
+    },
+    {
+      "name": "grid-pixelate-wipe",
+      "type": "hyperframes:component"
     }
   ]
 }
