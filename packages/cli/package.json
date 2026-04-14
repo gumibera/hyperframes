@@ -25,8 +25,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.82.0",
-    "@google/genai": "^1.48.0",
     "@hono/node-server": "^1.8.0",
     "@puppeteer/browsers": "^2.13.0",
     "adm-zip": "^0.5.16",
