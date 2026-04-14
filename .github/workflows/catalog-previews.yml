@@ -1,0 +1,76 @@
+name: Catalog Previews
+
+on:
+  pull_request:
+    paths:
+      - "registry/blocks/**"
+      - "registry/components/**"
+      - "scripts/generate-catalog-previews.ts"
+
+concurrency:
+  group: catalog-previews-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render-previews:
+    name: Render catalog previews
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run build
+
+      # Chrome headless shell for rendering
+      - uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      # FFmpeg for video encoding
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+
+      - name: Render changed block/component previews
+        continue-on-error: true
+        run: |
+          # Find which blocks/components changed in this PR
+          CHANGED_ITEMS=$(git diff --name-only origin/main...HEAD -- registry/blocks/ registry/components/ \
+            | grep -oP '(?<=registry/(blocks|components)/)[^/]+' \
+            | sort -u)
+
+          if [ -z "$CHANGED_ITEMS" ]; then
+            echo "No block/component changes detected."
+            exit 0
+          fi
+
+          echo "Changed items: $CHANGED_ITEMS"
+          FAILED=0
+
+          for item in $CHANGED_ITEMS; do
+            echo "Rendering preview for: $item"
+            if ! npx tsx scripts/generate-catalog-previews.ts --only "$item" --skip-video; then
+              echo "::warning::Failed to render preview for $item"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::warning::$FAILED item(s) failed to render"
+            exit 1
+          fi
+
+      - name: Upload preview artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-previews
+          path: docs/images/catalog/
+          if-no-files-found: ignore
+          retention-days: 30
