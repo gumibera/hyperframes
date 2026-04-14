@@ -3,7 +3,7 @@ import type { Example } from "./_examples.js";
 
 export const examples: Example[] = [
   ["Create a project with the interactive wizard", "hyperframes init my-video"],
-  ["Pick a starter template", "hyperframes init my-video --template warm-grain"],
+  ["Pick a starter example", "hyperframes init my-video --example warm-grain"],
   ["Start from an existing video file", "hyperframes init my-video --video clip.mp4"],
   ["Start from an audio file", "hyperframes init my-video --audio track.mp3"],
   ["Non-interactive mode (for CI or AI agents)", "hyperframes init my-video --non-interactive"],
@@ -362,10 +362,19 @@ export default defineCommand({
   },
   args: {
     name: { type: "positional", description: "Project name", required: false },
+    example: {
+      type: "string",
+      description: "Example name (e.g. warm-grain, swiss-grid, blank)",
+      alias: "e",
+    },
+    // Accepted-but-errored so users who still type the old flag get a clear
+    // message rather than citty silently ignoring it and producing a blank
+    // project. The actual behavior is gone — this exists purely for the
+    // diagnostic. Remove once the rename has had a couple of release cycles
+    // of awareness.
     template: {
       type: "string",
-      description: "Template name (e.g. warm-grain, swiss-grid, blank)",
-      alias: "t",
+      description: "[renamed] Use --example instead.",
     },
     video: {
       type: "string",
@@ -401,7 +410,15 @@ export default defineCommand({
     },
   },
   async run({ args }) {
-    const templateFlag = args.template;
+    if (args.template !== undefined) {
+      console.error(
+        c.error(
+          `The --template flag was renamed to --example. Example:\n  npx hyperframes init ${args.name ?? "my-video"} --example ${args.template}`,
+        ),
+      );
+      process.exit(1);
+    }
+    const exampleFlag = args.example;
     const videoFlag = args.video;
     const audioFlag = args.audio;
     const skipTranscribe = args["skip-transcribe"] === true;
@@ -415,7 +432,7 @@ export default defineCommand({
     // Non-interactive mode — all inputs from flags, defaults where missing
     // -----------------------------------------------------------------------
     if (!interactive) {
-      const templateId = templateFlag ?? "blank";
+      const templateId = exampleFlag ?? "blank";
       const name = args.name ?? "my-video";
       const destDir = resolve(name);
 
@@ -499,7 +516,7 @@ export default defineCommand({
             `Failed to scaffold template "${templateId}": ${err instanceof Error ? err.message : err}`,
           ),
         );
-        console.error(c.dim("Use --template blank for offline use."));
+        console.error(c.dim("Use --example blank for offline use."));
         process.exit(1);
       }
       trackInitTemplate(templateId);
@@ -646,17 +663,17 @@ export default defineCommand({
       }
     }
 
-    // 3. Pick template — skip prompt if --template was provided
+    // 3. Pick example — skip prompt if --example was provided
     let templateId: string;
 
-    if (templateFlag) {
-      templateId = templateFlag;
+    if (exampleFlag) {
+      templateId = exampleFlag;
     } else {
       // Resolve full template list (bundled + remote)
       const allTemplates = await resolveTemplateList();
       const defaultTemplate = "blank";
       const templateResult = await clack.select({
-        message: "Pick a template",
+        message: "Pick an example",
         options: allTemplates.map((t: TemplateOption) => ({
           value: t.id,
           label: t.label,
@@ -687,7 +704,7 @@ export default defineCommand({
         spin.stop(c.error("Download failed"));
       }
       clack.log.error(
-        `${err instanceof Error ? err.message : err}\n${c.dim("Use --template blank for offline use.")}`,
+        `${err instanceof Error ? err.message : err}\n${c.dim("Use --example blank for offline use.")}`,
       );
       process.exit(1);
     }

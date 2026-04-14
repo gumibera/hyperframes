@@ -6,7 +6,7 @@ description: "Built-in templates for common video patterns. Hover to preview ani
 Hyperframes includes starter templates to help you scaffold compositions quickly. Each template gives you a working project with the correct [composition structure](/concepts/compositions), [data attributes](/concepts/data-attributes), and a [GSAP timeline](/guides/gsap-animation) already wired up.
 
 ```bash Terminal
-npx hyperframes init my-video --template <name>
+npx hyperframes init my-video --example <name>
 ```
 
 ## Landscape Templates
@@ -55,7 +55,7 @@ npx hyperframes init my-video --template <name>
   Looking for a minimal starting point? Use **blank** — it gives you an empty composition with just the scaffolding, no visual design.
 
   ```bash Terminal
-  npx hyperframes init my-video --template blank
+  npx hyperframes init my-video --example blank
   ```
 </Tip>
 
@@ -217,7 +217,7 @@ npx hyperframes init my-video --template <name>
 ## Passing a Source Video
 
 ```bash Terminal
-npx hyperframes init my-video --template warm-grain --video ./my-clip.mp4
+npx hyperframes init my-video --example warm-grain --video ./my-clip.mp4
 ```
 
 The CLI will probe the video for duration, resolution, and codec. If the video uses an incompatible codec, it will be automatically transcoded to H.264 MP4 if FFmpeg is available.

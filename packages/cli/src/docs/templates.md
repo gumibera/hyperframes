@@ -1,6 +1,6 @@
 # Templates
 
-Built-in templates available via `npx hyperframes init --template <name>`.
+Built-in templates available via `npx hyperframes init --example <name>`.
 
 ## blank
 

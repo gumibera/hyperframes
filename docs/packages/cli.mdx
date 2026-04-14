@@ -34,7 +34,7 @@ npx hyperframes <command>
 
 The CLI is **non-interactive by default** — designed so AI agents (Claude Code, Gemini CLI, Codex, Cursor) can drive every command without prompts or interactive UI.
 
-- All inputs are passed via flags (e.g., `--template`, `--video`, `--output`)
+- All inputs are passed via flags (e.g., `--example`, `--video`, `--output`)
 - Missing required flags fail fast with a clear error and usage example
 - Output is plain text suitable for parsing
 - No interactive prompts, spinners, or selection menus
@@ -45,7 +45,7 @@ Add `--human-friendly` to any command to enable the interactive terminal UI with
   <Tab title="Agent mode (default)">
     ```bash
     # Fully non-interactive — all inputs from flags
-    npx hyperframes init my-video --template blank --video video.mp4
+    npx hyperframes init my-video --example blank --video video.mp4
     npx hyperframes render --output output.mp4 --fps 30 --quality standard
     npx hyperframes upgrade --check --json
     ```
@@ -94,11 +94,11 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
   <Step title="Create a project">
     Scaffold a new composition from a template:
     ```bash
-    npx hyperframes init --template warm-grain
+    npx hyperframes init --example warm-grain
     ```
     You will be prompted for a project name, or pass it as an argument:
     ```bash
-    npx hyperframes init my-video --template warm-grain
+    npx hyperframes init my-video --example warm-grain
     ```
     See [Templates](/templates) for all available templates.
   </Step>
@@ -142,8 +142,8 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     Create a new composition project from a template:
 
     ```bash
-    # Agent mode (default) — --template is required
-    npx hyperframes init my-video --template blank --video video.mp4
+    # Agent mode (default) — --example is required
+    npx hyperframes init my-video --example blank --video video.mp4
 
     # Human mode — interactive prompts
     npx hyperframes init --human-friendly
@@ -151,7 +151,7 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
 
     | Flag | Description |
     |------|-------------|
-    | `--template, -t` | Template to use (required in default mode, interactive in `--human-friendly`) |
+    | `--example, -e` | Example to scaffold (required in default mode, interactive in `--human-friendly`) |
     | `--video, -V` | Path to a video file (MP4, WebM, MOV) |
     | `--audio, -a` | Path to an audio file (MP3, WAV, M4A) |
     | `--skip-skills` | Skip AI coding skills installation |
@@ -168,7 +168,7 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     | `swiss-grid` | Structured grid layout |
     | `vignelli` | Bold typography with red accents |
 
-    In default (agent) mode, `--template` is required — the CLI errors with a usage example if missing. In `--human-friendly` mode, you choose interactively. When `--video` or `--audio` is provided, the CLI automatically transcribes the audio with Whisper and patches captions into the composition (use `--skip-transcribe` to disable).
+    In default (agent) mode, `--example` is required — the CLI errors with a usage example if missing. In `--human-friendly` mode, you choose interactively. When `--video` or `--audio` is provided, the CLI automatically transcribes the audio with Whisper and patches captions into the composition (use `--skip-transcribe` to disable).
 
     After scaffolding, the CLI installs AI coding skills for Claude Code, Gemini CLI, and Codex CLI (use `--skip-skills` to disable). See [`skills`](#skills) command.
 

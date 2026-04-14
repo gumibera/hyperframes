@@ -106,12 +106,12 @@ describe("registry resolver", () => {
     it("skips items whose manifest fails to load (warning, not failure)", async () => {
       mockFetch({ missing: ["beta"] });
       const baseUrl = uniqueBaseUrl();
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const warnings: string[] = [];
       const entries = await listRegistryItems(undefined, { baseUrl });
-      const items = await loadAllItems(entries, { baseUrl });
+      const items = await loadAllItems(entries, { baseUrl, onWarn: (m) => warnings.push(m) });
       expect(items.map((i) => i.name).sort()).toEqual(["alpha", "gamma"]);
-      expect(warn).toHaveBeenCalled();
-      warn.mockRestore();
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings.some((w) => w.includes("beta"))).toBe(true);
     });
   });
 
