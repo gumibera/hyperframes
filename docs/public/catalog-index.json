@@ -13,19 +13,6 @@
     "preview": "/images/catalog/blocks/app-showcase.png"
   },
   {
-    "name": "ascii-dashboard",
-    "type": "block",
-    "title": "ASCII Dashboard",
-    "description": "Retro terminal-style data visualization with charts and metrics",
-    "tags": [
-      "data",
-      "ascii",
-      "dashboard"
-    ],
-    "href": "/catalog/blocks/ascii-dashboard",
-    "preview": "/images/catalog/blocks/ascii-dashboard.png"
-  },
-  {
     "name": "ascii-lightning",
     "type": "block",
     "title": "ASCII Lightning",

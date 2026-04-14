@@ -156,7 +156,6 @@
           {
             "group": "Data",
             "pages": [
-              "catalog/blocks/ascii-dashboard",
               "catalog/blocks/ascii-lightning",
               "catalog/blocks/data-chart"
             ]
