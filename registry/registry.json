@@ -88,19 +88,119 @@
       "type": "hyperframes:block"
     },
     {
-      "name": "ascii-dashboard",
-      "type": "hyperframes:block"
-    },
-    {
-      "name": "ascii-lightning",
-      "type": "hyperframes:block"
-    },
-    {
       "name": "app-showcase",
       "type": "hyperframes:block"
     },
     {
       "name": "ui-3d-reveal",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "domain-warp-dissolve",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "ridged-burn",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "whip-pan",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "sdf-iris",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "ripple-waves",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "gravitational-lens",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "cinematic-zoom",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "chromatic-radial-split",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "glitch",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "swirl-vortex",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "thermal-distortion",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "flash-through-white",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "cross-warp-morph",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "light-leak",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-3d",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-blur",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-cover",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-destruction",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-dissolve",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-distortion",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-grid",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-light",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-mechanical",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-other",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-push",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-radial",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "transitions-scale",
       "type": "hyperframes:block"
     }
   ]

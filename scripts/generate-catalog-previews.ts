@@ -2,10 +2,11 @@
 /**
  * Generate Catalog Preview Images + Videos
  *
- * Extends the template preview pipeline to handle all registry item types:
- * - Examples:   renders index.html (same as generate-template-previews.ts)
- * - Blocks:     renders the block's standalone HTML directly
- * - Components: renders the component's demo.html
+ * Renders preview thumbnails and videos for registry blocks and components.
+ * Examples use the separate generate-template-previews.ts script.
+ *
+ * - Blocks:     renders the block's standalone HTML via a wrapper index.html
+ * - Components: renders the component's demo.html via a wrapper index.html
  *
  * Output: docs/images/catalog/<type>/<name>.png + <name>.mp4
  *
@@ -127,7 +128,49 @@ function prepareProjectDir(item: CatalogItem): string {
 
   // The HyperFrames producer navigates to index.html at the project root.
   // Blocks and component demos are standalone HTML files, not index.html.
-  // Create a wrapper index.html that loads the entry file as a sub-composition.
+  // If the entry file is a standalone HTML (has its own timeline registration),
+  // just rename it to index.html. Otherwise create a wrapper.
+  if (!existsSync(join(tmpDir, "index.html")) && existsSync(join(tmpDir, item.entryFile))) {
+    const entryContent = readFileSync(join(tmpDir, item.entryFile), "utf-8");
+    const hasTimeline = entryContent.includes("__timelines");
+    if (hasTimeline) {
+      // Standalone block — copy to index.html and render directly.
+      // For social overlays with transparent backgrounds, inject a dark bg
+      // so the overlay card is visible against something.
+      let content = entryContent;
+      const hasSocialTag = (() => {
+        try {
+          const m = JSON.parse(readFileSync(join(tmpDir, "registry-item.json"), "utf-8"));
+          return (m.tags ?? []).includes("social");
+        } catch {
+          return false;
+        }
+      })();
+      if (hasSocialTag) {
+        // Dark bg for transparent overlays
+        if (content.includes("background: transparent")) {
+          content = content.replace("background: transparent", "background: #1a1a2e");
+        }
+        // Reposition bottom-anchored overlays to center for preview.
+        // Social overlays use "bottom: Npx" positioning — replace with
+        // "top: 50%; transform: translate(-50%, -50%)" for a centered preview.
+        content = content.replace(
+          /bottom:\s*\d+px;\s*\n(\s*)left:\s*50%;\s*\n(\s*)transform:\s*translateX\(-50%\)/,
+          "top: 50%;\n$1left: 50%;\n$2transform: translate(-50%, -50%)",
+        );
+        // Scale down large centered cards (like Spotify) that use
+        // margin-based centering with large negative margins.
+        if (/margin-top:\s*-[3-9]\d\dpx/.test(content)) {
+          content = content.replace(
+            /(<body[^>]*>)/,
+            "$1\n<style>body { transform: scale(0.55); transform-origin: center center; }</style>",
+          );
+        }
+      }
+      writeFileSync(join(tmpDir, "index.html"), content, "utf-8");
+      return tmpDir;
+    }
+  }
   if (!existsSync(join(tmpDir, "index.html"))) {
     const manifestPath = join(tmpDir, "registry-item.json");
     let width = 1920;
@@ -140,13 +183,24 @@ function prepareProjectDir(item: CatalogItem): string {
       duration = m.duration ?? duration;
     }
 
+    // Dark background for social overlays so transparent cards are visible.
+    const tags: string[] = (() => {
+      try {
+        return JSON.parse(readFileSync(join(tmpDir, "registry-item.json"), "utf-8")).tags ?? [];
+      } catch {
+        return [];
+      }
+    })();
+    const isSocialOverlay = tags.includes("social") || tags.includes("overlay");
+    const bgColor = isSocialOverlay ? "#1a1a2e" : "#ffffff";
+
     const wrapper = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=${width}, height=${height}" />
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>* { margin: 0; padding: 0; } html, body { width: ${width}px; height: ${height}px; overflow: hidden; }</style>
+  <style>* { margin: 0; padding: 0; } html, body { width: ${width}px; height: ${height}px; overflow: hidden; background: ${bgColor}; }</style>
 </head>
 <body>
   <div data-composition-id="preview-root" data-width="${width}" data-height="${height}" data-start="0" data-duration="${duration}">
@@ -168,17 +222,16 @@ async function generateThumbnail(item: CatalogItem, projectDir: string): Promise
   const outDir = outputDir(item.kind);
   mkdirSync(outDir, { recursive: true });
 
-  // Read dimensions from registry-item.json or default to 1920x1080
+  // Read dimensions from the wrapper index.html (which may differ from native
+  // dimensions for portrait overlays that are scaled to fit landscape).
   let width = 1920;
   let height = 1080;
-  const manifestPath = join(item.sourceDir, "registry-item.json");
-  if (existsSync(manifestPath)) {
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-    if (manifest.dimensions) {
-      width = manifest.dimensions.width ?? width;
-      height = manifest.dimensions.height ?? height;
-    }
-  }
+  const wrapperPath = join(projectDir, "index.html");
+  const wrapperHtml = readFileSync(wrapperPath, "utf-8");
+  const wMatch = wrapperHtml.match(/data-width="(\d+)"/);
+  const hMatch = wrapperHtml.match(/data-height="(\d+)"/);
+  if (wMatch) width = parseInt(wMatch[1], 10);
+  if (hMatch) height = parseInt(hMatch[1], 10);
 
   const framesDir = join(projectDir, "_thumb_frames");
   mkdirSync(framesDir, { recursive: true });
@@ -201,7 +254,9 @@ async function generateThumbnail(item: CatalogItem, projectDir: string): Promise
     }
 
     // Capture at 40% of duration for a representative frame
-    const captureTime = Math.min(2.0, duration * 0.4);
+    // Capture at 60% of duration so the animation is well underway.
+    // Cap at 3s to avoid overly-late captures on long compositions.
+    const captureTime = Math.min(3.0, duration * 0.6);
     const result = await captureFrame(session, 0, captureTime);
     cpSync(result.path, join(outDir, `${item.name}.png`));
     console.log(`  ✓ ${item.name}.png (${result.captureTimeMs}ms)`);

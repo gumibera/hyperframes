@@ -61,7 +61,13 @@ function discoverItems(): { kind: ItemKind; manifest: RegistryItem }[] {
       const manifestPath = join(dir, entry.name, "registry-item.json");
       if (!existsSync(manifestPath)) continue;
 
-      const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as RegistryItem;
+      let manifest: RegistryItem;
+      try {
+        manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as RegistryItem;
+      } catch (err) {
+        console.warn(`  ⚠ Skipping ${manifestPath}: ${(err as Error).message}`);
+        continue;
+      }
       items.push({ kind, manifest });
     }
   }
@@ -100,10 +106,10 @@ function generateItemMdx(kind: ItemKind, manifest: RegistryItem): string {
     lines.push(tagBadges, "");
   }
 
-  // Preview video with poster fallback — matches the examples page pattern.
+  // Preview video with poster — muted loop, no autoPlay (matches examples page).
   const previewPath = `/images/catalog/${typeDir(kind)}/${manifest.name}`;
   lines.push(
-    `<video className="w-full aspect-video rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800" src="${previewPath}.mp4" poster="${previewPath}.png" muted loop playsInline autoPlay />`,
+    `<video className="w-full aspect-video rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800" src="${previewPath}.mp4" poster="${previewPath}.png" autoPlay muted loop playsInline />`,
     "",
   );
 
@@ -235,39 +241,69 @@ function main(): void {
   // Update docs.json navigation with generated catalog pages.
   const docsJsonPath = join(docsDir, "docs.json");
   const docsJson = JSON.parse(readFileSync(docsJsonPath, "utf-8"));
-  const tabs = docsJson.navigation?.tabs as Array<{ tab: string; groups: unknown[] }>;
+  const tabs = docsJson.navigation?.tabs;
+  if (!Array.isArray(tabs)) {
+    console.warn("  ⚠ docs.json has no navigation.tabs — skipping nav update");
+    console.log("\nDone.");
+    return;
+  }
 
-  // Build catalog groups from discovered items
-  const blockPages = catalogIndex
-    .filter((i) => i.type === "block")
-    .map((i) => `catalog/blocks/${i.name}`);
-  const componentPages = catalogIndex
-    .filter((i) => i.type === "component")
-    .map((i) => `catalog/components/${i.name}`);
+  // Build catalog groups by category (first tag), like shadcn/ui.
+  // Items with the same first tag are grouped together. Items without tags
+  // go into an "Other" group. Groups are sorted with a priority order.
+  const GROUP_ORDER: Record<string, number> = {
+    "Social Overlays": 0,
+    "Shader Transitions": 1,
+    "CSS Transitions": 2,
+    Showcases: 3,
+    Data: 4,
+    Effects: 5,
+    Blocks: 6,
+  };
 
-  const catalogGroups: { group: string; pages: string[] }[] = [];
-  if (blockPages.length > 0) catalogGroups.push({ group: "Blocks", pages: blockPages });
-  if (componentPages.length > 0) catalogGroups.push({ group: "Components", pages: componentPages });
+  function groupForItem(entry: CatalogEntry): string {
+    const tags = entry.tags;
+    // Two-tag combos for specific grouping
+    if (tags.includes("transition") && tags.includes("shader")) return "Shader Transitions";
+    if (tags.includes("transition") && tags.includes("showcase")) return "CSS Transitions";
+    // Single-tag mapping
+    if (tags.includes("social")) return "Social Overlays";
+    if (tags.includes("transition"))
+      return entry.type === "component" ? "Effects" : "CSS Transitions";
+    if (tags.includes("showcase") || tags.includes("3d")) return "Showcases";
+    if (tags.includes("data") || tags.includes("chart") || tags.includes("ascii")) return "Data";
+    if (entry.type === "component") return "Effects";
+    // Remaining blocks
+    return "Blocks";
+  }
+
+  const groupMap = new Map<string, string[]>();
+  for (const entry of catalogIndex) {
+    const group = groupForItem(entry);
+    const dir = entry.type === "block" ? "blocks" : "components";
+    const page = `catalog/${dir}/${entry.name}`;
+    if (!groupMap.has(group)) groupMap.set(group, []);
+    groupMap.get(group)!.push(page);
+  }
+
+  const catalogGroups = [...groupMap.entries()]
+    .sort(([a], [b]) => (GROUP_ORDER[a] ?? 50) - (GROUP_ORDER[b] ?? 50))
+    .map(([group, pages]) => ({ group, pages }));
 
   if (catalogGroups.length > 0) {
     // Replace or insert the Catalog tab
     const existingIdx = tabs.findIndex((t) => t.tab === "Catalog");
     const catalogTab = { tab: "Catalog", groups: catalogGroups };
+    // Remove existing Catalog tab if present, then insert at position 1
+    // (after Documentation, before Packages).
     if (existingIdx >= 0) {
-      tabs[existingIdx] = catalogTab;
-    } else {
-      // Insert before the last tab (Reference)
-      const refIdx = tabs.findIndex((t) => t.tab === "Reference");
-      if (refIdx >= 0) {
-        tabs.splice(refIdx, 0, catalogTab);
-      } else {
-        tabs.push(catalogTab);
-      }
+      tabs.splice(existingIdx, 1);
     }
+    const docsIdx = tabs.findIndex((t) => t.tab === "Documentation");
+    tabs.splice(docsIdx >= 0 ? docsIdx + 1 : 1, 0, catalogTab);
     writeFileSync(docsJsonPath, JSON.stringify(docsJson, null, 2) + "\n", "utf-8");
-    console.log(
-      `  ✓ docs.json updated with ${blockPages.length} blocks + ${componentPages.length} components`,
-    );
+    const totalPages = catalogGroups.reduce((n, g) => n + g.pages.length, 0);
+    console.log(`  ✓ docs.json updated with ${catalogGroups.length} groups, ${totalPages} pages`);
   }
 
   console.log("\nDone.");

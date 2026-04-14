@@ -6,12 +6,12 @@ This repo ships skills that are installed globally via `npx hyperframes skills` 
 
 ### Skills
 
-| Skill                    | Invoke with             | When to use                                                                                                                                               |
-| ------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **hyperframes**          | `/hyperframes`          | Creating or editing HTML compositions, captions/subtitles, TTS narration, audio-reactive animation, marker highlights. Composition authoring rules.       |
-| **hyperframes-cli**      | `/hyperframes-cli`      | CLI commands: init, lint, preview, render, transcribe, tts, doctor. Use when scaffolding, validating, previewing, or rendering.                           |
-| **hyperframes-registry** | `/hyperframes-registry` | Installing and wiring registry blocks and components via `hyperframes add`. Install locations, block iframe wiring, component snippet merging, discovery. |
-| **gsap**                 | `/gsap`                 | GSAP animations — tweens, timelines, easing, ScrollTrigger, plugins (Flip, Draggable, SplitText, etc.), React/Vue/Svelte, performance optimization.       |
+| Skill                    | Invoke with             | When to use                                                                                                                                                        |
+| ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **hyperframes**          | `/hyperframes`          | Creating or editing HTML compositions, captions/subtitles, TTS narration, audio-reactive animation, marker highlights. Composition authoring rules.                |
+| **hyperframes-cli**      | `/hyperframes-cli`      | CLI commands: init, lint, preview, render, transcribe, tts, doctor. Use when scaffolding, validating, previewing, or rendering.                                    |
+| **hyperframes-registry** | `/hyperframes-registry` | Installing and wiring registry blocks and components via `hyperframes add`. Install locations, block sub-composition wiring, component snippet merging, discovery. |
+| **gsap**                 | `/gsap`                 | GSAP animations — tweens, timelines, easing, ScrollTrigger, plugins (Flip, Draggable, SplitText, etc.), React/Vue/Svelte, performance optimization.                |
 
 ### Why this matters
 
@@ -20,7 +20,7 @@ The skills encode HyperFrames-specific patterns (e.g., required `class="clip"` o
 ### Rules
 
 - When creating or modifying HTML compositions, captions, TTS, audio-reactive, or marker highlights → invoke `/hyperframes` BEFORE writing any code
-- When installing or wiring registry blocks/components (`hyperframes add`, `hyperframes.json`, block iframes, component snippets) → invoke `/hyperframes-registry` BEFORE writing any code
+- When installing or wiring registry blocks/components (`hyperframes add`, `hyperframes.json`, `data-composition-src`, component snippets) → invoke `/hyperframes-registry` BEFORE writing any code
 - When writing GSAP animations (tweens, timelines, ScrollTrigger, plugins) → invoke `/gsap` BEFORE writing any code
 - After creating or editing any `.html` composition → run `npx hyperframes lint` and `npx hyperframes validate` in parallel, fix all errors before opening the studio or considering the task complete. `lint` checks the HTML structure statically; `validate` loads the composition in headless Chrome and catches runtime JS errors, missing assets, and failed network requests. Always validate before `npx hyperframes preview`.
 

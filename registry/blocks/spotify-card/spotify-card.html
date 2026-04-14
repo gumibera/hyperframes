@@ -26,7 +26,7 @@
         font-family: "Inter", sans-serif;
       }
 
-      .card {
+      [data-composition-id="spotify-card"] .card {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -54,7 +54,7 @@
       }
 
       /* Specular highlight — light refraction across top */
-      .card::before {
+      [data-composition-id="spotify-card"] .card::before {
         content: "";
         position: absolute;
         top: 0;
@@ -72,7 +72,7 @@
       }
 
       /* Edge shine — bottom rim catch light */
-      .card::after {
+      [data-composition-id="spotify-card"] .card::after {
         content: "";
         position: absolute;
         bottom: 0;
@@ -91,7 +91,7 @@
       }
 
       /* Album Art */
-      .album-art {
+      [data-composition-id="spotify-card"] .album-art {
         width: 708px;
         height: 708px;
         border-radius: 16px;
@@ -102,7 +102,7 @@
         margin-bottom: 36px;
       }
 
-      .album-art-icon {
+      [data-composition-id="spotify-card"] .album-art-icon {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -111,14 +111,14 @@
       }
 
       /* Track Info */
-      .track-info {
+      [data-composition-id="spotify-card"] .track-info {
         position: relative;
         z-index: 1;
         margin-bottom: 28px;
         padding: 0 8px;
       }
 
-      .track-name {
+      [data-composition-id="spotify-card"] .track-name {
         font-size: 52px;
         font-weight: 700;
         color: #ffffff;
@@ -127,7 +127,7 @@
         margin-bottom: 8px;
       }
 
-      .artist-name {
+      [data-composition-id="spotify-card"] .artist-name {
         font-size: 34px;
         font-weight: 400;
         color: rgba(255, 255, 255, 0.7);
@@ -135,7 +135,7 @@
       }
 
       /* Spotify Branding */
-      .spotify-brand {
+      [data-composition-id="spotify-card"] .spotify-brand {
         position: relative;
         z-index: 1;
         display: flex;
@@ -144,13 +144,13 @@
         padding: 0 8px;
       }
 
-      .spotify-logo {
+      [data-composition-id="spotify-card"] .spotify-logo {
         display: flex;
         align-items: center;
         justify-content: center;
       }
 
-      .spotify-brand-text {
+      [data-composition-id="spotify-card"] .spotify-brand-text {
         font-size: 26px;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.55);
@@ -161,7 +161,7 @@
   <body>
     <div
       id="root"
-      data-composition-id="spotify-now-playing"
+      data-composition-id="spotify-card"
       data-width="1080"
       data-height="1920"
       data-start="0"
@@ -293,7 +293,7 @@
         4.2,
       );
 
-      window.__timelines["spotify-now-playing"] = tl;
+      window.__timelines["spotify-card"] = tl;
     </script>
   </body>
 </html>

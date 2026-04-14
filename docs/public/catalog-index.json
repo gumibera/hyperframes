@@ -13,30 +13,40 @@
     "preview": "/images/catalog/blocks/app-showcase.png"
   },
   {
-    "name": "ascii-dashboard",
+    "name": "chromatic-radial-split",
     "type": "block",
-    "title": "ASCII Dashboard",
-    "description": "Retro terminal-style data visualization with charts and metrics",
+    "title": "Chromatic Radial Split",
+    "description": "Shader transition with chromatic aberration radial split",
     "tags": [
-      "data",
-      "ascii",
-      "dashboard"
+      "transition",
+      "shader"
     ],
-    "href": "/catalog/blocks/ascii-dashboard",
-    "preview": "/images/catalog/blocks/ascii-dashboard.png"
+    "href": "/catalog/blocks/chromatic-radial-split",
+    "preview": "/images/catalog/blocks/chromatic-radial-split.png"
   },
   {
-    "name": "ascii-lightning",
+    "name": "cinematic-zoom",
     "type": "block",
-    "title": "ASCII Lightning",
-    "description": "Pure ASCII art lightning bolt animation on dark background",
+    "title": "Cinematic Zoom",
+    "description": "Shader transition with dramatic zoom blur",
     "tags": [
-      "title",
-      "ascii",
-      "animation"
+      "transition",
+      "shader"
     ],
-    "href": "/catalog/blocks/ascii-lightning",
-    "preview": "/images/catalog/blocks/ascii-lightning.png"
+    "href": "/catalog/blocks/cinematic-zoom",
+    "preview": "/images/catalog/blocks/cinematic-zoom.png"
+  },
+  {
+    "name": "cross-warp-morph",
+    "type": "block",
+    "title": "Cross Warp Morph",
+    "description": "Shader transition with cross-warped morphing",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/cross-warp-morph",
+    "preview": "/images/catalog/blocks/cross-warp-morph.png"
   },
   {
     "name": "data-chart",
@@ -52,6 +62,30 @@
     "preview": "/images/catalog/blocks/data-chart.png"
   },
   {
+    "name": "domain-warp-dissolve",
+    "type": "block",
+    "title": "Domain Warp Dissolve",
+    "description": "Shader transition with fractal noise domain warping",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/domain-warp-dissolve",
+    "preview": "/images/catalog/blocks/domain-warp-dissolve.png"
+  },
+  {
+    "name": "flash-through-white",
+    "type": "block",
+    "title": "Flash Through White",
+    "description": "Shader transition with white flash crossfade",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/flash-through-white",
+    "preview": "/images/catalog/blocks/flash-through-white.png"
+  },
+  {
     "name": "flowchart",
     "type": "block",
     "title": "Flowchart",
@@ -63,6 +97,18 @@
     ],
     "href": "/catalog/blocks/flowchart",
     "preview": "/images/catalog/blocks/flowchart.png"
+  },
+  {
+    "name": "glitch",
+    "type": "block",
+    "title": "Glitch",
+    "description": "Shader transition with digital glitch artifacts",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/glitch",
+    "preview": "/images/catalog/blocks/glitch.png"
   },
   {
     "name": "grain-overlay",
@@ -77,6 +123,18 @@
     ],
     "href": "/catalog/components/grain-overlay",
     "preview": "/images/catalog/components/grain-overlay.png"
+  },
+  {
+    "name": "gravitational-lens",
+    "type": "block",
+    "title": "Gravitational Lens",
+    "description": "Shader transition with gravitational lensing distortion",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/gravitational-lens",
+    "preview": "/images/catalog/blocks/gravitational-lens.png"
   },
   {
     "name": "grid-pixelate-wipe",
@@ -104,6 +162,18 @@
     ],
     "href": "/catalog/blocks/instagram-follow",
     "preview": "/images/catalog/blocks/instagram-follow.png"
+  },
+  {
+    "name": "light-leak",
+    "type": "block",
+    "title": "Light Leak",
+    "description": "Shader transition with cinematic light leak overlay",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/light-leak",
+    "preview": "/images/catalog/blocks/light-leak.png"
   },
   {
     "name": "logo-outro",
@@ -145,6 +215,42 @@
     "preview": "/images/catalog/blocks/reddit-post.png"
   },
   {
+    "name": "ridged-burn",
+    "type": "block",
+    "title": "Ridged Burn",
+    "description": "Shader transition with ridged turbulence burn effect",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/ridged-burn",
+    "preview": "/images/catalog/blocks/ridged-burn.png"
+  },
+  {
+    "name": "ripple-waves",
+    "type": "block",
+    "title": "Ripple Waves",
+    "description": "Shader transition with concentric ripple wave distortion",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/ripple-waves",
+    "preview": "/images/catalog/blocks/ripple-waves.png"
+  },
+  {
+    "name": "sdf-iris",
+    "type": "block",
+    "title": "SDF Iris",
+    "description": "Shader transition with signed distance field iris reveal",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/sdf-iris",
+    "preview": "/images/catalog/blocks/sdf-iris.png"
+  },
+  {
     "name": "shimmer-sweep",
     "type": "component",
     "title": "Shimmer Sweep",
@@ -172,6 +278,30 @@
     "preview": "/images/catalog/blocks/spotify-card.png"
   },
   {
+    "name": "swirl-vortex",
+    "type": "block",
+    "title": "Swirl Vortex",
+    "description": "Shader transition with swirling vortex distortion",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/swirl-vortex",
+    "preview": "/images/catalog/blocks/swirl-vortex.png"
+  },
+  {
+    "name": "thermal-distortion",
+    "type": "block",
+    "title": "Thermal Distortion",
+    "description": "Shader transition with heat haze thermal distortion",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/thermal-distortion",
+    "preview": "/images/catalog/blocks/thermal-distortion.png"
+  },
+  {
     "name": "tiktok-follow",
     "type": "block",
     "title": "TikTok Follow",
@@ -185,6 +315,162 @@
     "preview": "/images/catalog/blocks/tiktok-follow.png"
   },
   {
+    "name": "transitions-3d",
+    "type": "block",
+    "title": "3D Transitions",
+    "description": "Showcase of 3D perspective flip and rotate transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-3d",
+    "preview": "/images/catalog/blocks/transitions-3d.png"
+  },
+  {
+    "name": "transitions-blur",
+    "type": "block",
+    "title": "Blur Transitions",
+    "description": "Showcase of blur-based transitions between scenes",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-blur",
+    "preview": "/images/catalog/blocks/transitions-blur.png"
+  },
+  {
+    "name": "transitions-cover",
+    "type": "block",
+    "title": "Cover Transitions",
+    "description": "Showcase of cover/uncover slide transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-cover",
+    "preview": "/images/catalog/blocks/transitions-cover.png"
+  },
+  {
+    "name": "transitions-destruction",
+    "type": "block",
+    "title": "Destruction Transitions",
+    "description": "Showcase of destructive break-apart transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-destruction",
+    "preview": "/images/catalog/blocks/transitions-destruction.png"
+  },
+  {
+    "name": "transitions-dissolve",
+    "type": "block",
+    "title": "Dissolve Transitions",
+    "description": "Showcase of dissolve and fade transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-dissolve",
+    "preview": "/images/catalog/blocks/transitions-dissolve.png"
+  },
+  {
+    "name": "transitions-distortion",
+    "type": "block",
+    "title": "Distortion Transitions",
+    "description": "Showcase of warp and distortion transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-distortion",
+    "preview": "/images/catalog/blocks/transitions-distortion.png"
+  },
+  {
+    "name": "transitions-grid",
+    "type": "block",
+    "title": "Grid Transitions",
+    "description": "Showcase of grid-based tile transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-grid",
+    "preview": "/images/catalog/blocks/transitions-grid.png"
+  },
+  {
+    "name": "transitions-light",
+    "type": "block",
+    "title": "Light Transitions",
+    "description": "Showcase of light-based glow and flash transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-light",
+    "preview": "/images/catalog/blocks/transitions-light.png"
+  },
+  {
+    "name": "transitions-mechanical",
+    "type": "block",
+    "title": "Mechanical Transitions",
+    "description": "Showcase of mechanical shutter and iris transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-mechanical",
+    "preview": "/images/catalog/blocks/transitions-mechanical.png"
+  },
+  {
+    "name": "transitions-other",
+    "type": "block",
+    "title": "Other Transitions",
+    "description": "Showcase of miscellaneous creative transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-other",
+    "preview": "/images/catalog/blocks/transitions-other.png"
+  },
+  {
+    "name": "transitions-push",
+    "type": "block",
+    "title": "Push Transitions",
+    "description": "Showcase of push and slide transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-push",
+    "preview": "/images/catalog/blocks/transitions-push.png"
+  },
+  {
+    "name": "transitions-radial",
+    "type": "block",
+    "title": "Radial Transitions",
+    "description": "Showcase of radial wipe and reveal transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-radial",
+    "preview": "/images/catalog/blocks/transitions-radial.png"
+  },
+  {
+    "name": "transitions-scale",
+    "type": "block",
+    "title": "Scale Transitions",
+    "description": "Showcase of scale and zoom transitions",
+    "tags": [
+      "transition",
+      "showcase"
+    ],
+    "href": "/catalog/blocks/transitions-scale",
+    "preview": "/images/catalog/blocks/transitions-scale.png"
+  },
+  {
     "name": "ui-3d-reveal",
     "type": "block",
     "title": "3D UI Reveal",
@@ -196,6 +482,18 @@
     ],
     "href": "/catalog/blocks/ui-3d-reveal",
     "preview": "/images/catalog/blocks/ui-3d-reveal.png"
+  },
+  {
+    "name": "whip-pan",
+    "type": "block",
+    "title": "Whip Pan",
+    "description": "Shader transition simulating a fast camera whip pan",
+    "tags": [
+      "transition",
+      "shader"
+    ],
+    "href": "/catalog/blocks/whip-pan",
+    "preview": "/images/catalog/blocks/whip-pan.png"
   },
   {
     "name": "x-post",

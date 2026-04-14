@@ -78,6 +78,88 @@
         ]
       },
       {
+        "tab": "Catalog",
+        "groups": [
+          {
+            "group": "Social Overlays",
+            "pages": [
+              "catalog/blocks/instagram-follow",
+              "catalog/blocks/macos-notification",
+              "catalog/blocks/reddit-post",
+              "catalog/blocks/spotify-card",
+              "catalog/blocks/tiktok-follow",
+              "catalog/blocks/x-post",
+              "catalog/blocks/yt-lower-third"
+            ]
+          },
+          {
+            "group": "Shader Transitions",
+            "pages": [
+              "catalog/blocks/chromatic-radial-split",
+              "catalog/blocks/cinematic-zoom",
+              "catalog/blocks/cross-warp-morph",
+              "catalog/blocks/domain-warp-dissolve",
+              "catalog/blocks/flash-through-white",
+              "catalog/blocks/glitch",
+              "catalog/blocks/gravitational-lens",
+              "catalog/blocks/light-leak",
+              "catalog/blocks/ridged-burn",
+              "catalog/blocks/ripple-waves",
+              "catalog/blocks/sdf-iris",
+              "catalog/blocks/swirl-vortex",
+              "catalog/blocks/thermal-distortion",
+              "catalog/blocks/whip-pan"
+            ]
+          },
+          {
+            "group": "CSS Transitions",
+            "pages": [
+              "catalog/blocks/transitions-3d",
+              "catalog/blocks/transitions-blur",
+              "catalog/blocks/transitions-cover",
+              "catalog/blocks/transitions-destruction",
+              "catalog/blocks/transitions-dissolve",
+              "catalog/blocks/transitions-distortion",
+              "catalog/blocks/transitions-grid",
+              "catalog/blocks/transitions-light",
+              "catalog/blocks/transitions-mechanical",
+              "catalog/blocks/transitions-other",
+              "catalog/blocks/transitions-push",
+              "catalog/blocks/transitions-radial",
+              "catalog/blocks/transitions-scale"
+            ]
+          },
+          {
+            "group": "Showcases",
+            "pages": [
+              "catalog/blocks/app-showcase",
+              "catalog/blocks/ui-3d-reveal"
+            ]
+          },
+          {
+            "group": "Data",
+            "pages": [
+              "catalog/blocks/data-chart"
+            ]
+          },
+          {
+            "group": "Effects",
+            "pages": [
+              "catalog/components/grain-overlay",
+              "catalog/components/grid-pixelate-wipe",
+              "catalog/components/shimmer-sweep"
+            ]
+          },
+          {
+            "group": "Blocks",
+            "pages": [
+              "catalog/blocks/flowchart",
+              "catalog/blocks/logo-outro"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Packages",
         "groups": [
           {
@@ -89,38 +171,6 @@
               "packages/producer",
               "packages/studio",
               "packages/cli"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Catalog",
-        "groups": [
-          {
-            "group": "Blocks",
-            "pages": [
-              "catalog/blocks/app-showcase",
-              "catalog/blocks/ascii-dashboard",
-              "catalog/blocks/ascii-lightning",
-              "catalog/blocks/data-chart",
-              "catalog/blocks/flowchart",
-              "catalog/blocks/instagram-follow",
-              "catalog/blocks/logo-outro",
-              "catalog/blocks/macos-notification",
-              "catalog/blocks/reddit-post",
-              "catalog/blocks/spotify-card",
-              "catalog/blocks/tiktok-follow",
-              "catalog/blocks/ui-3d-reveal",
-              "catalog/blocks/x-post",
-              "catalog/blocks/yt-lower-third"
-            ]
-          },
-          {
-            "group": "Components",
-            "pages": [
-              "catalog/components/grain-overlay",
-              "catalog/components/grid-pixelate-wipe",
-              "catalog/components/shimmer-sweep"
             ]
           }
         ]

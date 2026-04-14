@@ -26,7 +26,7 @@
         font-family: "Inter", sans-serif;
       }
 
-      .x-card {
+      [data-composition-id="x-post"] .x-card {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -41,7 +41,7 @@
       }
 
       /* Bottom glow */
-      .x-card::after {
+      [data-composition-id="x-post"] .x-card::after {
         content: "";
         position: absolute;
         bottom: 0;
@@ -53,7 +53,7 @@
       }
 
       /* Header row */
-      .post-header {
+      [data-composition-id="x-post"] .post-header {
         display: flex;
         align-items: flex-start;
         gap: 14px;
@@ -61,7 +61,7 @@
         position: relative;
       }
 
-      .avatar {
+      [data-composition-id="x-post"] .avatar {
         width: 52px;
         height: 52px;
         flex-shrink: 0;
@@ -69,39 +69,39 @@
         overflow: hidden;
       }
 
-      .avatar svg {
+      [data-composition-id="x-post"] .avatar svg {
         width: 52px;
         height: 52px;
         display: block;
       }
 
-      .user-info {
+      [data-composition-id="x-post"] .user-info {
         display: flex;
         flex-direction: column;
         gap: 2px;
         flex: 1;
       }
 
-      .name-row {
+      [data-composition-id="x-post"] .name-row {
         display: flex;
         align-items: center;
         gap: 6px;
       }
 
-      .display-name {
+      [data-composition-id="x-post"] .display-name {
         font-size: 26px;
         font-weight: 700;
         color: #e7e9ea;
         line-height: 1.3;
       }
 
-      .verified-badge svg {
+      [data-composition-id="x-post"] .verified-badge svg {
         width: 22px;
         height: 22px;
         display: block;
       }
 
-      .handle {
+      [data-composition-id="x-post"] .handle {
         font-size: 22px;
         font-weight: 400;
         color: #8b98a5;
@@ -109,7 +109,7 @@
       }
 
       /* X logo top-right */
-      .x-logo {
+      [data-composition-id="x-post"] .x-logo {
         position: absolute;
         top: 2px;
         right: 0;
@@ -117,14 +117,14 @@
         height: 32px;
       }
 
-      .x-logo svg {
+      [data-composition-id="x-post"] .x-logo svg {
         width: 32px;
         height: 32px;
         display: block;
       }
 
       /* Tweet body */
-      .tweet-body {
+      [data-composition-id="x-post"] .tweet-body {
         font-size: 30px;
         font-weight: 400;
         color: #e7e9ea;
@@ -136,12 +136,12 @@
         overflow: hidden;
       }
 
-      .hashtag {
+      [data-composition-id="x-post"] .hashtag {
         color: #1d9bf0;
       }
 
       /* Timestamp */
-      .timestamp {
+      [data-composition-id="x-post"] .timestamp {
         font-size: 22px;
         color: #8b98a5;
         padding-bottom: 20px;
@@ -150,7 +150,7 @@
       }
 
       /* Metrics bar — matches real X spacing */
-      .metrics-bar {
+      [data-composition-id="x-post"] .metrics-bar {
         display: flex;
         align-items: center;
         padding: 0;
@@ -158,7 +158,7 @@
         z-index: 1;
       }
 
-      .metrics-left {
+      [data-composition-id="x-post"] .metrics-left {
         display: flex;
         align-items: center;
         flex: 1;
@@ -166,19 +166,19 @@
         padding-right: 60px;
       }
 
-      .metrics-right {
+      [data-composition-id="x-post"] .metrics-right {
         display: flex;
         align-items: center;
         gap: 20px;
       }
 
-      .metric {
+      [data-composition-id="x-post"] .metric {
         display: flex;
         align-items: center;
         gap: 8px;
       }
 
-      .metric-icon {
+      [data-composition-id="x-post"] .metric-icon {
         width: 35px;
         height: 35px;
         display: flex;
@@ -186,13 +186,13 @@
         justify-content: center;
       }
 
-      .metric-icon svg {
+      [data-composition-id="x-post"] .metric-icon svg {
         width: 35px;
         height: 35px;
         display: block;
       }
 
-      .metric-count {
+      [data-composition-id="x-post"] .metric-count {
         font-size: 20px;
         font-weight: 400;
         color: #8b98a5;
@@ -202,7 +202,7 @@
   <body>
     <div
       id="root"
-      data-composition-id="x-post-overlay"
+      data-composition-id="x-post"
       data-width="1920"
       data-height="1080"
       data-start="0"
@@ -436,7 +436,7 @@
         4.2,
       );
 
-      window.__timelines["x-post-overlay"] = tl;
+      window.__timelines["x-post"] = tl;
     </script>
   </body>
 </html>

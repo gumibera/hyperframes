@@ -22,7 +22,7 @@
   </head>
   <body>
     <div
-      data-composition-id="scene-3-phones"
+      data-composition-id="app-showcase"
       data-width="1920"
       data-height="1080"
       data-duration="5.5"
@@ -363,7 +363,7 @@
       <style>
         @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap");
 
-        [data-composition-id="scene-3-phones"] {
+        [data-composition-id="app-showcase"] {
           position: relative;
           width: 1920px;
           height: 1080px;
@@ -373,12 +373,12 @@
         }
 
         /* ── Background ── */
-        [data-composition-id="scene-3-phones"] .s3-bg {
+        [data-composition-id="app-showcase"] .s3-bg {
           position: absolute;
           inset: 0;
           background: linear-gradient(160deg, #f1f2ec 0%, #e8ecda 40%, #f1f2ec 100%);
         }
-        [data-composition-id="scene-3-phones"] .s3-bg-glow {
+        [data-composition-id="app-showcase"] .s3-bg-glow {
           position: absolute;
           width: 900px;
           height: 900px;
@@ -390,32 +390,32 @@
         }
 
         /* ── Stage ── */
-        [data-composition-id="scene-3-phones"] .s3-stage {
+        [data-composition-id="app-showcase"] .s3-stage {
           position: absolute;
           inset: 0;
           transform-origin: center center;
         }
 
         /* ── Phones ── */
-        [data-composition-id="scene-3-phones"] .s3-phone {
+        [data-composition-id="app-showcase"] .s3-phone {
           position: absolute;
           width: 320px;
           height: 650px;
           top: 215px;
           left: 800px;
         }
-        [data-composition-id="scene-3-phones"] .s3-phone-center {
+        [data-composition-id="app-showcase"] .s3-phone-center {
           z-index: 30;
         }
-        [data-composition-id="scene-3-phones"] .s3-phone-left {
+        [data-composition-id="app-showcase"] .s3-phone-left {
           z-index: 20;
         }
-        [data-composition-id="scene-3-phones"] .s3-phone-right {
+        [data-composition-id="app-showcase"] .s3-phone-right {
           z-index: 20;
         }
 
         /* ── Bezel ── */
-        [data-composition-id="scene-3-phones"] .s3-bezel {
+        [data-composition-id="app-showcase"] .s3-bezel {
           width: 100%;
           height: 100%;
           border-radius: 42px;
@@ -427,7 +427,7 @@
           position: relative;
           overflow: hidden;
         }
-        [data-composition-id="scene-3-phones"] .s3-notch {
+        [data-composition-id="app-showcase"] .s3-notch {
           position: absolute;
           top: 8px;
           left: 50%;
@@ -440,7 +440,7 @@
         }
 
         /* ── Screens ── */
-        [data-composition-id="scene-3-phones"] .s3-screen {
+        [data-composition-id="app-showcase"] .s3-screen {
           width: 100%;
           height: 100%;
           border-radius: 36px;
@@ -449,13 +449,13 @@
         }
 
         /* Left screen */
-        [data-composition-id="scene-3-phones"] .s3-screen-left {
+        [data-composition-id="app-showcase"] .s3-screen-left {
           background: linear-gradient(160deg, #d9e0bc 0%, #c8d4a0 50%, #b8c78a 100%);
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
         }
-        [data-composition-id="scene-3-phones"] .left-shapes {
+        [data-composition-id="app-showcase"] .left-shapes {
           position: absolute;
           top: 40px;
           left: 0;
@@ -465,16 +465,16 @@
           align-items: center;
           justify-content: center;
         }
-        [data-composition-id="scene-3-phones"] .left-shapes svg {
+        [data-composition-id="app-showcase"] .left-shapes svg {
           width: 200px;
           height: 280px;
         }
-        [data-composition-id="scene-3-phones"] .left-bottom {
+        [data-composition-id="app-showcase"] .left-bottom {
           padding: 0 28px 40px;
           position: relative;
           z-index: 2;
         }
-        [data-composition-id="scene-3-phones"] .left-tagline {
+        [data-composition-id="app-showcase"] .left-tagline {
           font-size: 28px;
           font-weight: 700;
           color: #271f15;
@@ -482,7 +482,7 @@
           margin-bottom: 16px;
           letter-spacing: -0.02em;
         }
-        [data-composition-id="scene-3-phones"] .left-cta {
+        [data-composition-id="app-showcase"] .left-cta {
           display: inline-block;
           background: #271f15;
           color: #e4fa72;
@@ -494,7 +494,7 @@
         }
 
         /* Center screen */
-        [data-composition-id="scene-3-phones"] .s3-screen-center {
+        [data-composition-id="app-showcase"] .s3-screen-center {
           background: #1a1a1a;
           padding: 42px 22px 22px;
           display: flex;
@@ -502,12 +502,12 @@
           gap: 18px;
         }
 
-        [data-composition-id="scene-3-phones"] .center-header {
+        [data-composition-id="app-showcase"] .center-header {
           display: flex;
           align-items: center;
           gap: 10px;
         }
-        [data-composition-id="scene-3-phones"] .center-avatar {
+        [data-composition-id="app-showcase"] .center-avatar {
           width: 40px;
           height: 40px;
           border-radius: 50%;
@@ -520,27 +520,27 @@
           color: #271f15;
           flex-shrink: 0;
         }
-        [data-composition-id="scene-3-phones"] .center-user-info {
+        [data-composition-id="app-showcase"] .center-user-info {
           flex: 1;
         }
-        [data-composition-id="scene-3-phones"] .center-name {
+        [data-composition-id="app-showcase"] .center-name {
           font-size: 18px;
           font-weight: 700;
           color: #f1f2ec;
           line-height: 1.2;
         }
-        [data-composition-id="scene-3-phones"] .center-subtitle {
+        [data-composition-id="app-showcase"] .center-subtitle {
           font-size: 12px;
           font-weight: 400;
           color: #7c857c;
           margin-top: 1px;
         }
-        [data-composition-id="scene-3-phones"] .center-bell {
+        [data-composition-id="app-showcase"] .center-bell {
           flex-shrink: 0;
         }
 
         /* Weekly Goal */
-        [data-composition-id="scene-3-phones"] .center-goal {
+        [data-composition-id="app-showcase"] .center-goal {
           background: #242424;
           border-radius: 20px;
           padding: 18px 16px;
@@ -549,25 +549,25 @@
           align-items: center;
           gap: 12px;
         }
-        [data-composition-id="scene-3-phones"] .goal-label {
+        [data-composition-id="app-showcase"] .goal-label {
           font-size: 15px;
           font-weight: 500;
           color: #7c857c;
           align-self: flex-start;
         }
-        [data-composition-id="scene-3-phones"] .goal-ring-wrap {
+        [data-composition-id="app-showcase"] .goal-ring-wrap {
           position: relative;
           width: 130px;
           height: 130px;
         }
-        [data-composition-id="scene-3-phones"] .goal-ring {
+        [data-composition-id="app-showcase"] .goal-ring {
           width: 100%;
           height: 100%;
         }
-        [data-composition-id="scene-3-phones"] .ring-track {
+        [data-composition-id="app-showcase"] .ring-track {
           opacity: 0.3;
         }
-        [data-composition-id="scene-3-phones"] .goal-count {
+        [data-composition-id="app-showcase"] .goal-count {
           position: absolute;
           inset: 0;
           display: flex;
@@ -575,27 +575,27 @@
           justify-content: center;
           gap: 2px;
         }
-        [data-composition-id="scene-3-phones"] .goal-num {
+        [data-composition-id="app-showcase"] .goal-num {
           font-size: 36px;
           font-weight: 700;
           color: #e4fa72;
         }
-        [data-composition-id="scene-3-phones"] .goal-sep {
+        [data-composition-id="app-showcase"] .goal-sep {
           font-size: 24px;
           font-weight: 400;
           color: #7c857c;
           margin: 0 2px;
         }
-        [data-composition-id="scene-3-phones"] .goal-den {
+        [data-composition-id="app-showcase"] .goal-den {
           font-size: 24px;
           font-weight: 400;
           color: #7c857c;
         }
-        [data-composition-id="scene-3-phones"] .goal-days {
+        [data-composition-id="app-showcase"] .goal-days {
           display: flex;
           gap: 8px;
         }
-        [data-composition-id="scene-3-phones"] .day {
+        [data-composition-id="app-showcase"] .day {
           width: 28px;
           height: 28px;
           border-radius: 50%;
@@ -607,45 +607,45 @@
           color: #7c857c;
           background: #1a1a1a;
         }
-        [data-composition-id="scene-3-phones"] .day.done {
+        [data-composition-id="app-showcase"] .day.done {
           background: #e4fa72;
           color: #271f15;
           font-weight: 700;
         }
 
         /* Progress section */
-        [data-composition-id="scene-3-phones"] .center-progress {
+        [data-composition-id="app-showcase"] .center-progress {
           flex: 1;
           display: flex;
           flex-direction: column;
           gap: 12px;
         }
-        [data-composition-id="scene-3-phones"] .progress-header {
+        [data-composition-id="app-showcase"] .progress-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
-        [data-composition-id="scene-3-phones"] .progress-title {
+        [data-composition-id="app-showcase"] .progress-title {
           font-size: 15px;
           font-weight: 500;
           color: #f1f2ec;
         }
-        [data-composition-id="scene-3-phones"] .progress-link {
+        [data-composition-id="app-showcase"] .progress-link {
           font-size: 12px;
           font-weight: 400;
           color: #e4fa72;
         }
-        [data-composition-id="scene-3-phones"] .progress-bars {
+        [data-composition-id="app-showcase"] .progress-bars {
           display: flex;
           flex-direction: column;
           gap: 12px;
         }
-        [data-composition-id="scene-3-phones"] .bar-row {
+        [data-composition-id="app-showcase"] .bar-row {
           display: flex;
           align-items: center;
           gap: 10px;
         }
-        [data-composition-id="scene-3-phones"] .bar-icon {
+        [data-composition-id="app-showcase"] .bar-icon {
           width: 28px;
           height: 28px;
           border-radius: 8px;
@@ -655,31 +655,31 @@
           justify-content: center;
           flex-shrink: 0;
         }
-        [data-composition-id="scene-3-phones"] .bar-info {
+        [data-composition-id="app-showcase"] .bar-info {
           width: 70px;
           flex-shrink: 0;
         }
-        [data-composition-id="scene-3-phones"] .bar-name {
+        [data-composition-id="app-showcase"] .bar-name {
           display: block;
           font-size: 12px;
           font-weight: 500;
           color: #f1f2ec;
           line-height: 1.2;
         }
-        [data-composition-id="scene-3-phones"] .bar-val {
+        [data-composition-id="app-showcase"] .bar-val {
           display: block;
           font-size: 10px;
           font-weight: 400;
           color: #7c857c;
         }
-        [data-composition-id="scene-3-phones"] .bar-track {
+        [data-composition-id="app-showcase"] .bar-track {
           flex: 1;
           height: 8px;
           background: #2a2a2a;
           border-radius: 4px;
           overflow: hidden;
         }
-        [data-composition-id="scene-3-phones"] .bar-value {
+        [data-composition-id="app-showcase"] .bar-value {
           height: 100%;
           border-radius: 4px;
           background: #e4fa72;
@@ -687,47 +687,47 @@
         }
 
         /* Right screen */
-        [data-composition-id="scene-3-phones"] .s3-screen-right {
+        [data-composition-id="app-showcase"] .s3-screen-right {
           background: #f1f2ec;
           padding: 42px 20px 24px;
           display: flex;
           flex-direction: column;
           gap: 14px;
         }
-        [data-composition-id="scene-3-phones"] .right-header {
+        [data-composition-id="app-showcase"] .right-header {
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
-        [data-composition-id="scene-3-phones"] .right-title {
+        [data-composition-id="app-showcase"] .right-title {
           font-size: 14px;
           font-weight: 500;
           color: #7c857c;
         }
-        [data-composition-id="scene-3-phones"] .right-value {
+        [data-composition-id="app-showcase"] .right-value {
           font-size: 40px;
           font-weight: 700;
           color: #271f15;
           line-height: 1;
           letter-spacing: -0.03em;
         }
-        [data-composition-id="scene-3-phones"] .right-unit {
+        [data-composition-id="app-showcase"] .right-unit {
           font-size: 20px;
           font-weight: 400;
           color: #7c857c;
         }
 
-        [data-composition-id="scene-3-phones"] .right-graph-wrap {
+        [data-composition-id="app-showcase"] .right-graph-wrap {
           flex: 1;
           display: flex;
           flex-direction: column;
           gap: 6px;
         }
-        [data-composition-id="scene-3-phones"] .right-graph {
+        [data-composition-id="app-showcase"] .right-graph {
           width: 100%;
           flex: 1;
         }
-        [data-composition-id="scene-3-phones"] .right-labels {
+        [data-composition-id="app-showcase"] .right-labels {
           display: flex;
           justify-content: space-between;
           padding: 0 6px;
@@ -736,11 +736,11 @@
           color: #7c857c;
         }
 
-        [data-composition-id="scene-3-phones"] .right-stats {
+        [data-composition-id="app-showcase"] .right-stats {
           display: flex;
           gap: 12px;
         }
-        [data-composition-id="scene-3-phones"] .stat-pill {
+        [data-composition-id="app-showcase"] .stat-pill {
           display: flex;
           align-items: center;
           gap: 6px;
@@ -748,18 +748,18 @@
           border-radius: 20px;
           padding: 8px 14px;
         }
-        [data-composition-id="scene-3-phones"] .stat-dot {
+        [data-composition-id="app-showcase"] .stat-dot {
           width: 8px;
           height: 8px;
           border-radius: 50%;
           flex-shrink: 0;
         }
-        [data-composition-id="scene-3-phones"] .stat-label {
+        [data-composition-id="app-showcase"] .stat-label {
           font-size: 12px;
           font-weight: 400;
           color: #7c857c;
         }
-        [data-composition-id="scene-3-phones"] .stat-num {
+        [data-composition-id="app-showcase"] .stat-num {
           font-size: 13px;
           font-weight: 700;
           color: #271f15;
@@ -769,7 +769,7 @@
       <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
       <script>
         (function () {
-          var S = '[data-composition-id="scene-3-phones"] ';
+          var S = '[data-composition-id="app-showcase"] ';
           window.__timelines = window.__timelines || {};
           var tl = gsap.timeline({ paused: true });
 
@@ -938,7 +938,7 @@
           tl.to(graphLine, { opacity: 0.65, duration: 0.6, ease: "sine.inOut" }, 4.05);
           tl.to(graphLine, { opacity: 1, duration: 0.6, ease: "sine.inOut" }, 4.65);
 
-          window.__timelines["scene-3-phones"] = tl;
+          window.__timelines["app-showcase"] = tl;
         })();
       </script>
     </div>

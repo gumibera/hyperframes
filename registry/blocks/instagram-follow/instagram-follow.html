@@ -25,7 +25,7 @@
         font-family: "DM Sans", sans-serif;
       }
 
-      .lower-third {
+      [data-composition-id="instagram-follow"] .lower-third {
         position: absolute;
         bottom: 160px;
         left: 50%;
@@ -39,7 +39,7 @@
         box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
       }
 
-      .avatar {
+      [data-composition-id="instagram-follow"] .avatar {
         width: 120px;
         height: 120px;
         border-radius: 50%;
@@ -48,20 +48,20 @@
         border: 3px solid #333;
       }
 
-      .profile-info {
+      [data-composition-id="instagram-follow"] .profile-info {
         display: flex;
         flex-direction: column;
         gap: 2px;
         margin-right: 20px;
       }
 
-      .name-row {
+      [data-composition-id="instagram-follow"] .name-row {
         display: flex;
         align-items: center;
         gap: 10px;
       }
 
-      .display-name {
+      [data-composition-id="instagram-follow"] .display-name {
         font-size: 42px;
         font-weight: 700;
         color: #ffffff;
@@ -69,33 +69,33 @@
         letter-spacing: -0.01em;
       }
 
-      .verified-badge {
+      [data-composition-id="instagram-follow"] .verified-badge {
         width: 34px;
         height: 34px;
         flex-shrink: 0;
       }
 
-      .verified-badge svg {
+      [data-composition-id="instagram-follow"] .verified-badge svg {
         width: 34px;
         height: 34px;
         display: block;
       }
 
-      .handle {
+      [data-composition-id="instagram-follow"] .handle {
         font-size: 28px;
         font-weight: 400;
         color: #a0a0a0;
         line-height: 1.3;
       }
 
-      .follower-count {
+      [data-composition-id="instagram-follow"] .follower-count {
         font-size: 25px;
         font-weight: 400;
         color: #737373;
         line-height: 1.3;
       }
 
-      .follow-btn {
+      [data-composition-id="instagram-follow"] .follow-btn {
         position: relative;
         width: 250px;
         height: 80px;
@@ -108,7 +108,7 @@
         overflow: hidden;
       }
 
-      .btn-text {
+      [data-composition-id="instagram-follow"] .btn-text {
         position: absolute;
         font-family: "DM Sans", sans-serif;
         font-size: 30px;
@@ -118,24 +118,24 @@
         white-space: nowrap;
       }
 
-      .btn-text-follow {
+      [data-composition-id="instagram-follow"] .btn-text-follow {
         opacity: 1;
       }
 
-      .btn-text-following {
+      [data-composition-id="instagram-follow"] .btn-text-following {
         opacity: 0;
         display: flex;
         align-items: center;
         gap: 8px;
       }
 
-      .chevron-icon {
+      [data-composition-id="instagram-follow"] .chevron-icon {
         display: inline-block;
         width: 18px;
         height: 18px;
       }
 
-      .chevron-icon svg {
+      [data-composition-id="instagram-follow"] .chevron-icon svg {
         width: 18px;
         height: 18px;
         display: block;
@@ -145,7 +145,7 @@
   <body>
     <div
       id="root"
-      data-composition-id="instagram-follow-overlay"
+      data-composition-id="instagram-follow"
       data-width="1080"
       data-height="1920"
       data-start="0"
@@ -282,7 +282,7 @@
         3.8,
       );
 
-      window.__timelines["instagram-follow-overlay"] = tl;
+      window.__timelines["instagram-follow"] = tl;
     </script>
   </body>
 </html>
