@@ -294,17 +294,13 @@ function main(): void {
     // Replace or insert the Catalog tab
     const existingIdx = tabs.findIndex((t) => t.tab === "Catalog");
     const catalogTab = { tab: "Catalog", groups: catalogGroups };
+    // Remove existing Catalog tab if present, then insert at position 1
+    // (after Documentation, before Packages).
     if (existingIdx >= 0) {
-      tabs[existingIdx] = catalogTab;
-    } else {
-      // Insert before the last tab (Reference)
-      const refIdx = tabs.findIndex((t) => t.tab === "Reference");
-      if (refIdx >= 0) {
-        tabs.splice(refIdx, 0, catalogTab);
-      } else {
-        tabs.push(catalogTab);
-      }
+      tabs.splice(existingIdx, 1);
     }
+    const docsIdx = tabs.findIndex((t) => t.tab === "Documentation");
+    tabs.splice(docsIdx >= 0 ? docsIdx + 1 : 1, 0, catalogTab);
     writeFileSync(docsJsonPath, JSON.stringify(docsJson, null, 2) + "\n", "utf-8");
     const totalPages = catalogGroups.reduce((n, g) => n + g.pages.length, 0);
     console.log(`  ✓ docs.json updated with ${catalogGroups.length} groups, ${totalPages} pages`);

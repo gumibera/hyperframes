@@ -78,22 +78,6 @@
         ]
       },
       {
-        "tab": "Packages",
-        "groups": [
-          {
-            "group": "Packages",
-            "pages": [
-              "packages/core",
-              "packages/engine",
-              "packages/player",
-              "packages/producer",
-              "packages/studio",
-              "packages/cli"
-            ]
-          }
-        ]
-      },
-      {
         "tab": "Catalog",
         "groups": [
           {
@@ -171,6 +155,22 @@
             "pages": [
               "catalog/blocks/flowchart",
               "catalog/blocks/logo-outro"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Packages",
+        "groups": [
+          {
+            "group": "Packages",
+            "pages": [
+              "packages/core",
+              "packages/engine",
+              "packages/player",
+              "packages/producer",
+              "packages/studio",
+              "packages/cli"
             ]
           }
         ]
