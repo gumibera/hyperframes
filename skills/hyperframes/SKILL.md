@@ -257,8 +257,51 @@ When no `visual-style.md` or animation direction is provided, follow [house-styl
 ## Output Checklist
 
 - [ ] `npx hyperframes lint` and `npx hyperframes validate` both pass
-- [ ] Contrast audit: `hyperframes validate` runs WCAG contrast checks by default. If warnings appear, fix the failing colors (brighten on dark bg, darken on light bg) until all text passes 4.5:1 for normal text, 3:1 for large text.
-- [ ] Animation map: run `node skills/hyperframes-animation-map/scripts/animation-map.mjs <dir>` after authoring animations. Read the JSON summaries and choreography timeline. Fix flagged issues: offscreen elements, invisible tweens, sluggish staggers, dead zones where motion should exist. Re-run after fixes.
+- [ ] Contrast warnings addressed (see Quality Checks below)
+- [ ] Animation choreography verified (see Quality Checks below)
+
+## Quality Checks
+
+### Contrast
+
+`hyperframes validate` runs a WCAG contrast audit by default. It seeks to 5 timestamps, screenshots the page, samples background pixels behind every text element, and computes contrast ratios. Failures appear as warnings:
+
+```
+⚠ WCAG AA contrast warnings (3):
+  · .subtitle "secondary text" — 2.67:1 (need 4.5:1, t=5.3s)
+```
+
+If warnings appear:
+
+- On dark backgrounds: brighten the failing color until it clears 4.5:1 (normal text) or 3:1 (large text, 24px+ or 19px+ bold)
+- On light backgrounds: darken it
+- Stay within the palette family — don't invent a new color, adjust the existing one
+- Re-run `hyperframes validate` until clean
+
+Use `--no-contrast` to skip if iterating rapidly and you'll check later.
+
+### Animation Map
+
+After authoring animations, run the animation map to verify choreography:
+
+```bash
+node skills/hyperframes-animation-map/scripts/animation-map.mjs <composition-dir> \
+  --out <composition-dir>/.hyperframes/anim-map
+```
+
+Outputs a single `animation-map.json` with:
+
+- **Per-tween summaries**: `"#card1 animates opacity+y over 0.50s. moves 23px up. fades in. ends at (120, 200)"`
+- **ASCII timeline**: Gantt chart of all tweens across the composition duration
+- **Stagger detection**: reports actual intervals (`"3 elements stagger at 120ms"`)
+- **Dead zones**: periods over 1s with no animation — intentional hold or missing entrance?
+- **Element lifecycles**: first/last animation time, final visibility
+- **Scene snapshots**: visible element state at 5 key timestamps
+- **Flags**: `offscreen`, `collision`, `invisible`, `paced-fast` (under 0.2s), `paced-slow` (over 2s)
+
+Read the JSON. Scan summaries for anything unexpected. Check every flag — fix or justify. Verify the timeline shows the intended choreography rhythm. Re-run after fixes.
+
+Skip on small edits (fixing a color, adjusting one duration). Run on new compositions and significant animation changes.
 
 ---
 
