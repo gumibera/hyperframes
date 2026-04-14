@@ -201,7 +201,9 @@ async function generateThumbnail(item: CatalogItem, projectDir: string): Promise
     }
 
     // Capture at 40% of duration for a representative frame
-    const captureTime = Math.min(2.0, duration * 0.4);
+    // Capture at 60% of duration so the animation is well underway.
+    // Cap at 3s to avoid overly-late captures on long compositions.
+    const captureTime = Math.min(3.0, duration * 0.6);
     const result = await captureFrame(session, 0, captureTime);
     cpSync(result.path, join(outDir, `${item.name}.png`));
     console.log(`  ✓ ${item.name}.png (${result.captureTimeMs}ms)`);
