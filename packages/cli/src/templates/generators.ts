@@ -1,10 +1,8 @@
 // Compat shim — the registry resolver (packages/cli/src/registry/) is the
-// canonical implementation. Kept here so init.ts and any external imports that
-// still reference this path keep working through the PR 3 rollout.
-//
-// The shim converts new RegistryItem manifests back into the TemplateOption /
-// RemoteTemplateInfo shape the init wizard still uses. When init.ts is fully
-// ported to call the resolver directly, this file can be deleted.
+// canonical implementation. Kept so init.ts and any external imports that
+// reference this path keep working. Converts new RegistryItem manifests back
+// into the TemplateOption shape the init wizard still uses. Deletable once
+// init.ts is fully ported to call the resolver directly.
 
 import { listRegistryItems, loadAllItems } from "../registry/index.js";
 

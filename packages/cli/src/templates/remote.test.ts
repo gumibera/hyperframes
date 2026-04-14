@@ -9,7 +9,7 @@ describe("remote template path constants", () => {
     expect(TEMPLATES_DIR).toBe("registry/examples");
   });
 
-  it("MANIFEST_FILENAME is templates.json (renamed to registry.json in PR 3)", () => {
+  it("MANIFEST_FILENAME is retained for backwards-compat with any external consumers", () => {
     expect(MANIFEST_FILENAME).toBe("templates.json");
   });
 });

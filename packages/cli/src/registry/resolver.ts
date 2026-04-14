@@ -1,7 +1,7 @@
 /**
  * Registry resolver — loads the top-level manifest and per-item manifests.
- * No transitive dependency resolution yet (examples don't have any); that
- * lands when `hyperframes add` (PR 5) needs it for blocks/components.
+ * No transitive dependency resolution yet (examples don't have any); added
+ * when blocks/components need it for the `add` command.
  */
 
 import type { ItemType, RegistryItem, RegistryManifestEntry } from "@hyperframes/core";
@@ -9,6 +9,16 @@ import { fetchItemManifest, fetchRegistryManifest, DEFAULT_REGISTRY_URL } from "
 
 export interface ResolveOptions {
   baseUrl?: string;
+  /**
+   * Called once per item that fails to load inside `loadAllItems`. Defaults
+   * to writing a diagnostic line to stderr. Pass a quieter implementation
+   * when rendering structured output (clack prompts, JSON, etc.).
+   */
+  onWarn?: (message: string) => void;
+}
+
+function defaultWarn(message: string): void {
+  process.stderr.write(`hyperframes:registry ${message}\n`);
 }
 
 /**
@@ -37,6 +47,7 @@ export async function loadAllItems(
   options: ResolveOptions = {},
 ): Promise<RegistryItem[]> {
   const baseUrl = options.baseUrl ?? DEFAULT_REGISTRY_URL;
+  const warn = options.onWarn ?? defaultWarn;
   const results = await Promise.allSettled(
     entries.map((e) => fetchItemManifest(e.name, e.type, baseUrl)),
   );
@@ -45,9 +56,8 @@ export async function loadAllItems(
     if (r.status === "fulfilled") {
       items.push(r.value);
     } else {
-      const entry = entries[i];
-      const name = entry?.name ?? "<unknown>";
-      console.warn(`Skipped registry item "${name}": ${String(r.reason)}`);
+      const name = entries[i]?.name ?? "<unknown>";
+      warn(`skipped item "${name}": ${String(r.reason)}`);
     }
   });
   return items;

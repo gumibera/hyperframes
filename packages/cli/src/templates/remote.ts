@@ -1,11 +1,11 @@
-// Compat shim — fetchRemoteTemplate delegates to the new registry resolver +
+// Compat shim — fetchRemoteTemplate delegates to the registry resolver +
 // installer (packages/cli/src/registry/). Kept so init.ts and external imports
-// that reference this path keep working through the PR 3 rollout. Delete when
-// init.ts is fully ported.
+// that reference this path keep working. Deletable once init.ts is fully
+// ported to call the resolver directly.
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { installItem, resolveItem } from "../registry/index.js";
+import { installItem, listRegistryItems, loadAllItems, resolveItem } from "../registry/index.js";
 
 // Re-exported for the existing remote.test.ts regression guard. These paths
 // describe the repo layout under the default registry URL; updating them in
@@ -21,14 +21,11 @@ export interface RemoteTemplateInfo {
 }
 
 /**
- * List available remote templates.
- *
- * Kept only for backwards compat with any third-party code that imported this
- * function. Internally, init.ts reaches for `resolveTemplateList` in
- * `generators.ts`, which goes through the new registry resolver.
+ * List available remote templates — kept for backwards compat with external
+ * imports. Internally, `resolveTemplateList` in generators.ts is what init.ts
+ * uses, and it goes through the registry resolver directly.
  */
 export async function listRemoteTemplates(): Promise<RemoteTemplateInfo[]> {
-  const { listRegistryItems, loadAllItems } = await import("../registry/index.js");
   const entries = await listRegistryItems({ type: "hyperframes:example" });
   const items = await loadAllItems(entries);
   return items.map((item) => ({

@@ -6,16 +6,22 @@
  *
  * Base URL layout:
  *   <base>/registry.json                    → top-level manifest
- *   <base>/examples/<name>/registry-item.json
- *   <base>/examples/<name>/<file.path>      → individual files referenced by the item
- *   <base>/blocks/<name>/... (PR 5+)
- *   <base>/components/<name>/... (PR 5+)
+ *   <base>/<type-dir>/<name>/registry-item.json
+ *   <base>/<type-dir>/<name>/<file.path>    → individual files referenced by the item
+ *
+ * `<type-dir>` comes from ITEM_TYPE_DIRS in @hyperframes/core.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
-import type { FileTarget, ItemType, RegistryItem, RegistryManifest } from "@hyperframes/core";
+import {
+  ITEM_TYPE_DIRS,
+  type FileTarget,
+  type ItemType,
+  type RegistryItem,
+  type RegistryManifest,
+} from "@hyperframes/core";
 
 export const DEFAULT_REGISTRY_URL =
   "https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry";
@@ -24,7 +30,7 @@ const FETCH_TIMEOUT_MS = 10_000;
 
 // ── Caching ─────────────────────────────────────────────────────────────────
 // 24h TTL on manifest fetches so the interactive picker stays snappy offline.
-// Item files aren't cached (they're downloaded straight to destDir on install).
+// Item files aren't cached — they're written straight to destDir on install.
 
 const CACHE_DIR = join(homedir(), ".hyperframes", "cache");
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -40,12 +46,12 @@ function cachePath(baseUrl: string, key: string): string {
 }
 
 function readCache<T>(path: string): T | undefined {
-  if (!existsSync(path)) return undefined;
   try {
     const entry = JSON.parse(readFileSync(path, "utf-8")) as CacheEntry<T>;
     if (Date.now() - entry.fetchedAt > CACHE_TTL_MS) return undefined;
     return entry.data;
   } catch {
+    // Missing file or corrupt JSON → cache miss.
     return undefined;
   }
 }
@@ -86,18 +92,6 @@ export async function fetchRegistryManifest(
   }
 }
 
-/** Directory segment for an item type under the registry base URL. */
-function typeDir(type: ItemType): string {
-  switch (type) {
-    case "hyperframes:example":
-      return "examples";
-    case "hyperframes:block":
-      return "blocks";
-    case "hyperframes:component":
-      return "components";
-  }
-}
-
 /**
  * Fetch a single item's `registry-item.json` manifest. Cached for 24h.
  * Throws on network failure (callers decide whether to degrade gracefully).
@@ -107,11 +101,12 @@ export async function fetchItemManifest(
   type: ItemType,
   baseUrl: string = DEFAULT_REGISTRY_URL,
 ): Promise<RegistryItem> {
-  const cacheFile = cachePath(baseUrl, `${typeDir(type)}__${name}`);
+  const dir = ITEM_TYPE_DIRS[type];
+  const cacheFile = cachePath(baseUrl, `${dir}__${name}`);
   const cached = readCache<RegistryItem>(cacheFile);
   if (cached) return cached;
 
-  const url = `${baseUrl}/${typeDir(type)}/${name}/registry-item.json`;
+  const url = `${baseUrl}/${dir}/${name}/registry-item.json`;
   const item = await fetchJson<RegistryItem>(url);
   writeCache(cacheFile, item);
   return item;
@@ -127,7 +122,7 @@ export async function fetchItemFile(
   destPath: string,
   baseUrl: string = DEFAULT_REGISTRY_URL,
 ): Promise<void> {
-  const url = `${baseUrl}/${typeDir(item.type)}/${item.name}/${file.path}`;
+  const url = `${baseUrl}/${ITEM_TYPE_DIRS[item.type]}/${item.name}/${file.path}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!res.ok) {
     throw new Error(`File fetch failed: ${url} — HTTP ${res.status}`);

@@ -18,11 +18,17 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { FileTarget, FileType, RegistryItem, RegistryManifest } from "@hyperframes/core";
+import {
+  ITEM_TYPE_DIRS,
+  type FileTarget,
+  type FileType,
+  type RegistryItem,
+  type RegistryManifest,
+} from "@hyperframes/core";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
-const examplesDir = resolve(repoRoot, "registry/examples");
+const examplesDir = resolve(repoRoot, "registry", ITEM_TYPE_DIRS["hyperframes:example"]);
 const registryManifestPath = resolve(repoRoot, "registry/registry.json");
 const legacyManifestPath = resolve(examplesDir, "templates.json");
 

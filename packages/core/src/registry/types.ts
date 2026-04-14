@@ -131,6 +131,18 @@ export const FILE_TYPES = [
   "hyperframes:timeline",
 ] as const satisfies readonly FileType[];
 
+/**
+ * Directory segment where each item type lives under a registry root — both
+ * on disk (`registry/examples/…`) and in URL construction
+ * (`<baseUrl>/examples/<name>/registry-item.json`). Shared so CLIs, docs
+ * tooling, and codegen scripts all agree.
+ */
+export const ITEM_TYPE_DIRS = {
+  "hyperframes:example": "examples",
+  "hyperframes:block": "blocks",
+  "hyperframes:component": "components",
+} as const satisfies Record<ItemType, string>;
+
 // Compile-time exhaustiveness: every member of the TS union appears in the constant.
 // If someone adds to `ItemType`/`FileType` without updating `ITEM_TYPES`/`FILE_TYPES`,
 // these lines stop compiling. (The `satisfies` above covers the other direction.)
