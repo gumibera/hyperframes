@@ -924,7 +924,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
     if (!existsSync(indexPath)) {
       writeFileSync(
         indexPath,
-        `<!doctype html>
+`<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -936,13 +936,241 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1920" data-height="1080">
-      <!-- Add your compositions here -->
-    </div>
+    <!-- SCENE SLOTS -->
+    <!-- AGENT: Add or remove scene slots as needed. Each loads a sub-composition. -->
+    <div id="scene-1" data-composition-src="compositions/scene-1.html" data-start="0" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+    <div id="scene-2" data-composition-src="compositions/scene-2.html" data-start="7" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+    <div id="scene-3" data-composition-src="compositions/scene-3.html" data-start="14" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+    <div id="scene-4" data-composition-src="compositions/scene-4.html" data-start="21" data-duration="7" data-track-index="1" data-width="1920" data-height="1080"></div>
+
+    <!-- NARRATION -->
+    <!-- AGENT: Update src after generating TTS -->
+    <audio id="narration" data-start="0" data-duration="28" data-track-index="0" data-volume="1" src="narration.wav"></audio>
+
+    <!-- CAPTIONS -->
+    <!-- AGENT: Create compositions/captions.html with word-level timestamps -->
+    <div id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="28" data-track-index="2" data-width="1920" data-height="1080"></div>
+
+    <!-- SHADER TRANSITION CANVAS -->
+    <canvas id="gl-canvas" width="1920" height="1080"
+      style="position:absolute;top:0;left:0;width:1920px;height:1080px;z-index:100;pointer-events:none;display:none;">
+    </canvas>
+
     <script>
+      /* ROOT TIMELINE */
       window.__timelines = window.__timelines || {};
       var tl = gsap.timeline({ paused: true });
       window.__timelines["main"] = tl;
+
+      /* SHADER TRANSITION SYSTEM
+       * Pre-wired with Cross-Warp Morph. To change the shader:
+       * 1. Pick one from skills/hyperframes/references/transitions/shader-transitions.md
+       * 2. Replace the FRAG_SHADER string below
+       * 3. If the new shader needs ND instead of NQ noise, swap the noise library
+       */
+      var sceneTextures = {};
+      var sceneHasVideo = {};
+      var glCanvas = document.getElementById("gl-canvas");
+      var gl = glCanvas ? glCanvas.getContext("webgl", { preserveDrawingBuffer: true }) : null;
+
+      if (gl) {
+        gl.viewport(0, 0, 1920, 1080);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+
+        function waitForMedia() {
+          return new Promise(function(resolve) {
+            var promises = [];
+            document.querySelectorAll("img").forEach(function(img) {
+              if (!img.complete) promises.push(new Promise(function(r) { img.onload = r; img.onerror = r; }));
+            });
+            document.querySelectorAll("video").forEach(function(vid) {
+              if (vid.readyState < 2) promises.push(new Promise(function(r) { vid.addEventListener("loadeddata", r, { once: true }); }));
+            });
+            Promise.all(promises).then(resolve);
+          });
+        }
+
+        function captureScene(sceneId) {
+          return new Promise(function(resolve) {
+            var scene = document.getElementById(sceneId);
+            if (!scene) { resolve(); return; }
+            var origOpacity = scene.style.opacity;
+            scene.style.opacity = "1";
+            if (scene.querySelector("video")) sceneHasVideo[sceneId] = scene.querySelector("video");
+            requestAnimationFrame(function() {
+              requestAnimationFrame(function() {
+                var c = document.createElement("canvas");
+                c.width = 1920; c.height = 1080;
+                var ctx = c.getContext("2d");
+                ctx.fillStyle = window.getComputedStyle(scene).backgroundColor || "#000";
+                ctx.fillRect(0, 0, 1920, 1080);
+                var sr = scene.getBoundingClientRect();
+                var els = scene.querySelectorAll("*");
+                for (var i = 0; i < els.length; i++) {
+                  var el = els[i]; var cs = window.getComputedStyle(el);
+                  if (cs.display === "none" || cs.visibility === "hidden") continue;
+                  var r = el.getBoundingClientRect();
+                  if (r.width < 1 || r.height < 1) continue;
+                  var x = r.left - sr.left, y = r.top - sr.top, w = r.width, h = r.height;
+                  ctx.save(); ctx.globalAlpha = parseFloat(cs.opacity) || 1;
+                  if (el.tagName === "IMG" && el.complete && el.naturalWidth > 0) {
+                    try { ctx.drawImage(el, x, y, w, h); } catch(e) {}
+                    ctx.restore(); continue;
+                  }
+                  if (el.tagName === "VIDEO" && el.readyState >= 2) {
+                    try { ctx.drawImage(el, x, y, w, h); } catch(e) {}
+                    ctx.restore(); continue;
+                  }
+                  var bg = cs.backgroundColor;
+                  if (bg && bg !== "rgba(0, 0, 0, 0)") { ctx.fillStyle = bg; ctx.fillRect(x, y, w, h); }
+                  ctx.restore();
+                }
+                var tex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, tex);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+                sceneTextures[sceneId] = tex;
+                scene.style.opacity = origOpacity;
+                resolve();
+              });
+            });
+          });
+        }
+
+        function compileShader(src, type) {
+          var s = gl.createShader(type);
+          gl.shaderSource(s, src); gl.compileShader(s);
+          return s;
+        }
+
+        var NQ =
+          "float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}" +
+          "float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);" +
+          "f=f*f*f*(f*(f*6.-15.)+10.);" +
+          "return mix(mix(hash(i),hash(i+vec2(1,0)),f.x)," +
+          "mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}" +
+          "float fbm(vec2 p){float v=0.,a=.5;mat2 rot=mat2(.8,.6,-.6,.8);" +
+          "for(int i=0;i<5;i++){v+=a*vnoise(p);p=rot*p*2.;a*=.5;}return v;}";
+
+        var VERT = "attribute vec2 a_pos;varying vec2 v_uv;void main(){v_uv=a_pos*.5+.5;gl_Position=vec4(a_pos,0,1);}";
+
+        /* AGENT: Replace FRAG_SHADER to change the transition effect.
+         * See skills/hyperframes/references/transitions/shader-transitions.md for 14 options.
+         * Current: Cross-Warp Morph */
+        var FRAG_SHADER =
+          "precision mediump float;" +
+          "varying vec2 v_uv;" +
+          "uniform sampler2D u_from,u_to;" +
+          "uniform float u_progress;" +
+          NQ +
+          "void main(){" +
+          "vec2 disp=vec2(fbm(v_uv*3.),fbm(v_uv*3.+vec2(7.3,3.7)))-.5;" +
+          "vec2 fromUv=clamp(v_uv+disp*u_progress*.5,0.,1.);" +
+          "vec2 toUv=clamp(v_uv-disp*(1.-u_progress)*.5,0.,1.);" +
+          "vec4 A=texture2D(u_from,fromUv),B=texture2D(u_to,toUv);" +
+          "float n=fbm(v_uv*4.+vec2(3.1,1.7));" +
+          "float blend=smoothstep(.4,.6,n+u_progress*1.2-.6);" +
+          "gl_FragColor=mix(A,B,blend);}";
+
+        var PASS_FRAG =
+          "precision mediump float;varying vec2 v_uv;uniform sampler2D u_from;void main(){gl_FragColor=texture2D(u_from,v_uv);}";
+
+        var vs = compileShader(VERT, gl.VERTEX_SHADER);
+        var transFs = compileShader(FRAG_SHADER, gl.FRAGMENT_SHADER);
+        var passFs = compileShader(PASS_FRAG, gl.FRAGMENT_SHADER);
+
+        function linkProg(fs) {
+          var p = gl.createProgram();
+          gl.attachShader(p, vs); gl.attachShader(p, fs);
+          gl.linkProgram(p); return p;
+        }
+        var transProg = linkProg(transFs);
+        var passProg = linkProg(passFs);
+
+        var quad = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+
+        function drawPass(prog, fromTex, toTex, progress) {
+          gl.useProgram(prog);
+          var a = gl.getAttribLocation(prog, "a_pos");
+          gl.enableVertexAttribArray(a);
+          gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, fromTex);
+          gl.uniform1i(gl.getUniformLocation(prog, "u_from"), 0);
+          if (toTex) {
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, toTex);
+            gl.uniform1i(gl.getUniformLocation(prog, "u_to"), 1);
+          }
+          var uProg = gl.getUniformLocation(prog, "u_progress");
+          if (uProg) gl.uniform1f(uProg, progress);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
+
+        var trans = { active: false, from: null, to: null, progress: 0 };
+
+        function beginTrans(fromId, toId) {
+          trans.active = true; trans.from = fromId; trans.to = toId; trans.progress = 0;
+          glCanvas.style.display = "block";
+          if (sceneHasVideo[fromId]) captureScene(fromId);
+          if (sceneHasVideo[toId]) captureScene(toId);
+        }
+
+        function endTrans(showId) {
+          trans.active = false;
+          glCanvas.style.display = "none";
+          document.querySelectorAll("[data-composition-src]").forEach(function(el) {
+            el.style.opacity = el.id === showId ? "1" : "0";
+          });
+        }
+
+        function renderFrame() {
+          if (!trans.active && !trans.from) { requestAnimationFrame(renderFrame); return; }
+          if (trans.active && sceneTextures[trans.from] && sceneTextures[trans.to]) {
+            drawPass(transProg, sceneTextures[trans.from], sceneTextures[trans.to], trans.progress);
+          } else if (trans.from && sceneTextures[trans.from]) {
+            drawPass(passProg, sceneTextures[trans.from], null, 0);
+          }
+          requestAnimationFrame(renderFrame);
+        }
+
+        waitForMedia().then(function() {
+          var sceneIds = ["scene-1", "scene-2", "scene-3", "scene-4"];
+          /* AGENT: Update this list to match your actual scene IDs */
+          return sceneIds.reduce(function(p, id) {
+            return p.then(function() { return captureScene(id); });
+          }, Promise.resolve());
+        }).then(function() {
+          document.querySelectorAll("[data-composition-src]").forEach(function(el, i) {
+            el.style.opacity = i === 0 ? "1" : "0";
+          });
+          trans.from = "scene-1";
+          renderFrame();
+        });
+
+        /* TRANSITION TIMELINE
+         * AGENT: Wire your transitions here. Example for 4 scenes with 0.6s transitions:
+         *
+         * tl.call(function() { beginTrans("scene-1", "scene-2"); }, null, 6.4);
+         * tl.to(trans, { progress: 1, duration: 0.6, ease: "power2.inOut",
+         *   onComplete: function() { endTrans("scene-2"); } }, 6.4);
+         *
+         * tl.call(function() { beginTrans("scene-2", "scene-3"); }, null, 13.4);
+         * tl.to(trans, { progress: 1, duration: 0.6, ease: "power2.inOut",
+         *   onComplete: function() { endTrans("scene-3"); } }, 13.4);
+         *
+         * tl.call(function() { beginTrans("scene-3", "scene-4"); }, null, 20.4);
+         * tl.to(trans, { progress: 1, duration: 0.6, ease: "power2.inOut",
+         *   onComplete: function() { endTrans("scene-4"); } }, 20.4);
+         */
+      } else {
+        /* WebGL not available — CSS fallback */
+        console.warn("WebGL unavailable — using CSS fade transitions");
+      }
     </script>
   </body>
 </html>
