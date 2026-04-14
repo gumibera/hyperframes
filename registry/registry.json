@@ -88,10 +88,6 @@
       "type": "hyperframes:block"
     },
     {
-      "name": "ascii-lightning",
-      "type": "hyperframes:block"
-    },
-    {
       "name": "app-showcase",
       "type": "hyperframes:block"
     },

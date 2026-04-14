@@ -13,19 +13,6 @@
     "preview": "/images/catalog/blocks/app-showcase.png"
   },
   {
-    "name": "ascii-lightning",
-    "type": "block",
-    "title": "ASCII Lightning",
-    "description": "Pure ASCII art lightning bolt animation on dark background",
-    "tags": [
-      "title",
-      "ascii",
-      "animation"
-    ],
-    "href": "/catalog/blocks/ascii-lightning",
-    "preview": "/images/catalog/blocks/ascii-lightning.png"
-  },
-  {
     "name": "chromatic-radial-split",
     "type": "block",
     "title": "Chromatic Radial Split",
