@@ -128,7 +128,31 @@ function prepareProjectDir(item: CatalogItem): string {
 
   // The HyperFrames producer navigates to index.html at the project root.
   // Blocks and component demos are standalone HTML files, not index.html.
-  // Create a wrapper index.html that loads the entry file as a sub-composition.
+  // If the entry file is a standalone HTML (has its own timeline registration),
+  // just rename it to index.html. Otherwise create a wrapper.
+  if (!existsSync(join(tmpDir, "index.html")) && existsSync(join(tmpDir, item.entryFile))) {
+    const entryContent = readFileSync(join(tmpDir, item.entryFile), "utf-8");
+    const hasTimeline = entryContent.includes("__timelines");
+    if (hasTimeline) {
+      // Standalone block — copy to index.html and render directly.
+      // For social overlays with transparent backgrounds, inject a dark bg
+      // so the overlay card is visible against something.
+      let content = entryContent;
+      const hasSocialTag = (() => {
+        try {
+          const m = JSON.parse(readFileSync(join(tmpDir, "registry-item.json"), "utf-8"));
+          return (m.tags ?? []).includes("social");
+        } catch {
+          return false;
+        }
+      })();
+      if (hasSocialTag && content.includes("background: transparent")) {
+        content = content.replace("background: transparent", "background: #1a1a2e");
+      }
+      writeFileSync(join(tmpDir, "index.html"), content, "utf-8");
+      return tmpDir;
+    }
+  }
   if (!existsSync(join(tmpDir, "index.html"))) {
     const manifestPath = join(tmpDir, "registry-item.json");
     let width = 1920;
@@ -141,13 +165,24 @@ function prepareProjectDir(item: CatalogItem): string {
       duration = m.duration ?? duration;
     }
 
+    // Dark background for social overlays so transparent cards are visible.
+    const tags: string[] = (() => {
+      try {
+        return JSON.parse(readFileSync(join(tmpDir, "registry-item.json"), "utf-8")).tags ?? [];
+      } catch {
+        return [];
+      }
+    })();
+    const isSocialOverlay = tags.includes("social") || tags.includes("overlay");
+    const bgColor = isSocialOverlay ? "#1a1a2e" : "#ffffff";
+
     const wrapper = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=${width}, height=${height}" />
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>* { margin: 0; padding: 0; } html, body { width: ${width}px; height: ${height}px; overflow: hidden; }</style>
+  <style>* { margin: 0; padding: 0; } html, body { width: ${width}px; height: ${height}px; overflow: hidden; background: ${bgColor}; }</style>
 </head>
 <body>
   <div data-composition-id="preview-root" data-width="${width}" data-height="${height}" data-start="0" data-duration="${duration}">
@@ -169,17 +204,16 @@ async function generateThumbnail(item: CatalogItem, projectDir: string): Promise
   const outDir = outputDir(item.kind);
   mkdirSync(outDir, { recursive: true });
 
-  // Read dimensions from registry-item.json or default to 1920x1080
+  // Read dimensions from the wrapper index.html (which may differ from native
+  // dimensions for portrait overlays that are scaled to fit landscape).
   let width = 1920;
   let height = 1080;
-  const manifestPath = join(item.sourceDir, "registry-item.json");
-  if (existsSync(manifestPath)) {
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-    if (manifest.dimensions) {
-      width = manifest.dimensions.width ?? width;
-      height = manifest.dimensions.height ?? height;
-    }
-  }
+  const wrapperPath = join(projectDir, "index.html");
+  const wrapperHtml = readFileSync(wrapperPath, "utf-8");
+  const wMatch = wrapperHtml.match(/data-width="(\d+)"/);
+  const hMatch = wrapperHtml.match(/data-height="(\d+)"/);
+  if (wMatch) width = parseInt(wMatch[1], 10);
+  if (hMatch) height = parseInt(hMatch[1], 10);
 
   const framesDir = join(projectDir, "_thumb_frames");
   mkdirSync(framesDir, { recursive: true });
