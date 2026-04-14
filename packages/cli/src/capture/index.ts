@@ -1196,7 +1196,6 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
         tokens,
         animationCatalog,
         !!fullPageScreenshot,
-        false, // DESIGN.md is always created by the AI agent now
         discoveredLotties.length > 0,
         existsSync(join(outputDir, "extracted", "shaders.json")),
         catalogedAssets,

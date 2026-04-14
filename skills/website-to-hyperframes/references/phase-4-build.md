@@ -10,7 +10,7 @@ The root `index.html` already contains:
 
 - **Cross-Warp Morph shader transition** (default — the most versatile shader in the kit)
 - **WebGL canvas** with scene texture capture and a transition state machine
-- **GSAP timeline setup** (`window.__GSAP_TIMELINE`, `window.__timelines`)
+- **GSAP timeline setup** (`window.__timelines`)
 - **Scene slots** with sequential `data-start` / `data-duration` attributes
 - **Narration audio element** wired to the root track
 - **Captions slot** on a parallel overlay track
@@ -182,9 +182,3 @@ npx hyperframes preview
 
 ---
 
-## Commit
-
-```bash
-git add skills/website-to-hyperframes/references/phase-4-build.md
-git commit --no-verify -m "feat(skill): add Phase 4 build reference with inline shader example"
-```

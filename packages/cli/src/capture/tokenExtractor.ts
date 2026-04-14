@@ -63,9 +63,23 @@ const EXTRACT_SCRIPT = `(() => {
       : color;
     var m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
     if (!m) {
+      // Handle color(srgb ...) format
       var cm = color.match(/color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/);
-      if (!cm) return color;
-      m = [null, Math.round(parseFloat(cm[1])*255), Math.round(parseFloat(cm[2])*255), Math.round(parseFloat(cm[3])*255)];
+      if (cm) {
+        m = [null, Math.round(parseFloat(cm[1])*255), Math.round(parseFloat(cm[2])*255), Math.round(parseFloat(cm[3])*255)];
+      } else {
+        // Handle hsl()/hsla() by resolving through a temp element
+        var hm = color.match(/hsla?\(/);
+        if (hm) {
+          var tmp = document.createElement('div');
+          tmp.style.color = color;
+          document.body.appendChild(tmp);
+          var resolved = getComputedStyle(tmp).color;
+          document.body.removeChild(tmp);
+          return rgbToHex(resolved);
+        }
+        return color;
+      }
     }
     return '#' + ((1<<24) + (parseInt(m[1])<<16) + (parseInt(m[2])<<8) + parseInt(m[3])).toString(16).slice(1).toUpperCase();
   }
