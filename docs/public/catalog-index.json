@@ -471,18 +471,6 @@
     "preview": "/images/catalog/blocks/transitions-scale.png"
   },
   {
-    "name": "transitions-shader",
-    "type": "block",
-    "title": "Shader Collection",
-    "description": "Showcase of WebGL shader-based transitions",
-    "tags": [
-      "transition",
-      "showcase"
-    ],
-    "href": "/catalog/blocks/transitions-shader",
-    "preview": "/images/catalog/blocks/transitions-shader.png"
-  },
-  {
     "name": "ui-3d-reveal",
     "type": "block",
     "title": "3D UI Reveal",

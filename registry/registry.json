@@ -202,10 +202,6 @@
     {
       "name": "transitions-scale",
       "type": "hyperframes:block"
-    },
-    {
-      "name": "transitions-shader",
-      "type": "hyperframes:block"
     }
   ]
 }

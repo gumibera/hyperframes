@@ -142,8 +142,7 @@
               "catalog/blocks/transitions-other",
               "catalog/blocks/transitions-push",
               "catalog/blocks/transitions-radial",
-              "catalog/blocks/transitions-scale",
-              "catalog/blocks/transitions-shader"
+              "catalog/blocks/transitions-scale"
             ]
           },
           {
