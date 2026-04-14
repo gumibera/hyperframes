@@ -55,7 +55,11 @@ export function remapTarget(
 export function buildSnippet(item: RegistryItem, relativeTarget: string): string {
   if (item.type === "hyperframes:block") {
     // data-start omitted — adjust to your timeline position after pasting.
-    return `<iframe src="${relativeTarget}" data-duration="${item.duration}"></iframe>`;
+    const dims =
+      "dimensions" in item && item.dimensions
+        ? ` data-width="${item.dimensions.width}" data-height="${item.dimensions.height}"`
+        : "";
+    return `<div data-composition-src="${relativeTarget}" data-duration="${item.duration}"${dims}></div>`;
   }
   if (item.type === "hyperframes:component") {
     return `<!-- paste from ${relativeTarget} into your composition -->`;

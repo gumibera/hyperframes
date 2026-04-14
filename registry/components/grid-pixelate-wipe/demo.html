@@ -29,19 +29,7 @@
       data-duration="8"
     >
       <!-- Scene A -->
-      <div
-        id="scene-a"
-        style="
-          position: absolute;
-          width: 1920px;
-          height: 1080px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          font-family: &quot;Inter&quot;, sans-serif;
-        "
-      >
+      <div id="scene-a" class="demo-scene scene-a">
         <div style="text-align: center; color: white">
           <div style="font-size: 80px; font-weight: 800">Scene A</div>
           <div style="font-size: 32px; margin-top: 20px; opacity: 0.7">
@@ -51,20 +39,7 @@
       </div>
 
       <!-- Scene B (hidden initially) -->
-      <div
-        id="scene-b"
-        style="
-          position: absolute;
-          width: 1920px;
-          height: 1080px;
-          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          font-family: &quot;Inter&quot;, sans-serif;
-          opacity: 0;
-        "
-      >
+      <div id="scene-b" class="demo-scene scene-b">
         <div style="text-align: center; color: white">
           <div style="font-size: 80px; font-weight: 800">Scene B</div>
           <div style="font-size: 32px; margin-top: 20px; opacity: 0.7">Revealed from the grid</div>
@@ -95,6 +70,27 @@
           background: var(--grid-color);
           transform: scale(0);
           transform-origin: center center;
+        }
+      </style>
+
+      <style>
+        .demo-scene {
+          position: absolute;
+          width: 1920px;
+          height: 1080px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: "Inter", sans-serif;
+        }
+
+        .scene-a {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .scene-b {
+          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+          opacity: 0;
         }
       </style>
 

@@ -28,20 +28,7 @@
       data-height="1080"
       data-duration="6"
     >
-      <div
-        class="demo-canvas"
-        style="
-          width: 1920px;
-          height: 1080px;
-          background: #0a0a0f;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          gap: 60px;
-          font-family: &quot;Inter&quot;, sans-serif;
-        "
-      >
+      <div class="demo-canvas">
         <!-- Example 1: Large heading -->
         <div class="shimmer-sweep-target" style="--shimmer-color: rgba(255, 255, 255, 0.5)">
           <div
@@ -86,6 +73,18 @@
 
       <!-- Shimmer Sweep component -->
       <style>
+        .demo-canvas {
+          width: 1920px;
+          height: 1080px;
+          background: #0a0a0f;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          gap: 60px;
+          font-family: "Inter", sans-serif;
+        }
+
         .shimmer-sweep-target {
           position: relative;
           display: inline-block;

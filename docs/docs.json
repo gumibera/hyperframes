@@ -51,7 +51,11 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["introduction", "quickstart", "examples"]
+            "pages": [
+              "introduction",
+              "quickstart",
+              "examples"
+            ]
           },
           {
             "group": "Concepts",
@@ -90,15 +94,41 @@
         ]
       },
       {
+        "tab": "Catalog",
+        "groups": [
+          {
+            "group": "Blocks",
+            "pages": [
+              "catalog/blocks/data-chart",
+              "catalog/blocks/flowchart",
+              "catalog/blocks/logo-outro"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "catalog/components/grain-overlay",
+              "catalog/components/grid-pixelate-wipe",
+              "catalog/components/shimmer-sweep"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Reference",
         "groups": [
           {
             "group": "Reference",
-            "pages": ["reference/html-schema"]
+            "pages": [
+              "reference/html-schema"
+            ]
           },
           {
             "group": "Contributing",
-            "pages": ["contributing", "contributing/testing-local-changes"]
+            "pages": [
+              "contributing",
+              "contributing/testing-local-changes"
+            ]
           }
         ]
       }

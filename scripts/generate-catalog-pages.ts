@@ -16,7 +16,12 @@
 import { readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type RegistryItem, isBlockItem, ITEM_TYPE_DIRS } from "@hyperframes/core";
+// Import from source — bun workspace linking doesn't resolve for scripts outside packages/.
+import {
+  type RegistryItem,
+  isBlockItem,
+  ITEM_TYPE_DIRS,
+} from "../packages/core/src/registry/types.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
@@ -95,11 +100,10 @@ function generateItemMdx(kind: ItemKind, manifest: RegistryItem): string {
     lines.push(tagBadges, "");
   }
 
-  // Preview — rendered by CI preview pipeline (PR 8).
-  // The image/video may not exist yet if previews haven't been generated.
+  // Preview video with poster fallback — matches the examples page pattern.
   const previewPath = `/images/catalog/${typeDir(kind)}/${manifest.name}`;
   lines.push(
-    `<img className="w-full aspect-video rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800" src="${previewPath}.png" alt="${manifest.title} preview" />`,
+    `<video className="w-full aspect-video rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800" src="${previewPath}.mp4" poster="${previewPath}.png" muted loop playsInline autoPlay />`,
     "",
   );
 
@@ -155,13 +159,15 @@ function generateItemMdx(kind: ItemKind, manifest: RegistryItem): string {
   const primaryTarget = primaryFile?.target ?? `compositions/${manifest.name}.html`;
 
   if (kind === "block" && isBlockItem(manifest)) {
+    const w = manifest.dimensions.width;
+    const h = manifest.dimensions.height;
     lines.push(
       "## Usage",
       "",
-      "After installing, add the block to your host composition as an iframe:",
+      "After installing, add the block to your host composition:",
       "",
       "```html",
-      `<iframe src="${primaryTarget}" data-start="0" data-duration="${manifest.duration}" data-track-index="1"></iframe>`,
+      `<div data-composition-id="${manifest.name}" data-composition-src="${primaryTarget}" data-start="0" data-duration="${manifest.duration}" data-track-index="1" data-width="${w}" data-height="${h}"></div>`,
       "```",
       "",
     );

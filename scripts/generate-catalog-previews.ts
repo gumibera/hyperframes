@@ -16,10 +16,19 @@
  *   npx tsx scripts/generate-catalog-previews.ts --skip-video         # thumbnails only
  */
 
-import { readdirSync, readFileSync, existsSync, mkdirSync, cpSync, rmSync } from "node:fs";
+import {
+  readdirSync,
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  cpSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+// Import from source — bun workspace linking doesn't resolve for scripts outside packages/.
 import {
   createFileServer,
   createCaptureSession,
@@ -29,7 +38,7 @@ import {
   closeCaptureSession,
   createRenderJob,
   executeRenderJob,
-} from "@hyperframes/producer";
+} from "../packages/producer/src/index.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "..");
@@ -115,6 +124,43 @@ function prepareProjectDir(item: CatalogItem): string {
   const tmpDir = join(tmpdir(), `hf-catalog-${item.name}-${Date.now()}`);
   mkdirSync(tmpDir, { recursive: true });
   cpSync(item.sourceDir, tmpDir, { recursive: true });
+
+  // The HyperFrames producer navigates to index.html at the project root.
+  // Blocks and component demos are standalone HTML files, not index.html.
+  // Create a wrapper index.html that loads the entry file as a sub-composition.
+  if (!existsSync(join(tmpDir, "index.html"))) {
+    const manifestPath = join(tmpDir, "registry-item.json");
+    let width = 1920;
+    let height = 1080;
+    let duration = 5;
+    if (existsSync(manifestPath)) {
+      const m = JSON.parse(readFileSync(manifestPath, "utf-8"));
+      width = m.dimensions?.width ?? width;
+      height = m.dimensions?.height ?? height;
+      duration = m.duration ?? duration;
+    }
+
+    const wrapper = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=${width}, height=${height}" />
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>* { margin: 0; padding: 0; } html, body { width: ${width}px; height: ${height}px; overflow: hidden; }</style>
+</head>
+<body>
+  <div data-composition-id="preview-root" data-width="${width}" data-height="${height}" data-start="0" data-duration="${duration}">
+    <div data-composition-id="${item.name}" data-composition-src="${item.entryFile}" data-start="0" data-duration="${duration}" data-track-index="0" data-width="${width}" data-height="${height}"></div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["preview-root"] = gsap.timeline({ paused: true });
+  </script>
+</body>
+</html>`;
+    writeFileSync(join(tmpDir, "index.html"), wrapper, "utf-8");
+  }
+
   return tmpDir;
 }
 

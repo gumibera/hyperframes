@@ -29,19 +29,7 @@
       data-duration="5"
     >
       <!-- Background content to demonstrate the overlay -->
-      <div
-        class="demo-bg"
-        style="
-          width: 1920px;
-          height: 1080px;
-          background: linear-gradient(135deg, #f5f0e0 0%, #e8d8b8 50%, #d4c4a0 100%);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          font-family: &quot;Inter&quot;, sans-serif;
-          position: relative;
-        "
-      >
+      <div class="demo-bg">
         <div style="text-align: center; z-index: 1">
           <div
             class="demo-title"
@@ -75,6 +63,17 @@
       </div>
 
       <style>
+        .demo-bg {
+          width: 1920px;
+          height: 1080px;
+          background: linear-gradient(135deg, #f5f0e0 0%, #e8d8b8 50%, #d4c4a0 100%);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: "Inter", sans-serif;
+          position: relative;
+        }
+
         @keyframes grain-noise {
           0%,
           100% {
@@ -115,7 +114,7 @@
           left: -50%;
           width: 200%;
           height: 200%;
-          background: url("https://www.transparenttextures.com/patterns/natural-paper.png");
+          background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
           opacity: 0.15;
           animation: grain-noise 0.5s steps(1) infinite;
         }

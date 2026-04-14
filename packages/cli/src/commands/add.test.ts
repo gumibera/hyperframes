@@ -139,9 +139,9 @@ describe("add command pure helpers", () => {
   });
 
   describe("buildSnippet", () => {
-    it("wraps blocks in an iframe with start/duration", () => {
+    it("wraps blocks in a div with data-composition-src and duration", () => {
       const snip = buildSnippet(BLOCK_ITEM, "src/scenes/my-block.html");
-      expect(snip).toContain('src="src/scenes/my-block.html"');
+      expect(snip).toContain('data-composition-src="src/scenes/my-block.html"');
       expect(snip).toContain('data-duration="6"');
     });
 

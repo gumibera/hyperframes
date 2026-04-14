@@ -1,0 +1,83 @@
+[
+  {
+    "name": "data-chart",
+    "type": "block",
+    "title": "Data Chart",
+    "description": "Animated bar + line chart with staggered reveal, NYT-style typography, and value labels",
+    "tags": [
+      "data",
+      "chart",
+      "statistics"
+    ],
+    "href": "/catalog/blocks/data-chart",
+    "preview": "/images/catalog/blocks/data-chart.png"
+  },
+  {
+    "name": "flowchart",
+    "type": "block",
+    "title": "Flowchart",
+    "description": "Animated decision tree with SVG connectors, sticky-note nodes, cursor interaction, and typing correction",
+    "tags": [
+      "diagram",
+      "flowchart",
+      "interactive"
+    ],
+    "href": "/catalog/blocks/flowchart",
+    "preview": "/images/catalog/blocks/flowchart.png"
+  },
+  {
+    "name": "grain-overlay",
+    "type": "component",
+    "title": "Grain Overlay",
+    "description": "Animated film grain texture overlay using CSS keyframes — adds warmth and analog character to any composition",
+    "tags": [
+      "texture",
+      "grain",
+      "overlay",
+      "film"
+    ],
+    "href": "/catalog/components/grain-overlay",
+    "preview": "/images/catalog/components/grain-overlay.png"
+  },
+  {
+    "name": "grid-pixelate-wipe",
+    "type": "component",
+    "title": "Grid Pixelate Wipe",
+    "description": "Transition effect where the screen dissolves into a grid of squares that fade out with staggered timing — use between scenes",
+    "tags": [
+      "transition",
+      "wipe",
+      "grid",
+      "pixelate"
+    ],
+    "href": "/catalog/components/grid-pixelate-wipe",
+    "preview": "/images/catalog/components/grid-pixelate-wipe.png"
+  },
+  {
+    "name": "logo-outro",
+    "type": "block",
+    "title": "Logo Outro",
+    "description": "Cinematic logo reveal with piece-by-piece assembly, glow bloom, tagline fade-in, and URL pill",
+    "tags": [
+      "branding",
+      "outro",
+      "logo"
+    ],
+    "href": "/catalog/blocks/logo-outro",
+    "preview": "/images/catalog/blocks/logo-outro.png"
+  },
+  {
+    "name": "shimmer-sweep",
+    "type": "component",
+    "title": "Shimmer Sweep",
+    "description": "Animated light sweep across text or elements using a CSS gradient mask — ideal for AI accents and premium reveals",
+    "tags": [
+      "text",
+      "shimmer",
+      "highlight",
+      "effect"
+    ],
+    "href": "/catalog/components/shimmer-sweep",
+    "preview": "/images/catalog/components/shimmer-sweep.png"
+  }
+]
