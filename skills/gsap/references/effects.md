@@ -210,25 +210,18 @@ Requires ffmpeg and numpy.
 
 ```js
 // Option A: inline (small files, under ~500KB)
-const AUDIO_DATA = {
+var AUDIO_DATA = {
   /* paste audio-data.json contents */
 };
-setupTimeline(AUDIO_DATA);
 
-// Option B: fetch (large files)
-fetch("audio-data.json")
-  .then((r) => r.json())
-  .then((data) => setupTimeline(data));
-
-function setupTimeline(AUDIO_DATA) {
-  // IMPORTANT: all tl.call() setup must be inside this callback
-  for (let f = 0; f < AUDIO_DATA.totalFrames; f++) {
-    tl.call(() => draw(AUDIO_DATA.frames[f]), [], f / AUDIO_DATA.fps);
-  }
-}
+// Option B: sync XHR (large files — must be synchronous for deterministic timeline construction)
+var xhr = new XMLHttpRequest();
+xhr.open("GET", "audio-data.json", false);
+xhr.send();
+var AUDIO_DATA = JSON.parse(xhr.responseText);
 ```
 
-With fetch, wrap all timeline setup inside the callback so `AUDIO_DATA` is available.
+**Do NOT use async `fetch()` to load audio data.** HyperFrames requires synchronous timeline construction — the capture engine reads `window.__timelines` synchronously after page load. Building timelines inside `.then()` callbacks means the timeline isn't ready when capture starts.
 
 ### Rendering Approaches
 

@@ -15,16 +15,16 @@ Pure CSS + GSAP implementations of all five MarkerHighlight.js drawing modes. Us
 Yellow marker sweep behind text. The most common mode.
 
 ```html
-<div class="mh-highlight-wrap">
-  <div class="mh-highlight-bar" id="hl-1"></div>
+<span class="mh-highlight-wrap">
+  <span class="mh-highlight-bar" id="hl-1"></span>
   <span class="mh-highlight-text">highlighted text</span>
-</div>
+</span>
 ```
 
 ```css
 .mh-highlight-wrap {
   position: relative;
-  display: inline-block;
+  display: inline;
 }
 .mh-highlight-bar {
   position: absolute;
@@ -75,16 +75,16 @@ tl.to(
 Hand-drawn circle around text. Use `border-radius: 50%` with a slight rotation for organic feel.
 
 ```html
-<div class="mh-circle-wrap">
+<span class="mh-circle-wrap">
   <span class="mh-circle-text" id="circle-word">IMPORTANT</span>
-  <div class="mh-circle-ring" id="circle-1"></div>
-</div>
+  <span class="mh-circle-ring" id="circle-1"></span>
+</span>
 ```
 
 ```css
 .mh-circle-wrap {
   position: relative;
-  display: inline-block;
+  display: inline;
 }
 .mh-circle-text {
   position: relative;
@@ -148,29 +148,29 @@ tl.to(
 Radiating lines from text center. Each line is a positioned div rotated to its angle.
 
 ```html
-<div class="mh-burst-wrap">
+<span class="mh-burst-wrap">
   <span class="mh-burst-text">WOW</span>
-  <div class="mh-burst-container" id="burst-1">
-    <div class="mh-burst-line" style="--angle: 0deg; --len: 70px;"></div>
-    <div class="mh-burst-line" style="--angle: 30deg; --len: 55px;"></div>
-    <div class="mh-burst-line" style="--angle: 60deg; --len: 80px;"></div>
-    <div class="mh-burst-line" style="--angle: 90deg; --len: 45px;"></div>
-    <div class="mh-burst-line" style="--angle: 120deg; --len: 65px;"></div>
-    <div class="mh-burst-line" style="--angle: 150deg; --len: 75px;"></div>
-    <div class="mh-burst-line" style="--angle: 180deg; --len: 50px;"></div>
-    <div class="mh-burst-line" style="--angle: 210deg; --len: 60px;"></div>
-    <div class="mh-burst-line" style="--angle: 240deg; --len: 80px;"></div>
-    <div class="mh-burst-line" style="--angle: 270deg; --len: 40px;"></div>
-    <div class="mh-burst-line" style="--angle: 300deg; --len: 70px;"></div>
-    <div class="mh-burst-line" style="--angle: 330deg; --len: 55px;"></div>
-  </div>
-</div>
+  <span class="mh-burst-container" id="burst-1">
+    <span class="mh-burst-line" style="--angle: 0deg; --len: 70px;"></span>
+    <span class="mh-burst-line" style="--angle: 30deg; --len: 55px;"></span>
+    <span class="mh-burst-line" style="--angle: 60deg; --len: 80px;"></span>
+    <span class="mh-burst-line" style="--angle: 90deg; --len: 45px;"></span>
+    <span class="mh-burst-line" style="--angle: 120deg; --len: 65px;"></span>
+    <span class="mh-burst-line" style="--angle: 150deg; --len: 75px;"></span>
+    <span class="mh-burst-line" style="--angle: 180deg; --len: 50px;"></span>
+    <span class="mh-burst-line" style="--angle: 210deg; --len: 60px;"></span>
+    <span class="mh-burst-line" style="--angle: 240deg; --len: 80px;"></span>
+    <span class="mh-burst-line" style="--angle: 270deg; --len: 40px;"></span>
+    <span class="mh-burst-line" style="--angle: 300deg; --len: 70px;"></span>
+    <span class="mh-burst-line" style="--angle: 330deg; --len: 55px;"></span>
+  </span>
+</span>
 ```
 
 ```css
 .mh-burst-wrap {
   position: relative;
-  display: inline-block;
+  display: inline;
 }
 .mh-burst-text {
   position: relative;
@@ -186,6 +186,7 @@ Radiating lines from text center. Each line is a positioned div rotated to its a
 }
 .mh-burst-line {
   position: absolute;
+  display: block;
   width: 3px;
   height: var(--len);
   background: #1e88e5;
@@ -214,7 +215,7 @@ tl.fromTo(
 Wavy SVG underlines and strikethroughs that draw themselves via `stroke-dashoffset`.
 
 ```html
-<div class="mh-scribble-wrap">
+<span class="mh-scribble-wrap">
   <span class="mh-scribble-text">underlined text</span>
   <svg class="mh-scribble-svg" viewBox="0 0 500 24" preserveAspectRatio="none">
     <path
@@ -232,7 +233,7 @@ Wavy SVG underlines and strikethroughs that draw themselves via `stroke-dashoffs
 ```css
 .mh-scribble-wrap {
   position: relative;
-  display: inline-block;
+  display: inline;
 }
 .mh-scribble-text {
   position: relative;
@@ -283,19 +284,19 @@ Scale the path's viewBox width to match text width. The wave pattern `Q x1,y1 x2
 Cross-hatch lines over de-emphasized text. Multiple angled lines create a "crossed out" effect.
 
 ```html
-<div class="mh-sketchout-wrap">
+<span class="mh-sketchout-wrap">
   <span class="mh-sketchout-text">old price</span>
-  <div class="mh-sketchout-lines" id="sketchout-1">
-    <div class="mh-sketchout-line mh-sketchout-fwd"></div>
-    <div class="mh-sketchout-line mh-sketchout-bwd"></div>
-  </div>
-</div>
+  <span class="mh-sketchout-lines" id="sketchout-1">
+    <span class="mh-sketchout-line mh-sketchout-fwd"></span>
+    <span class="mh-sketchout-line mh-sketchout-bwd"></span>
+  </span>
+</span>
 ```
 
 ```css
 .mh-sketchout-wrap {
   position: relative;
-  display: inline-block;
+  display: inline;
 }
 .mh-sketchout-text {
   position: relative;
@@ -312,6 +313,7 @@ Cross-hatch lines over de-emphasized text. Multiple angled lines create a "cross
 }
 .mh-sketchout-line {
   position: absolute;
+  display: block;
   top: 50%;
   left: 0;
   width: 100%;

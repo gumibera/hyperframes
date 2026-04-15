@@ -111,6 +111,7 @@ Layered effects (glow behind text, shadow elements, background patterns) and z-s
 | Attribute                    | Required | Values                                       |
 | ---------------------------- | -------- | -------------------------------------------- |
 | `data-composition-id`        | Yes      | Unique composition ID                        |
+| `data-start`                 | Yes      | Start time (root composition: use `"0"`)     |
 | `data-duration`              | Yes      | Takes precedence over GSAP timeline duration |
 | `data-width` / `data-height` | Yes      | Pixel dimensions (1920x1080 or 1080x1920)    |
 | `data-composition-src`       | No       | Path to external HTML file                   |

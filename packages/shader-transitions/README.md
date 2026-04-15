@@ -74,14 +74,14 @@ init({
 
 ### `init(config): GsapTimeline`
 
-| Option          | Type                 | Required | Description                                                  |
-| --------------- | -------------------- | -------- | ------------------------------------------------------------ |
-| `bgColor`       | `string`             | yes      | Background color (hex) for scene capture                     |
-| `accentColor`   | `string`             | no       | Accent color (hex) for shader glow effects                   |
-| `scenes`        | `string[]`           | yes      | Element IDs of each scene, in order                          |
-| `transitions`   | `TransitionConfig[]` | yes      | Transition definitions (see below)                           |
-| `timeline`      | `GsapTimeline`       | no       | Existing timeline to attach transitions to                   |
-| `compositionId` | `string`             | no       | Override the `data-composition-id` for timeline registration |
+| Option          | Type                 | Required | Description                                                                                                                                                   |
+| --------------- | -------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bgColor`       | `string`             | yes      | Fallback background color (hex) for scene capture. Use the composition's body/canvas background — individual scenes set their own `background-color` via CSS. |
+| `accentColor`   | `string`             | no       | Accent color (hex) for shader glow effects                                                                                                                    |
+| `scenes`        | `string[]`           | yes      | Element IDs of each scene, in order                                                                                                                           |
+| `transitions`   | `TransitionConfig[]` | yes      | Transition definitions (see below)                                                                                                                            |
+| `timeline`      | `GsapTimeline`       | no       | Existing timeline to attach transitions to                                                                                                                    |
+| `compositionId` | `string`             | no       | Override the `data-composition-id` for timeline registration                                                                                                  |
 
 ### `TransitionConfig`
 
@@ -103,11 +103,11 @@ import { SHADER_NAMES } from "@hyperframes/shader-transitions";
 
 ## Distribution
 
-| Format | File                   | Use case                       |
-| ------ | ---------------------- | ------------------------------ |
-| ESM    | `dist/index.js`        | Bundlers (Vite, webpack, etc.) |
-| CJS    | `dist/index.cjs`       | Node.js / require()            |
-| IIFE   | `dist/index.global.js` | `<script>` tag, CDN            |
+| Format | File                   | Use case                                    |
+| ------ | ---------------------- | ------------------------------------------- |
+| ESM    | `dist/index.js`        | Bundlers (Vite, webpack, etc.)              |
+| CJS    | `dist/index.cjs`       | Node.js / require()                         |
+| IIFE   | `dist/index.global.js` | `<script>` tag, CDN (global: `HyperShader`) |
 
 All formats include source maps. TypeScript definitions included.
 
