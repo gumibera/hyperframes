@@ -9,7 +9,7 @@ npx skills add heygen-com/hyperframes   # HyperFrames composition skills
 npx skills add greensock/gsap-skills     # GSAP animation skills
 ```
 
-Skills encode patterns like `class="clip"` on timed elements, `window.__timelines` registration, and `data-*` attribute semantics that are not in generic web docs. Using them produces correct compositions from the start.
+Skills encode patterns like `window.__timelines` registration, `data-*` attribute semantics, and shader-compatible CSS rules that are not in generic web docs. Using them produces correct compositions from the start.
 
 ## Commands
 
