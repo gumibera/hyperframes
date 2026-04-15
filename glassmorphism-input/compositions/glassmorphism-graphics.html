@@ -1,0 +1,714 @@
+<template id="glassmorphism-graphics-template">
+  <div
+    data-composition-id="glassmorphism-graphics"
+    data-start="0"
+    data-width="1920"
+    data-height="1080"
+    data-duration="12"
+  >
+    <!-- Background Layer -->
+    <div id="bg" class="bg">
+      <div id="orb-1" class="orb orb-purple"></div>
+      <div id="orb-2" class="orb orb-blue"></div>
+      <div id="orb-3" class="orb orb-cyan"></div>
+      <div id="orb-4" class="orb orb-pink"></div>
+      <div id="noise-overlay" class="noise-overlay"></div>
+    </div>
+
+    <!-- Scene 1: Glassmorphism Card Entrance -->
+    <div id="scene-1" class="scene">
+      <div id="glass-card" class="glass-card">
+        <!-- Header -->
+        <div id="card-header" class="card-header">
+          <div class="header-dot dot-red"></div>
+          <div class="header-dot dot-yellow"></div>
+          <div class="header-dot dot-green"></div>
+          <div id="card-title" class="card-title">Ask anything</div>
+        </div>
+
+        <!-- Input Area -->
+        <div id="input-area" class="input-area">
+          <div id="input-field" class="input-field">
+            <span id="typed-text" class="typed-text"></span>
+            <span id="cursor" class="cursor"></span>
+          </div>
+        </div>
+
+        <!-- Action Row -->
+        <div id="action-row" class="action-row">
+          <div id="attach-btn" class="icon-btn">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(255,255,255,0.5)"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"
+              />
+            </svg>
+          </div>
+          <div id="submit-btn" class="submit-btn">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="19" x2="12" y2="5" />
+              <polyline points="5 12 12 5 19 12" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Glow Ring -->
+        <div id="glow-ring" class="glow-ring"></div>
+      </div>
+    </div>
+
+    <!-- Scene 2: Response Shimmer -->
+    <div id="scene-2" class="scene">
+      <div id="response-card" class="glass-card response-card">
+        <div id="response-header" class="card-header">
+          <div class="header-dot dot-red"></div>
+          <div class="header-dot dot-yellow"></div>
+          <div class="header-dot dot-green"></div>
+          <div class="card-title">Response</div>
+        </div>
+        <div id="response-body" class="response-body">
+          <div id="shimmer-line-1" class="shimmer-line" style="width: 85%"></div>
+          <div id="shimmer-line-2" class="shimmer-line" style="width: 70%"></div>
+          <div id="shimmer-line-3" class="shimmer-line" style="width: 92%"></div>
+          <div id="shimmer-line-4" class="shimmer-line" style="width: 60%"></div>
+        </div>
+        <div id="response-text" class="response-text">
+          <p id="resp-line-1" class="resp-line">The cosmos is within us.</p>
+          <p id="resp-line-2" class="resp-line">We are made of star-stuff.</p>
+          <p id="resp-line-3" class="resp-line">We are a way for the universe</p>
+          <p id="resp-line-4" class="resp-line">to know itself.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fade Out Overlay -->
+    <div id="fade-out" class="fade-out"></div>
+
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700&family=Space+Grotesk:wght@400;500;700&display=block");
+
+      [data-composition-id="glassmorphism-graphics"] {
+        background: #0c0514;
+        font-family: "DM Sans", sans-serif;
+        color: white;
+        overflow: hidden;
+      }
+
+      .scene {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10;
+      }
+
+      /* --- Background --- */
+      .bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        overflow: hidden;
+      }
+
+      .orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(120px);
+        opacity: 0;
+      }
+
+      .orb-purple {
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, #7c3aed 0%, rgba(124, 58, 237, 0) 70%);
+        top: 10%;
+        left: 15%;
+      }
+
+      .orb-blue {
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, #2563eb 0%, rgba(37, 99, 235, 0) 70%);
+        bottom: 5%;
+        right: 10%;
+      }
+
+      .orb-cyan {
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, #06b6d4 0%, rgba(6, 182, 212, 0) 70%);
+        top: 50%;
+        left: 55%;
+      }
+
+      .orb-pink {
+        width: 350px;
+        height: 350px;
+        background: radial-gradient(circle, #ec4899 0%, rgba(236, 72, 153, 0) 70%);
+        top: 60%;
+        left: 5%;
+      }
+
+      .noise-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.04;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        z-index: 1;
+      }
+
+      /* --- Glass Card --- */
+      .glass-card {
+        position: relative;
+        width: 720px;
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow:
+          0 8px 32px rgba(0, 0, 0, 0.4),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        opacity: 0;
+        transform: translateY(60px);
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 28px;
+      }
+
+      .header-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+
+      .dot-red {
+        background: #ff5f57;
+      }
+      .dot-yellow {
+        background: #febc2e;
+      }
+      .dot-green {
+        background: #28c840;
+      }
+
+      .card-title {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 18px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.5);
+        margin-left: 12px;
+        letter-spacing: 0.02em;
+      }
+
+      /* --- Input Field --- */
+      .input-area {
+        margin-bottom: 20px;
+      }
+
+      .input-field {
+        width: 100%;
+        min-height: 56px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+      }
+
+      .typed-text {
+        font-family: "DM Sans", sans-serif;
+        font-size: 22px;
+        font-weight: 300;
+        color: rgba(255, 255, 255, 0.9);
+        letter-spacing: 0.01em;
+        line-height: 1.4;
+      }
+
+      .cursor {
+        display: inline-block;
+        width: 2px;
+        height: 26px;
+        background: rgba(255, 255, 255, 0.8);
+        margin-left: 1px;
+        vertical-align: middle;
+        opacity: 0;
+      }
+
+      /* --- Action Row --- */
+      .action-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        opacity: 0;
+      }
+
+      .icon-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .submit-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #7c3aed, #2563eb);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 0 20px rgba(124, 58, 237, 0);
+        transform: scale(0.8);
+        opacity: 0;
+      }
+
+      /* --- Glow Ring --- */
+      .glow-ring {
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        border-radius: 26px;
+        border: 2px solid transparent;
+        background:
+          linear-gradient(#0c0514, #0c0514) padding-box,
+          linear-gradient(
+              135deg,
+              rgba(124, 58, 237, 0.6),
+              rgba(6, 182, 212, 0.6),
+              rgba(236, 72, 153, 0.6)
+            )
+            border-box;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      /* --- Response Card --- */
+      .response-card {
+        width: 720px;
+      }
+
+      .response-body {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 8px 0;
+      }
+
+      .shimmer-line {
+        height: 14px;
+        border-radius: 7px;
+        background: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.04) 0%,
+          rgba(255, 255, 255, 0.12) 50%,
+          rgba(255, 255, 255, 0.04) 100%
+        );
+        background-size: 200% 100%;
+        opacity: 0;
+      }
+
+      .response-text {
+        position: absolute;
+        top: 80px;
+        left: 32px;
+        right: 32px;
+      }
+
+      .resp-line {
+        font-family: "DM Sans", sans-serif;
+        font-size: 24px;
+        font-weight: 300;
+        line-height: 1.8;
+        color: rgba(255, 255, 255, 0.85);
+        letter-spacing: 0.01em;
+        opacity: 0;
+      }
+
+      /* --- Fade Out --- */
+      .fade-out {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #0c0514;
+        z-index: 100;
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/TextPlugin.min.js"></script>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+
+      gsap.registerPlugin(TextPlugin);
+
+      // The prompt text to type
+      var PROMPT_TEXT = "Tell me about the nature of the universe...";
+
+      // Cursor blink repeat count
+      var CURSOR_BLINKS_INITIAL = 3;
+      var CURSOR_BLINKS_AFTER = 4;
+
+      // =============================================
+      // PHASE 1: Background orbs fade in (0s - 1.2s)
+      // =============================================
+      tl.to("#orb-1", { opacity: 0.7, duration: 1.0, ease: "sine.out" }, 0.1);
+      tl.to("#orb-2", { opacity: 0.6, duration: 1.0, ease: "sine.out" }, 0.3);
+      tl.to("#orb-3", { opacity: 0.5, duration: 0.8, ease: "sine.out" }, 0.5);
+      tl.to("#orb-4", { opacity: 0.5, duration: 0.8, ease: "sine.out" }, 0.4);
+
+      // Ambient orb drift (slow, throughout)
+      tl.to("#orb-1", { x: 40, y: -30, duration: 11.0, ease: "sine.inOut" }, 0.5);
+      tl.to("#orb-2", { x: -35, y: 25, duration: 11.0, ease: "sine.inOut" }, 0.5);
+      tl.to("#orb-3", { x: 25, y: -20, duration: 11.0, ease: "sine.inOut" }, 0.5);
+      tl.to("#orb-4", { x: -20, y: 15, duration: 11.0, ease: "sine.inOut" }, 0.5);
+
+      // =============================================
+      // PHASE 2: Glass card entrance (1.0s - 2.2s)
+      // =============================================
+      tl.to(
+        "#glass-card",
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.9,
+          ease: "power3.out",
+        },
+        1.0,
+      );
+
+      // Glow ring fades in
+      tl.to(
+        "#glow-ring",
+        {
+          opacity: 1,
+          duration: 0.6,
+          ease: "sine.out",
+        },
+        1.4,
+      );
+
+      // Action row appears
+      tl.to(
+        "#action-row",
+        {
+          opacity: 1,
+          duration: 0.4,
+          ease: "sine.out",
+        },
+        1.6,
+      );
+
+      // =============================================
+      // PHASE 3: Cursor blink idle (2.0s - 2.8s)
+      // =============================================
+      tl.to("#cursor", { opacity: 1, duration: 0.05 }, 2.0);
+      // Blink pattern: on-off-on-off-on
+      tl.to("#cursor", { opacity: 0, duration: 0.05 }, 2.25);
+      tl.to("#cursor", { opacity: 1, duration: 0.05 }, 2.5);
+      tl.to("#cursor", { opacity: 0, duration: 0.05 }, 2.75);
+      tl.to("#cursor", { opacity: 1, duration: 0.05 }, 3.0);
+
+      // =============================================
+      // PHASE 4: Text typing (3.0s - 5.5s)
+      // =============================================
+      tl.to(
+        "#typed-text",
+        {
+          text: { value: PROMPT_TEXT, delimiter: "" },
+          duration: 2.2,
+          ease: "none",
+        },
+        3.0,
+      );
+
+      // Cursor stays solid while typing
+      tl.set("#cursor", { opacity: 1 }, 3.0);
+
+      // =============================================
+      // PHASE 5: Post-type cursor blink (5.3s - 6.3s)
+      // =============================================
+      tl.to("#cursor", { opacity: 0, duration: 0.05 }, 5.4);
+      tl.to("#cursor", { opacity: 1, duration: 0.05 }, 5.65);
+      tl.to("#cursor", { opacity: 0, duration: 0.05 }, 5.9);
+      tl.to("#cursor", { opacity: 1, duration: 0.05 }, 6.15);
+
+      // =============================================
+      // PHASE 6: Submit button glow + press (6.3s - 7.0s)
+      // =============================================
+      tl.to(
+        "#submit-btn",
+        {
+          opacity: 1,
+          scale: 1,
+          duration: 0.3,
+          ease: "back.out(2)",
+        },
+        6.3,
+      );
+
+      tl.to(
+        "#submit-btn",
+        {
+          boxShadow: "0 0 30px rgba(124, 58, 237, 0.7)",
+          duration: 0.4,
+          ease: "sine.inOut",
+        },
+        6.3,
+      );
+
+      // Press animation
+      tl.to(
+        "#submit-btn",
+        {
+          scale: 0.85,
+          duration: 0.1,
+          ease: "power2.in",
+        },
+        6.8,
+      );
+      tl.to(
+        "#submit-btn",
+        {
+          scale: 1,
+          duration: 0.15,
+          ease: "back.out(3)",
+        },
+        6.9,
+      );
+
+      // =============================================
+      // PHASE 7: Card pulse + glow ring flash (7.0s - 7.5s)
+      // =============================================
+      tl.to(
+        "#glow-ring",
+        {
+          opacity: 0.8,
+          duration: 0.15,
+          ease: "power2.in",
+        },
+        7.05,
+      );
+
+      tl.to(
+        "#glass-card",
+        {
+          scale: 1.01,
+          duration: 0.15,
+          ease: "power2.out",
+        },
+        7.05,
+      );
+
+      tl.to(
+        "#glass-card",
+        {
+          scale: 1,
+          duration: 0.3,
+          ease: "sine.out",
+        },
+        7.2,
+      );
+
+      tl.to(
+        "#glow-ring",
+        {
+          opacity: 0.3,
+          duration: 0.4,
+          ease: "sine.out",
+        },
+        7.2,
+      );
+
+      // =============================================
+      // PHASE 8: Transition to response (7.4s - 8.2s)
+      // =============================================
+      // Fade out input card
+      tl.to(
+        "#scene-1 .glass-card",
+        {
+          opacity: 0,
+          y: -30,
+          duration: 0.5,
+          ease: "power2.in",
+        },
+        7.5,
+      );
+
+      // Hide cursor
+      tl.set("#cursor", { opacity: 0 }, 7.5);
+
+      // Response card enters from below
+      tl.to(
+        "#response-card",
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.7,
+          ease: "power3.out",
+        },
+        7.9,
+      );
+
+      // =============================================
+      // PHASE 9: Shimmer loading lines (8.2s - 9.2s)
+      // =============================================
+      tl.to("#shimmer-line-1", { opacity: 1, duration: 0.15 }, 8.2);
+      tl.to("#shimmer-line-2", { opacity: 1, duration: 0.15 }, 8.35);
+      tl.to("#shimmer-line-3", { opacity: 1, duration: 0.15 }, 8.5);
+      tl.to("#shimmer-line-4", { opacity: 1, duration: 0.15 }, 8.65);
+
+      // Shimmer sweep animation
+      tl.to(
+        ".shimmer-line",
+        {
+          backgroundPosition: "-200% 0",
+          duration: 1.0,
+          ease: "sine.inOut",
+          stagger: 0.08,
+        },
+        8.3,
+      );
+
+      // =============================================
+      // PHASE 10: Response text reveal (9.0s - 10.5s)
+      // =============================================
+      // Fade out shimmer lines
+      tl.to(
+        ".shimmer-line",
+        {
+          opacity: 0,
+          duration: 0.3,
+          stagger: 0.05,
+          overwrite: "auto",
+        },
+        9.0,
+      );
+
+      // Reveal response text lines
+      tl.to(
+        "#resp-line-1",
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: "power2.out",
+        },
+        9.2,
+      );
+      tl.to(
+        "#resp-line-2",
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: "power2.out",
+        },
+        9.5,
+      );
+      tl.to(
+        "#resp-line-3",
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: "power2.out",
+        },
+        9.8,
+      );
+      tl.to(
+        "#resp-line-4",
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.4,
+          ease: "power2.out",
+        },
+        10.1,
+      );
+
+      // Response text starts offset
+      gsap.set(".resp-line", { y: 12 });
+
+      // =============================================
+      // PHASE 11: Elegant fade out (11.0s - 12.0s)
+      // =============================================
+      tl.to(
+        "#response-card",
+        {
+          opacity: 0,
+          scale: 0.97,
+          duration: 0.6,
+          ease: "sine.in",
+        },
+        10.8,
+      );
+
+      tl.to(
+        ".orb",
+        {
+          opacity: 0,
+          duration: 0.8,
+          ease: "sine.in",
+        },
+        11.0,
+      );
+
+      tl.to(
+        "#fade-out",
+        {
+          opacity: 1,
+          duration: 0.5,
+          ease: "sine.in",
+        },
+        11.5,
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["glassmorphism-graphics"] = tl;
+    </script>
+  </div>
+</template>
