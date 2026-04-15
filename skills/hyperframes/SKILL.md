@@ -17,15 +17,51 @@ If none exists, **ask the user before proceeding:**
 
 > "No design system found for this project. I can create one — I'll show you 2-3 visual directions to choose from, and the one you pick becomes the design system for all compositions. This takes a minute but makes every composition more consistent. Want to do that, or should I use defaults?"
 
-If yes → create a `design.md` following the format below. If no → follow [house-style.md](./house-style.md) defaults.
+If yes → generate a design picker page and serve it for the user to choose from. If no → follow [house-style.md](./house-style.md) defaults.
 
-A `design.md` for HyperFrames compositions should include:
+**Creating a design.md:**
 
-- **Colors** — background, foreground, accent with hex values and roles
-- **Typography** — headline and body font families, weights, size scale
-- **Motion** — energy level (calm/medium/high), ease vocabulary, entrance patterns
-- **Transitions** — primary and accent transition types, durations
-- **Mood** — 1-2 sentence description of the visual feeling
+1. Generate 2-3 visual directions based on the prompt. Each direction needs: name, mood, colors (bg/fg/accent), fonts (headline/body), energy level, and transition style.
+2. Copy [templates/design-picker.html](templates/design-picker.html) to the project directory as `.hyperframes/pick-design.html`.
+3. Replace `__ARCHITECTURES_JSON__`, `__PALETTES_JSON__`, and `__TYPEPAIRS_JSON__` with your generated options. The user picks one from each category independently — structure, palette, type pairing, plus theme (dark/light/full palette), corners, density, and depth.
+   - Each architecture object must include a `preview_html` field — the HTML that renders in the preview panel. Use token placeholders that the template replaces at runtime: `{{bg}}`, `{{fg}}`, `{{ac}}`, `{{mt}}`, `{{hf}}`, `{{hw}}`, `{{bf}}`, `{{bw}}`, `{{cr}}` (corner radius), `{{pad}}`, `{{gap}}`, `{{shadow}}`, `{{g}}` (grid line color), `{{fg3}}`/`{{fg6}}`/`{{fg8}}`/`{{fg15}}` (fg at opacity), `{{ac3}}`/`{{ac5}}`/`{{ac25}}` (accent at opacity).
+   - **Every token must be used.** Apply `{{cr}}` to all cards, buttons, and containers. Apply `{{shadow}}` to elevated elements (cards, buttons, code blocks). Apply `{{pad}}` and `{{gap}}` to control spacing. If a token isn't used in the preview_html, that option will have no visible effect.
+   - **Density matters.** Each architecture preview must include 15+ distinct elements to give the user a real sense of the layout. Include: headline, subhead, body paragraph, label/overline, stat with number, secondary stat, quote/testimonial, attribution, card with title+body, second card (different treatment), code/command block, primary button, secondary button, list or tags, accent divider/rule, and a data element (table row, progress bar, or chart). The preview should feel like a full composition, not a sparse mockup.
+   - Optionally include `components` (component styling rules) and `dos` (do's and don'ts) as strings — these appear in the generated design.md.
+   - **Layout constraint:** All preview HTML must use percentage widths or `max-width: 100%`. Use `flex-wrap: wrap` on all flex rows. Absolute-positioned decoratives must stay within a parent with `overflow: hidden`.
+   - **Palette variety:** Always include a mix of light, dark, and tinted backgrounds across the 6 palettes — even for calm/wellness prompts. A meditation app can be deep indigo + soft gold, not just cream + sage. This ensures the "Full palette" theme mode produces meaningfully different results per palette.
+4. Serve the page: `npx hyperframes preview` or a simple HTTP server. Tell the user to open it and pick a direction.
+5. Once the user picks, write `design.md` to the project root with the chosen values:
+
+```markdown
+# Design System
+
+## Mood
+
+[1-2 sentence description]
+
+## Colors
+
+- Background: #hex — role
+- Foreground: #hex — role
+- Accent: #hex — role
+
+## Typography
+
+- Headline: [family], weight [N]
+- Body: [family], weight [N]
+
+## Motion
+
+- Energy: calm | medium | high
+- Eases: [list of preferred eases for this energy]
+- Entrance patterns: [typical entrance directions and transforms]
+
+## Transitions
+
+- Primary: [type] — [duration]
+- Accent: [type] — [duration]
+```
 
 ### Step 1: Plan
 
