@@ -1,6 +1,6 @@
 # House Style
 
-Creative direction for compositions when no `visual-style.md` is provided. These are starting points — override anything that doesn't serve the content.
+Creative direction for compositions when no `design.md` is provided. These are starting points — override anything that doesn't serve the content.
 
 ## Before Writing HTML
 

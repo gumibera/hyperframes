@@ -9,6 +9,26 @@ HTML is the source of truth for video. A composition is an HTML file with `data-
 
 ## Approach
 
+### Step 0: Design system
+
+Check for a `design.md` in the project root. If one exists, read it — it defines colors, typography, motion, and mood for all compositions in this project.
+
+If none exists, **ask the user before proceeding:**
+
+> "No design system found for this project. I can create one — I'll show you 2-3 visual directions to choose from, and the one you pick becomes the design system for all compositions. This takes a minute but makes every composition more consistent. Want to do that, or should I use defaults?"
+
+If yes → create a `design.md` following the format below. If no → follow [house-style.md](./house-style.md) defaults.
+
+A `design.md` for HyperFrames compositions should include:
+
+- **Colors** — background, foreground, accent with hex values and roles
+- **Typography** — headline and body font families, weights, size scale
+- **Motion** — energy level (calm/medium/high), ease vocabulary, entrance patterns
+- **Transitions** — primary and accent transition types, durations
+- **Mood** — 1-2 sentence description of the visual feeling
+
+### Step 1: Plan
+
 Before writing HTML, think at a high level:
 
 1. **What** — what should the viewer experience? Identify the narrative arc, key moments, and emotional beats.
@@ -18,8 +38,6 @@ Before writing HTML, think at a high level:
 5. **Animate** — then add motion using the rules below.
 
 For small edits (fix a color, adjust timing, add one element), skip straight to the rules.
-
-When no `visual-style.md` or animation direction is provided, follow [house-style.md](./house-style.md) for motion defaults, sizing, and color palettes.
 
 ## Layout Before Animation
 
@@ -239,7 +257,7 @@ tl.from("#s2-heading", { x: -40, opacity: 0, duration: 0.6, ease: "expo.out" }, 
 - 60px+ headlines, 20px+ body, 16px+ data labels for rendered video
 - `font-variant-numeric: tabular-nums` on number columns
 
-When no `visual-style.md` or animation direction is provided, follow [house-style.md](./house-style.md) for aesthetic defaults.
+If no `design.md` was established in Step 0, follow [house-style.md](./house-style.md) for aesthetic defaults.
 
 ## Typography and Assets
 
