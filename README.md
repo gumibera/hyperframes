@@ -130,12 +130,12 @@ npx skills add heygen-com/hyperframes    # HyperFrames skills
 npx skills add greensock/gsap-skills     # GSAP animation skills
 ```
 
-| Skill                                             | What it teaches                                                        |
-| ------------------------------------------------- | ---------------------------------------------------------------------- |
-| `hyperframes-compose`                             | HTML composition structure, `data-*` attributes, timeline registration |
-| `hyperframes-captions`                            | Caption/subtitle authoring and transcript integration                  |
-| `hyperframes-registry`                            | Block and component installation via `hyperframes add`                 |
-| `gsap-core`, `gsap-timeline`, `gsap-plugins`, ... | GSAP animation API, sequencing, ScrollTrigger, performance             |
+| Skill                  | What it teaches                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `hyperframes`          | HTML composition authoring, captions, TTS, audio-reactive animation, transitions             |
+| `hyperframes-cli`      | CLI commands: init, lint, preview, render, transcribe, tts, doctor                           |
+| `hyperframes-registry` | Block and component installation via `hyperframes add`                                       |
+| `gsap`                 | GSAP animation API, timelines, easing, ScrollTrigger, plugins, React/Vue/Svelte, performance |
 
 ## Contributing
 
