@@ -3,7 +3,7 @@
 // esbuild mangling (page.evaluate serializes functions; __name helpers break).
 //
 // NOTE: WCAG math (relLum, wcagRatio, parseColor, median) is duplicated in
-// skills/hyperframes-contrast/scripts/contrast-report.mjs — keep in sync.
+// skills/hyperframes/scripts/contrast-report.mjs — keep in sync.
 
 /* eslint-disable */
 window.__contrastAudit = async function (imgBase64, time) {
