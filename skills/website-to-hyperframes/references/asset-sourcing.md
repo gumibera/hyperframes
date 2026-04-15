@@ -49,6 +49,7 @@ curl -o assets/svgs/icon-globe.svg "https://cdn.jsdelivr.net/npm/lucide-static@l
 ```
 
 Common categories:
+
 - **Business:** `briefcase`, `building-2`, `users`, `trending-up`, `dollar-sign`, `credit-card`
 - **Tech:** `code-2`, `terminal`, `database`, `server`, `cpu`, `wifi`, `smartphone`
 - **UI:** `check-circle`, `x-circle`, `alert-triangle`, `info`, `search`, `settings`, `menu`
@@ -63,7 +64,10 @@ Browse all at [lucide.dev/icons](https://lucide.dev/icons).
 Lucide SVGs use `stroke="currentColor"`. Style with CSS:
 
 ```html
-<img src="../assets/svgs/icon-zap.svg" style="width:48px;height:48px;filter:brightness(0) invert(1);" />
+<img
+  src="../assets/svgs/icon-zap.svg"
+  style="width:48px;height:48px;filter:brightness(0) invert(1);"
+/>
 ```
 
 Or for inline SVGs, set `stroke` directly.
@@ -96,14 +100,14 @@ curl -s "https://api.unsplash.com/search/photos?query=fintech+dashboard&per_page
 
 ## When to Source
 
-| Situation | Action |
-|-----------|--------|
-| Video plan mentions "logo wall" or "customer logos" | Source brand SVGs from Simple Icons |
-| Scene needs a specific company's logo | Source from Clearbit by domain |
-| Scene references icons (features, benefits, stats) | Source from Lucide by keyword |
-| Hero scene needs a photo and none exists | Source from Unsplash or use CSS art |
-| Capture already has the asset in `assets/` | Use the local file — don't re-download |
-| Asset is decorative and optional | Skip it — ship without and iterate |
+| Situation                                           | Action                                 |
+| --------------------------------------------------- | -------------------------------------- |
+| Video plan mentions "logo wall" or "customer logos" | Source brand SVGs from Simple Icons    |
+| Scene needs a specific company's logo               | Source from Clearbit by domain         |
+| Scene references icons (features, benefits, stats)  | Source from Lucide by keyword          |
+| Hero scene needs a photo and none exists            | Source from Unsplash or use CSS art    |
+| Capture already has the asset in `assets/`          | Use the local file — don't re-download |
+| Asset is decorative and optional                    | Skip it — ship without and iterate     |
 
 ## Naming Convention
 

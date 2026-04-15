@@ -2,22 +2,22 @@
 
 Named visual identities for HyperFrames videos. Each style is grounded in a real graphic design tradition. Use them to give your video a specific visual personality, not just generic "clean" or "bold."
 
-**How to pick:** Match mood first, content second. Ask: *"What should the viewer FEEL?"*
+**How to pick:** Match mood first, content second. Ask: _"What should the viewer FEEL?"_
 
 **How to use:** Reference the style in your scene plan. Translate the style's principles into concrete composition decisions — palette choice, font selection, entrance patterns, transition type, ambient motion feel.
 
 ## Quick Reference
 
-| Style | Mood | Best for | Primary shader |
-|-------|------|----------|---------------|
-| Swiss Pulse | Clinical, precise | SaaS, data, dev tools, metrics | Cinematic Zoom or SDF Iris |
-| Velvet Standard | Premium, timeless | Luxury, enterprise, keynotes | Cross-Warp Morph |
-| Deconstructed | Industrial, raw | Tech launches, security, punk | Glitch or Whip Pan |
-| Maximalist Type | Loud, kinetic | Big announcements, launches | Ridged Burn |
-| Data Drift | Futuristic, immersive | AI, ML, cutting-edge tech | Gravitational Lens or Domain Warp |
-| Soft Signal | Intimate, warm | Wellness, personal stories, brand | Thermal Distortion |
-| Folk Frequency | Cultural, vivid | Consumer apps, food, communities | Swirl Vortex or Ripple Waves |
-| Shadow Cut | Dark, cinematic | Dramatic reveals, security, exposé | Domain Warp |
+| Style           | Mood                  | Best for                           | Primary shader                    |
+| --------------- | --------------------- | ---------------------------------- | --------------------------------- |
+| Swiss Pulse     | Clinical, precise     | SaaS, data, dev tools, metrics     | Cinematic Zoom or SDF Iris        |
+| Velvet Standard | Premium, timeless     | Luxury, enterprise, keynotes       | Cross-Warp Morph                  |
+| Deconstructed   | Industrial, raw       | Tech launches, security, punk      | Glitch or Whip Pan                |
+| Maximalist Type | Loud, kinetic         | Big announcements, launches        | Ridged Burn                       |
+| Data Drift      | Futuristic, immersive | AI, ML, cutting-edge tech          | Gravitational Lens or Domain Warp |
+| Soft Signal     | Intimate, warm        | Wellness, personal stories, brand  | Thermal Distortion                |
+| Folk Frequency  | Cultural, vivid       | Consumer apps, food, communities   | Swirl Vortex or Ripple Waves      |
+| Shadow Cut      | Dark, cinematic       | Dramatic reveals, security, exposé | Domain Warp                       |
 
 ---
 
@@ -184,16 +184,16 @@ Slow creeping push-ins. Domain Warp transitions. The reveal IS the story.
 
 ## Mood → Style Guide
 
-| If the content feels... | Use... |
-|------------------------|--------|
-| Data-driven, analytical, technical | Swiss Pulse |
-| Premium, enterprise, luxury | Velvet Standard |
-| Raw, punk, aggressive, rebellious | Deconstructed |
-| Hype, loud, high-energy launch | Maximalist Type |
-| AI, ML, speculative, futuristic | Data Drift |
-| Human, warm, personal, wellness | Soft Signal |
-| Cultural, fun, consumer, festive | Folk Frequency |
-| Dark, dramatic, intense, cinematic | Shadow Cut |
+| If the content feels...            | Use...          |
+| ---------------------------------- | --------------- |
+| Data-driven, analytical, technical | Swiss Pulse     |
+| Premium, enterprise, luxury        | Velvet Standard |
+| Raw, punk, aggressive, rebellious  | Deconstructed   |
+| Hype, loud, high-energy launch     | Maximalist Type |
+| AI, ML, speculative, futuristic    | Data Drift      |
+| Human, warm, personal, wellness    | Soft Signal     |
+| Cultural, fun, consumer, festive   | Folk Frequency  |
+| Dark, dramatic, intense, cinematic | Shadow Cut      |
 
 ---
 
