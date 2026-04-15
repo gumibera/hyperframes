@@ -28,19 +28,9 @@ These cause real bugs if violated.
 
 **Don't use:** Star iris (polygon interpolation broken), tilt-shift (no selective CSS blur), lens flare (visible shape, not optical), hinge/door (distorts too fast).
 
-## Hard Rules (Shader)
+## Shader Transitions
 
-Read [shader-setup.md](./shader-setup.md) for the full setup code these rules apply to.
-
-**WebGL setup:** `gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)` — NOT true. Vertex shader flips Y: `v_uv.y = 1.0 - v_uv.y`. `preserveDrawingBuffer: true` required for HyperFrames capture. No `fwidth()` without extension — use constant `0.003`.
-
-**Rendering model:** DOM scenes play normally with GSAP animations during holds — canvas is hidden (`display:none`). When a transition starts: capture outgoing scene with full content, capture incoming scene with `.scene-content` hidden (background + decoratives only), show canvas, run shader. When transition ends: hide canvas, show next DOM scene. GSAP entrance animations play on the live DOM. The incoming scene's content is never visible in the shader — it only shows the background layer, preventing un-animated elements from flashing.
-
-**Scene capture:** Canvas `fillText` doesn't match CSS fonts exactly (known, not a bug). No CSS gradients or SVGs. Images and videos ARE supported via `ctx.drawImage()`. Video scenes re-capture every frame during transitions via `recaptureVideoScene()`.
-
-**Timeline:** Use `tl.call()` for begin/end — NOT `onStart`/`onComplete`. Each tween proxy `{p:0}` must be unique. Never boomerang (`u_progress*(1.-u_progress)*4.`). Morph both scenes.
-
-**Shader code:** One noise library per shader (NQ or ND, not both). Always `clamp(uv, 0., 1.)`.
+Shader setup, WebGL init, capture, and fragment shaders are handled by `@hyperframes/shader-transitions` (`packages/shader-transitions/`). Read the package source for API details. Compositions using shaders must follow the CSS rules in [transitions.md](../transitions.md) § "Shader-Compatible CSS Rules".
 
 ## Scene Template
 
@@ -124,9 +114,4 @@ All code examples use `old` for the outgoing scene-inner selector and `new` for 
 
 ## Shader Transitions
 
-WebGL fragment shaders that composite between scene textures per-pixel. Require setup boilerplate.
-
-| What                                                                                                                                                                                                                       | Reference                                        |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Setup (canvas, capture, WebGL init, render loop, GSAP integration)                                                                                                                                                         | [shader-setup.md](./shader-setup.md)             |
-| Fragment shaders (13 transitions: domain warp, ridged burn, whip pan, SDF iris, ripple waves, gravitational lens, cinematic zoom, chromatic split, glitch, swirl vortex, thermal distortion, cross-warp morph, light leak) | [shader-transitions.md](./shader-transitions.md) |
+WebGL shader transitions are provided by `@hyperframes/shader-transitions` (`packages/shader-transitions/`). The package handles setup, capture, WebGL init, render loop, and GSAP integration. Read the package source for available shaders and API — do not copy raw GLSL manually.

@@ -90,7 +90,7 @@ Avoid: star iris, tilt-shift, lens flare, hinge/door. See catalog.md for why.
 
 CSS transitions animate scene containers with opacity, transforms, clip-path, and filters. Shader transitions composite both scene textures per-pixel on a WebGL canvas — they can warp, dissolve, and morph in ways CSS cannot.
 
-**Both are first-class options.** Shaders require setup boilerplate (~200 lines, copied from [transitions/shader-setup.md](transitions/shader-setup.md)) but produce richer, more cinematic effects. CSS transitions are simpler to set up. Choose based on the effect you want, not based on which is easier.
+**Both are first-class options.** Shaders are provided by the `@hyperframes/shader-transitions` package — import from the package instead of writing raw GLSL. CSS transitions are simpler to set up. Choose based on the effect you want, not based on which is easier.
 
 When a composition uses shader transitions, ALL transitions in that composition should be shader-based (the WebGL canvas replaces DOM-based scene switching). Don't mix CSS and shader transitions in the same composition.
 

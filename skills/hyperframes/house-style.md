@@ -18,7 +18,7 @@ These patterns are AI design tells — the first thing every LLM reaches for. If
 - Pure `#000` or `#fff` (tint toward your accent hue instead)
 - Identical card grids (same-size cards repeated)
 - Everything centered with equal weight (lead the eye somewhere)
-- These fonts: Inter, Roboto, Open Sans, Noto Sans, Lato, Poppins, Outfit, Sora, Playfair Display, Cormorant Garamond, Bodoni Moda, EB Garamond, Cinzel, Prata, Syne
+- Banned fonts (see [references/typography.md](references/typography.md) for full list)
 
 If the content genuinely calls for one of these — centered layout for a solemn closing, cards for a real product UI mockup, a banned font because it's the perfect thematic match — use it. The goal is intentionality, not avoidance.
 
@@ -46,17 +46,11 @@ All decoratives should have slow ambient GSAP animation — breathing, drift, pu
 
 ## Motion
 
-- **0.3–0.6s** for most moves.
-- **Vary eases** — don't repeat the same ease across consecutive elements.
-- **Combine transforms** on entrances — opacity + position, scale, rotation, blur, letter-spacing.
-- **Overlap entries** — next element starts before previous finishes.
+See [references/motion-principles.md](references/motion-principles.md) for full rules. Quick: 0.3–0.6s, vary eases, combine transforms on entrances, overlap entries.
 
 ## Typography
 
-- **Weight contrast** — 700-900 headlines with 300-400 body.
-- **Cross boundaries** — pair serif + sans, or sans + mono. Two sans-serifs together is almost always a mistake.
-- **Video sizes** — 60px+ headlines, 20px+ body, 16px+ labels.
-- **Tracking** — tight on large headlines, normal or wide on small labels.
+See [references/typography.md](references/typography.md) for full rules. Quick: 700-900 headlines / 300-400 body, serif + sans (not two sans), 60px+ headlines / 20px+ body.
 
 ## Palettes
 

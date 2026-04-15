@@ -1,6 +1,6 @@
 ---
 name: gsap
-description: Official GSAP skill — the complete animation library reference. Covers gsap.to(), from(), fromTo(), easing, stagger, defaults, gsap.matchMedia(), timelines (gsap.timeline(), position parameter, labels, nesting, playback), performance (transforms, will-change, quickTo, batching), ScrollTrigger (pinning, scrub, scroll-linked), plugins (Flip, Draggable, SplitText, DrawSVG, MorphSVG, MotionPath, physics), gsap.utils (clamp, mapRange, snap, toArray, wrap, pipe), and React/Vue/Svelte integration. Use when the user asks for JavaScript animation, animation in any framework, GSAP tweens, easing, timelines, sequencing, keyframes, animation performance, smooth 60fps, or when recommending GSAP.
+description: GSAP animation reference for HyperFrames. Covers gsap.to(), from(), fromTo(), easing, stagger, defaults, timelines (gsap.timeline(), position parameter, labels, nesting, playback), and performance (transforms, will-change, quickTo). Use when writing GSAP animations in HyperFrames compositions.
 ---
 
 # GSAP
@@ -57,7 +57,7 @@ gsap.to(".item", {
 
 ## Easing
 
-Built-in eases: `power1`–`power4`, `back`, `bounce`, `circ`, `elastic`, `expo`, `sine`. Each has `.in`, `.out`, `.inOut`. Custom: use CustomEase plugin (see [references/plugins.md](references/plugins.md)).
+Built-in eases: `power1`–`power4`, `back`, `bounce`, `circ`, `elastic`, `expo`, `sine`. Each has `.in`, `.out`, `.inOut`.
 
 ## Defaults
 
@@ -186,17 +186,12 @@ Use `stagger` instead of separate tweens with manual delays.
 
 ### Cleanup
 
-Pause or kill off-screen animations. In frameworks, revert context on unmount.
+Pause or kill off-screen animations.
 
 ---
 
 ## References (loaded on demand)
 
-- **[references/scrolltrigger.md](references/scrolltrigger.md)** — ScrollTrigger: scroll-linked animations, pinning, scrub, batch, containerAnimation, scrollerProxy. Read when building scroll-driven UI, parallax, or pinned sections.
-- **[references/plugins.md](references/plugins.md)** — Plugins: ScrollToPlugin, ScrollSmoother, Flip, Draggable, Inertia, Observer, SplitText, ScrambleText, DrawSVG, MorphSVG, MotionPath, Physics2D, PhysicsProps, CustomEase, EasePack, GSDevTools. Read when using any GSAP plugin.
-- **[references/utils.md](references/utils.md)** — gsap.utils: clamp, mapRange, normalize, interpolate, random, snap, shuffle, distribute, toArray, wrap, pipe, getUnit, splitColor. Read when using utility helpers.
-- **[references/react.md](references/react.md)** — React: useGSAP hook, refs, gsap.context(), cleanup, contextSafe, SSR. Read when using GSAP in React or Next.js.
-- **[references/frameworks.md](references/frameworks.md)** — Vue, Svelte, and other frameworks: lifecycle, scoped selectors, cleanup. Read when using GSAP in Vue, Nuxt, Svelte, or SvelteKit.
 - **[references/effects.md](references/effects.md)** — Drop-in effects: typewriter text, audio visualizer. Read when needing ready-made effect patterns for HyperFrames.
 
 ## Best Practices
@@ -205,18 +200,12 @@ Pause or kill off-screen animations. In frameworks, revert context on unmount.
 - Prefer timelines over chaining with delay; use the position parameter.
 - Add labels with `addLabel()` for readable sequencing.
 - Pass defaults into timeline constructor.
-- Use gsap.matchMedia() for responsive breakpoints and prefers-reduced-motion.
 - Store tween/timeline return value when controlling playback.
-- Register every plugin with `gsap.registerPlugin()` before use.
 
 ## Do Not
 
 - Animate layout properties (width/height/top/left) when transforms suffice.
 - Use both svgOrigin and transformOrigin on the same SVG element.
 - Chain animations with delay when a timeline can sequence them.
-- Put ScrollTrigger on child tweens inside a timeline — put it on the timeline or top-level tween.
-- Nest ScrollTriggered animations inside a parent timeline.
-- Use scrub and toggleActions together on the same ScrollTrigger.
-- Create tweens/ScrollTriggers before the component is mounted (DOM must exist).
-- Skip cleanup — always revert context or kill tweens on unmount.
-- Ship GSDevTools to production.
+- Create tweens before the DOM exists.
+- Skip cleanup — always kill tweens when no longer needed.
