@@ -9,7 +9,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, isAbsolute } from "node:path";
 import type { SectionResult, CaptureResult } from "../types.js";
 
 interface VerifyResult {
@@ -93,6 +93,12 @@ export async function verifyCapture(
   const server = createServer((req, res) => {
     const url = decodeURIComponent(req.url ?? "/");
     const filePath = join(projectDir, url === "/" ? "index.html" : url);
+    const rel = relative(projectDir, filePath);
+    if (rel.startsWith("..") || isAbsolute(rel)) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
     if (existsSync(filePath)) {
       let content = readFileSync(filePath);
       let contentType = getMimeType(filePath);
@@ -129,6 +135,7 @@ export async function verifyCapture(
   try {
     for (let i = 0; i < sections.length; i++) {
       const section = sections[i];
+      if (!section) continue;
       progress(`Verifying ${section.id} (${i + 1}/${sections.length})`);
 
       const verification = await verifySection(

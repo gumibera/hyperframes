@@ -103,7 +103,7 @@ Read the summaries. Fix every flag: offscreen, collision, invisible, pacing issu
 
 Never embed a raw flat image. Every image must have motion treatment:
 
-- **Perspective tilt**: `transform: perspective(1200px) rotateY(-8deg)` + `box-shadow` — creates depth
+- **Perspective tilt**: use `gsap.set(el, { transformPerspective: 1200, rotationY: -8 })` + `box-shadow` — creates depth. Do NOT use CSS `transform: perspective(...)` as GSAP will overwrite it.
 - **Slow zoom (Ken Burns)**: GSAP `scale: 1` → `1.04` over beat duration — makes photos cinematic
 - **Device frame**: Wrap in a laptop/phone shape using CSS `border-radius` and `box-shadow`
 - **Floating UI**: Extract a key element and animate it at a different z-depth for parallax

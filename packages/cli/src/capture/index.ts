@@ -382,7 +382,7 @@ export async function captureWebsite(
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 <style>*{margin:0;padding:0;background:transparent}#c{width:400px;height:400px}</style>
 </head><body><div id="c"></div><script>
-var a=lottie.loadAnimation({container:document.getElementById('c'),renderer:'svg',loop:false,autoplay:false,animationData:${animJson}});
+var a=lottie.loadAnimation({container:document.getElementById('c'),renderer:'svg',loop:false,autoplay:false,animationData:${animJson.replace(/</g, "\\u003c")}});
 a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window.__READY=true});
 </script></body></html>`,
                 { waitUntil: "networkidle0", timeout: 10000 },

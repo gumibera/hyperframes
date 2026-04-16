@@ -114,7 +114,11 @@ export async function downloadAssets(
         const pathExt = extname(parsedUrl.pathname);
         const ext = pathExt && pathExt.length <= 5 ? pathExt : ".jpg";
         const buffer = await fetchBuffer(url);
-        if (!buffer || buffer.length < 10000) return null;
+        if (!buffer) return null;
+        // SVGs are inherently small — don't apply the 10KB minimum to them
+        const isSvg = ext === ".svg" || url.includes(".svg");
+        const minSize = isSvg ? 200 : 10000;
+        if (buffer.length < minSize) return null;
         return { url, isPoster, parsedUrl, ext, buffer };
       }),
     );

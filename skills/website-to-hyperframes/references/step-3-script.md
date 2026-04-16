@@ -42,7 +42,7 @@ The visual can show the exact figure while the voice rounds it.
 
 For product videos from a website capture:
 
-1. **Hook** — what's surprising or impressive about this product? A number, a claim, a question. This is the opening line.
+1. **Hook** — what's surprising or impressive about this product? A bold claim, a provocative question, a contrast, or a striking number. This is the opening line. **Vary the hook type** — don't default to a stat every time.
 2. **Story** — what does the product do? Who uses it? Keep it concrete.
 3. **Proof** — stats, customer names, social proof. Real numbers from the website.
 4. **CTA** — what should the viewer do? "Start building at stripe dot com."
@@ -55,10 +55,10 @@ The most important sentence in the video. It must create tension, curiosity, or 
 
 Patterns that work:
 
-- **A number that shocks**: "Nearly two trillion dollars."
+- **A bold claim**: "The financial infrastructure that powers the internet economy."
 - **A question that provokes**: "What if your database could think?"
 - **A contrast**: "Your AI agent already knows how to make videos. It just needs the right format."
-- **A bold claim**: "The financial infrastructure that powers the internet economy."
+- **A number that shocks**: "Nearly two trillion dollars." (Use sparingly — not every video should open with a stat.)
 
 If the opening is generic ("Welcome to Stripe" / "Introducing our product"), start over.
 

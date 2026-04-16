@@ -20,6 +20,12 @@ After lint and validate pass, capture snapshot frames to SEE your own output:
 npx hyperframes snapshot <project-dir> --at <beat-midpoints>
 ```
 
+If the snapshot command isn't available, fall back to:
+
+```bash
+npx tsx packages/cli/src/cli.ts snapshot <project-dir> --at <beat-midpoints>
+```
+
 Calculate the midpoint of each beat from your STORYBOARD.md timings. For a 4-beat video with beats at 0-5.8s, 5.8-15.0s, 15.0-22.5s, 22.5-25.3s:
 
 ```bash

@@ -2,8 +2,6 @@
 
 ## Run the capture
 
-If `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) is set in the environment, the capture will automatically generate AI-powered image descriptions for every downloaded asset using Gemini 2.5 Flash vision — this significantly improves asset understanding for video production. The free Gemini API tier has a 5 RPM rate limit (captioning is batched accordingly); a paid API key removes this bottleneck.
-
 ```bash
 npx hyperframes capture <URL> -o captures/<project-name>
 ```
@@ -13,6 +11,10 @@ If the built CLI isn't available, fall back to:
 ```bash
 npx tsx packages/cli/src/cli.ts capture <URL> -o captures/<project-name>
 ```
+
+No API keys required. The capture extracts design tokens, screenshots, fonts, and assets with DOM-context descriptions automatically.
+
+**Optional:** Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) in a `.env` file at the repo root for richer AI-powered image descriptions via Gemini 2.5 Flash vision. Free tier: 5 RPM; paid tier removes the bottleneck.
 
 Wait for it to complete. Print how many screenshots, assets, sections, and fonts were extracted.
 
