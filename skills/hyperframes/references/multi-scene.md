@@ -70,9 +70,13 @@ If a scene file follows this spec, the assembler can:
 
 No parsing, no stripping, no guessing.
 
-## Phase 1: Scaffold
+## Phase 1: Scaffold + Scene subagents (parallel)
 
-Build the HTML skeleton yourself:
+The scaffold and scene subagents have no dependency on each other — dispatch them all at the same time. Scene subagents don't read the scaffold; they only need the fragment spec, design.md, and their scene prompt section. Assembly waits for both to finish.
+
+### Scaffold
+
+Build the HTML skeleton yourself (or in a subagent):
 
 - All scene `<div>` elements with `data-start`, `data-duration`, `data-track-index`
 - The root composition container with `data-composition-id`, `data-width`, `data-height`
@@ -86,9 +90,9 @@ Build the HTML skeleton yourself:
   - `// SCENE TWEENS` inside the `<script>` block, after transitions, before `window.__timelines` registration — scene GSAP goes here
   - `<!-- SCENE N CONTENT -->` inside each empty scene div — scene HTML goes here
 
-## Phase 2: Scene subagents
+### Scene subagents
 
-Dispatch one subagent per scene, running in parallel. Each subagent receives:
+Dispatch one subagent per scene, running in parallel (concurrently with the scaffold). Each subagent receives:
 
 - The **Scene Fragment Spec** (above) — the subagent must follow this exactly
 - The `design.md` (or its values summarized)
