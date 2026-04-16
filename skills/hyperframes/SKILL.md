@@ -85,6 +85,36 @@ Before writing HTML, think at a high level:
 
 For small edits (fix a color, adjust timing, add one element), skip straight to the rules.
 
+### Multi-scene builds (4+ scenes)
+
+For compositions with 4 or more scenes, build in three phases instead of one pass. A single pass produces shallow results — detail drops as context fills with boilerplate.
+
+**Phase 1: Scaffold.** Build the HTML skeleton yourself:
+
+- All scene `<div>` elements with `data-start`, `data-duration`, `data-track-index`
+- The root composition container with `data-composition-id`, `data-width`, `data-height`
+- The GSAP timeline backbone: `gsap.timeline({ paused: true })`, `window.__timelines` registration
+- All transition code between scenes (read [references/transitions.md](references/transitions.md))
+- Global CSS: body reset, scene positioning, font declarations, the `design.md` palette as CSS
+- Leave each scene's inner content empty: `<div id="scene1" class="scene"><!-- SCENE 1 CONTENT --></div>`
+
+**Phase 2: Scene subagents.** Dispatch one subagent per scene, running in parallel. Each subagent receives:
+
+- The `design.md` (or its values summarized)
+- The global animation rules from the prompt
+- That scene's specific prompt section only
+- Instructions: "Return the HTML elements, `<style>` rules (scoped to `#sceneN`), and GSAP tween calls for this scene. Use the timeline variable `tl`. Start tweens at `{start_time}`. Do not create the timeline or register it — the parent handles that."
+
+Each subagent focuses its entire context on making ONE scene visually rich: parallax layers, micro-animations, kinetic typography, ambient motion, background decoratives. No boilerplate, no other scenes.
+
+**Phase 3: Assembly.** Collect the subagent outputs and:
+
+- Inject each scene's HTML into the scaffold's empty scene divs
+- Merge `<style>` blocks (check for ID conflicts — prefix with scene ID if needed)
+- Merge GSAP tweens into the single timeline (adjust `tl.from`/`tl.to` start times if subagent used relative offsets)
+- Run `npx hyperframes lint` and fix any structural issues
+- Run `npx hyperframes validate` if available
+
 ## Layout Before Animation
 
 Position every element where it should be at its **most visible moment** — the frame where it's fully entered, correctly placed, and not yet exiting. Write this as static HTML+CSS first. No GSAP yet.
