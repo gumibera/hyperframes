@@ -489,7 +489,30 @@ class HyperframesPlayer extends HTMLElement {
 
   private _playParentMedia() {
     for (const m of this._parentMedia) {
-      if (m.el.src) m.el.play().catch(() => {});
+      if (m.el.src) {
+        m.el
+          .play()
+          .then(() => {
+            // Parent play succeeded — mute the iframe copy to prevent double audio.
+            // This runs asynchronously, so the runtime may briefly play both copies,
+            // but the overlap is inaudible (same audio at the same position).
+            this._muteIframeMedia();
+          })
+          .catch(() => {});
+      }
+    }
+  }
+
+  private _muteIframeMedia() {
+    try {
+      const doc = this.iframe.contentDocument;
+      if (!doc) return;
+      const mediaEls = doc.querySelectorAll<HTMLMediaElement>(
+        "audio[data-start], video[data-start]",
+      );
+      for (const el of mediaEls) el.volume = 0;
+    } catch {
+      // cross-origin
     }
   }
 
@@ -549,11 +572,13 @@ class HyperframesPlayer extends HTMLElement {
 
         this._createParentMedia(src, tag, start, duration);
 
-        // Disable the iframe element so the runtime ignores it
-        iframeEl.removeAttribute("src");
-        iframeEl.removeAttribute("data-start");
-        iframeEl.removeAttribute("data-duration");
-        iframeEl.querySelectorAll("source").forEach((s) => s.remove());
+        // DO NOT strip data-start, data-duration, or src from the iframe elements.
+        // The runtime's syncRuntimeMedia queries audio[data-start] — removing these
+        // attributes makes the runtime unable to find, sync, or play media clips.
+        // The iframe copies remain fully functional for the runtime. On mobile,
+        // parent copies provide the audible output via the component's play() method.
+        // On desktop and in the studio (which calls __player.play() directly),
+        // the runtime's own media sync handles playback.
       }
     } catch {
       // Cross-origin iframe — can't access DOM, fall back to iframe media
