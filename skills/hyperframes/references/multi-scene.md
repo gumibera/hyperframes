@@ -80,6 +80,10 @@ Build the HTML skeleton yourself:
 - Global CSS: body reset, scene positioning, font declarations, the `design.md` palette as CSS
 - Leave each scene's inner content empty: `<div id="scene1" class="scene"><!-- SCENE 1 CONTENT --></div>`
 - **Visibility kills for every scene** including the last — after each scene's exit transition, add `tl.set("#sceneN", { visibility: "hidden" }, exitEndTime)`. The final scene needs this too (after its fade-out), or it remains partially visible when scrubbing.
+- **Assembly markers** — the scaffold must include these exact comments so the assembler knows where to inject:
+  - `/* SCENE STYLES */` inside the `<style>` block — scene CSS goes here
+  - `// SCENE TWEENS` inside the `<script>` block, after transitions, before `window.__timelines` registration — scene GSAP goes here
+  - `<!-- SCENE N CONTENT -->` inside each empty scene div — scene HTML goes here
 
 ## Phase 2: Scene subagents
 
@@ -125,11 +129,20 @@ Run evaluators concurrently with scene builds — a scene that finishes first ge
 
 ## Phase 3: Assembly
 
-Once all scenes have PASS evaluations, read each scene file from `.hyperframes/scenes/` and:
+Once all scenes have PASS evaluations, run the deterministic assembler — do NOT hand-stitch scenes manually:
 
-1. Split each file on `<!-- HTML -->`, `<!-- CSS -->`, `<!-- GSAP -->` markers
-2. Inject HTML into the scaffold's empty scene divs
-3. Merge CSS blocks into the style element
-4. Merge GSAP tweens into the single `<script>` after transitions, before `window.__timelines` registration
-5. Run `npx hyperframes lint` and fix any structural issues
-6. Run `npx hyperframes validate` if available
+```ts
+const { assembleScenes } = await import("@hyperframes/core/assemble");
+const result = assembleScenes("./project-dir");
+if (!result.ok) {
+  // result.errors has file + message for each issue
+}
+```
+
+The assembler validates every fragment against the spec, splits on markers, injects into the scaffold's marked slots, and verifies div balance. If any fragment fails validation, it aborts with specific errors — fix the fragment and re-run.
+
+After assembly succeeds:
+
+1. Run `npx hyperframes lint` and fix any structural issues
+2. Run `npx hyperframes validate` if available
+3. **Review the output** — read through the assembled file checking that scene HTML, CSS, and GSAP look correct before serving

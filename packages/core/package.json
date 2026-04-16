@@ -21,6 +21,10 @@
       "import": "./src/index.ts",
       "types": "./src/index.ts"
     },
+    "./assemble": {
+      "import": "./src/assemble/index.ts",
+      "types": "./src/assemble/index.ts"
+    },
     "./lint": {
       "import": "./src/lint/index.ts",
       "types": "./src/lint/index.ts"
@@ -51,6 +55,10 @@
       ".": {
         "import": "./dist/index.js",
         "types": "./dist/index.d.ts"
+      },
+      "./assemble": {
+        "import": "./dist/assemble/index.js",
+        "types": "./dist/assemble/index.d.ts"
       },
       "./lint": {
         "import": "./dist/lint/index.js",
