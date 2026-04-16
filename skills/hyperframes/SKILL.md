@@ -63,6 +63,10 @@ If yes → generate a design picker page and serve it for the user to choose fro
 - Accent: [type] — [duration]
 ```
 
+### Using design.md during construction
+
+If a `design.md` exists (from Step 0 or provided by the user), it is the source of truth for all visual decisions. Use only the values it defines — colors, fonts, spacing, corners, depth, component treatments, and any other fields the user has added. Do not invent new colors, substitute fonts, or override its rules. If the composition needs a value the design.md doesn't cover, follow [house-style.md](./house-style.md) for that specific decision.
+
 ### Step 1: Plan
 
 Before writing HTML, think at a high level:
