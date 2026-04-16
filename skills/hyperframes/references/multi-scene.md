@@ -2,6 +2,15 @@
 
 For compositions with 4 or more scenes, build in phases instead of one pass. A single pass produces shallow results — detail drops as context fills with boilerplate.
 
+## Who runs this pipeline
+
+The parallel dispatch in Phase 1 and Phase 2b requires the `Agent`/`Task` tool. In Claude Code, only the **top-level conversation agent** (the one that received the user's `/hyperframes` invocation) has this tool. Dispatched subagents typically do not.
+
+- **If you're the top-level agent:** run the full pipeline. Fan out scene subagents and evaluator subagents in parallel.
+- **If you're a nested subagent** (you were dispatched with a `/hyperframes` task): you cannot fan out further. Author all scene fragments sequentially yourself, strictly following the Scene Fragment Spec below, then run the assembler and lint gates. Do not silently skip the pipeline — note in your final report that parallel dispatch was unavailable and you built serially.
+
+The assembler, scaffold markers, fragment spec, and gates are the same either way; only the dispatch shape changes.
+
 ## Scene Fragment Spec
 
 Every scene file (`.hyperframes/scenes/sceneN.html`) must be a **fragment**, not a standalone document. The assembler splits on markers and injects verbatim — non-compliant files break assembly.
@@ -73,6 +82,8 @@ No parsing, no stripping, no guessing.
 ## Phase 1: Scaffold + Scene subagents (parallel)
 
 The scaffold and scene subagents have no dependency on each other — dispatch them all at the same time. Scene subagents don't read the scaffold; they only need the fragment spec, design.md, and their scene prompt section. Assembly waits for both to finish.
+
+**Nested-subagent fallback:** If you don't have the dispatch tool (see "Who runs this pipeline" above), write the scaffold first, then write each scene fragment yourself one after another. Skip Phase 2b streaming evaluation — the assembler's format validation (Phase 3) is your gate instead. Note the constraint in your final report.
 
 ### Scaffold
 

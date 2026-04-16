@@ -43,6 +43,8 @@ For small edits (fix a color, adjust timing, add one element), skip straight to 
 
 For compositions with 4 or more scenes, use the parallel subagent pipeline instead of a single pass. Read [references/multi-scene.md](references/multi-scene.md) for the full process.
 
+**Who runs this pipeline:** The parallel dispatch MUST run from the top-level conversation agent (the one that received the user's `/hyperframes` invocation). That agent has the `Agent`/`Task` tool and can fan out. Dispatched subagents typically cannot spawn their own subagents, so if YOU are a nested subagent reading this skill, you cannot do the parallel fan-out — author fragments sequentially inline instead and still run through the assembler. Do not silently skip the pipeline; note the constraint and proceed serially.
+
 **BLOCKING GATES — these are NOT optional. Skipping any gate produces broken compositions.** The full details (eval steps, assembler usage, scaffold markers) are in [references/multi-scene.md](references/multi-scene.md). Summary:
 
 1. **Eval gate:** Validate each scene AS it arrives (format first, then content). Do NOT batch. Do NOT assemble until every scene has a `.eval.md` with PASS.
