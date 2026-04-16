@@ -581,69 +581,138 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
     return findings;
   },
 
-  // missing_immediate_render_false
+  // tl_from_in_multiscene — flag tl.from() in multi-scene compositions
   ({ scripts, tags }) => {
     const findings: HyperframeLintFinding[] = [];
 
-    // Only applies to multi-scene compositions
     const sceneElements = tags.filter((t) => {
       const id = readAttr(t.raw, "id") || "";
       return /^scene\d+$/i.test(id);
     });
     if (sceneElements.length < 2) return findings;
 
-    // Scene IDs that start hidden (opacity: 0 in inline style or CSS)
-    const hiddenSceneIds = new Set<string>();
-    for (const tag of sceneElements) {
-      const id = readAttr(tag.raw, "id") || "";
-      const style = readAttr(tag.raw, "style") || "";
-      // Check inline opacity: 0
-      if (/opacity\s*:\s*0/.test(style)) {
-        hiddenSceneIds.add(id);
-      }
-    }
-    // Also check first scene is NOT hidden (skip it)
     const firstSceneId = sceneElements[0] ? readAttr(sceneElements[0].raw, "id") || "" : "";
 
     for (const script of scripts) {
       const content = script.content;
-      // Find tl.from() and tl.fromTo() calls
       const fromPattern = /tl\.(from|fromTo)\s*\(\s*["']([^"']+)["']/g;
       let match: RegExpExecArray | null;
       while ((match = fromPattern.exec(content)) !== null) {
         const method = match[1];
         const selector = match[2] || "";
 
-        // Skip if targeting first scene (it's visible from the start)
+        // Skip scene 1 — tl.from is safe at time 0
         if (selector === `#${firstSceneId}` || selector.startsWith(`#${firstSceneId} `)) continue;
-
-        // Check if selector targets an element inside a hidden scene
-        let insideHiddenScene = false;
-        for (const sceneId of hiddenSceneIds) {
-          if (
-            selector.startsWith(`#${sceneId}`) ||
-            selector.startsWith(`.s${sceneId.replace("scene", "")}`)
-          ) {
-            insideHiddenScene = true;
-            break;
-          }
-        }
-        if (!insideHiddenScene) continue;
-
-        // Check the tween call for immediateRender: false
-        const callEnd = content.indexOf(")", match.index + match[0].length);
-        if (callEnd === -1) continue;
-        const fullCall = content.slice(match.index, callEnd + 1);
-        if (/immediateRender\s*:\s*false/.test(fullCall)) continue;
+        // Skip selectors that start with the first scene's prefix
+        const firstNum = firstSceneId.replace("scene", "");
+        if (selector.startsWith(`#s${firstNum}-`) || selector.startsWith(`.s${firstNum}-`))
+          continue;
 
         findings.push({
-          code: "missing_immediate_render_false",
+          code: "tl_from_in_multiscene",
           severity: "warning",
           message:
-            `tl.${method}("${truncateSnippet(selector, 40)}") targets a hidden scene but is missing \`immediateRender: false\`. ` +
-            "The FROM state will render at time 0, making the element invisible before the scene's transition reveals it.",
-          fixHint: `Add \`immediateRender: false\` to the vars object: \`tl.${method}("${truncateSnippet(selector, 30)}", { immediateRender: false, ... })\``,
+            `tl.${method}("${truncateSnippet(selector, 40)}") in a multi-scene composition. ` +
+            "Use tl.set() at time 0 to hide, then tl.to() to animate in. " +
+            "tl.from() causes elements to flash visible before their entrance.",
+          fixHint:
+            `Replace with: tl.set("${truncateSnippet(selector, 30)}", { opacity: 0, ... }, 0); ` +
+            `tl.to("${truncateSnippet(selector, 30)}", { opacity: 1, ... }, startTime);`,
         });
+      }
+    }
+    return findings;
+  },
+
+  // late_init_set — flag tl.set with opacity:0 at time > 0 in multi-scene
+  ({ scripts, tags }) => {
+    const findings: HyperframeLintFinding[] = [];
+
+    const sceneElements = tags.filter((t) => {
+      const id = readAttr(t.raw, "id") || "";
+      return /^scene\d+$/i.test(id);
+    });
+    if (sceneElements.length < 2) return findings;
+
+    for (const script of scripts) {
+      const content = script.content;
+      // Match tl.set("selector", { ... opacity: 0 ... }, timePosition)
+      const setPattern =
+        /tl\.set\s*\(\s*["']([^"']+)["']\s*,\s*\{([^}]+)\}\s*,\s*([\w.+\-* ]+)\s*\)/g;
+      let match: RegExpExecArray | null;
+      while ((match = setPattern.exec(content)) !== null) {
+        const selector = match[1] || "";
+        const vars = match[2] || "";
+        const timeExpr = (match[3] || "").trim();
+
+        // Only care about sets that include opacity: 0 (initialization sets)
+        if (!/opacity\s*:\s*0/.test(vars)) continue;
+        // Skip visibility: hidden kills
+        if (/visibility/.test(vars)) continue;
+        // Skip if time is 0
+        if (timeExpr === "0" || timeExpr === "0.0") continue;
+
+        // Try to evaluate if it's a literal number > 0
+        const numTime = Number(timeExpr);
+        if (Number.isFinite(numTime) && numTime > 0) {
+          findings.push({
+            code: "late_init_set",
+            severity: "warning",
+            message:
+              `tl.set("${truncateSnippet(selector, 40)}", { opacity: 0 }) at time ${timeExpr}s instead of 0. ` +
+              "Elements must be hidden from time 0 to prevent flashing when transitions reveal scenes early.",
+            fixHint: `Move to time 0: tl.set("${truncateSnippet(selector, 30)}", { opacity: 0, ... }, 0);`,
+          });
+          continue;
+        }
+
+        // If it's a variable expression (not "0"), flag it as potentially late
+        if (!/^0(\.\d+)?$/.test(timeExpr)) {
+          findings.push({
+            code: "late_init_set",
+            severity: "warning",
+            message:
+              `tl.set("${truncateSnippet(selector, 40)}", { opacity: 0 }) at time "${truncateSnippet(timeExpr, 20)}" — should be 0. ` +
+              "Init sets must fire at time 0 to prevent flash during transitions.",
+            fixHint: `Move to time 0: tl.set("${truncateSnippet(selector, 30)}", { opacity: 0, ... }, 0);`,
+          });
+        }
+      }
+    }
+    return findings;
+  },
+
+  // scene_position_override — flag CSS that overrides scaffold positioning on scene containers
+  ({ tags, styles }) => {
+    const findings: HyperframeLintFinding[] = [];
+
+    const sceneElements = tags.filter((t) => {
+      const id = readAttr(t.raw, "id") || "";
+      return /^scene\d+$/i.test(id);
+    });
+    if (sceneElements.length < 2) return findings;
+
+    const sceneIds = new Set(sceneElements.map((t) => readAttr(t.raw, "id") || ""));
+
+    for (const style of styles) {
+      const content = style.content;
+      for (const sceneId of sceneIds) {
+        // Match #sceneN { ... position: relative ... }
+        const rulePattern = new RegExp(`#${sceneId}\\s*\\{([^}]+)\\}`, "g");
+        let match: RegExpExecArray | null;
+        while ((match = rulePattern.exec(content)) !== null) {
+          const body = match[1] || "";
+          if (/position\s*:\s*(relative|static|fixed)/.test(body)) {
+            const posMatch = body.match(/position\s*:\s*(relative|static|fixed)/);
+            findings.push({
+              code: "scene_position_override",
+              severity: "error",
+              elementId: sceneId,
+              message: `#${sceneId} sets position: ${posMatch?.[1]} — this overrides the scaffold's position: absolute and pushes the scene off-screen.`,
+              fixHint: `Remove the position property from #${sceneId} CSS. The scaffold owns scene container positioning.`,
+            });
+          }
+        }
       }
     }
     return findings;
