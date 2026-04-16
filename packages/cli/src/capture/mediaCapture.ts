@@ -140,18 +140,34 @@ export async function renderLottiePreviews(
       try {
         const previewPage = await chromeBrowser.newPage();
         await previewPage.setViewport({ width: 400, height: 400 });
-        const animJson = readFileSync(join(lottieDir, file), "utf-8");
+        const animData = JSON.parse(readFileSync(join(lottieDir, file), "utf-8"));
         const midFrame = Math.floor(((raw.op || 0) - (raw.ip || 0)) * 0.3);
+        // Load the shell page first (no untrusted data in the HTML)
         await previewPage.setContent(
           `<!DOCTYPE html>
 <html><head>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
 <style>*{margin:0;padding:0;background:transparent}#c{width:400px;height:400px}</style>
-</head><body><div id="c"></div><script>
-var a=lottie.loadAnimation({container:document.getElementById('c'),renderer:'svg',loop:false,autoplay:false,animationData:${animJson.replace(/</g, "\\u003c")}});
-a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window.__READY=true});
-</script></body></html>`,
+</head><body><div id="c"></div></body></html>`,
           { waitUntil: "networkidle0", timeout: 10000 },
+        );
+        // Pass animation data safely via parameterized evaluate (no string interpolation)
+        await previewPage.evaluate(
+          (data: unknown, frame: number) => {
+            const a = (window as any).lottie.loadAnimation({
+              container: document.getElementById("c"),
+              renderer: "svg",
+              loop: false,
+              autoplay: false,
+              animationData: data,
+            });
+            a.addEventListener("DOMLoaded", () => {
+              a.goToAndStop(frame, true);
+              (window as any).__READY = true;
+            });
+          },
+          animData,
+          midFrame,
         );
         await previewPage
           .waitForFunction(() => (window as any).__READY === true, { timeout: 5000 })

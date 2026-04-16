@@ -154,6 +154,9 @@ export async function captureWebsite(
         }
 
         if (isJsonUrl || isJson) {
+          // Check Content-Length before downloading to avoid OOM on huge responses
+          const cl = parseInt(response.headers()["content-length"] || "0", 10);
+          if (cl > 5_000_000) return;
           const buffer = await response.buffer();
           if (buffer.length < 100 || buffer.length > 5_000_000) return; // Skip tiny or huge
           const text = buffer.toString("utf-8");

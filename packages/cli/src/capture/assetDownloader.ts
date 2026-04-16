@@ -256,11 +256,38 @@ export async function downloadAndRewriteFonts(css: string, outputDir: string): P
   return rewritten;
 }
 
+/** Block requests to private/internal IP ranges to prevent SSRF */
+function isPrivateUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    // Block cloud metadata, localhost, and private IP ranges
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") return true;
+    if (hostname === "169.254.169.254") return true; // AWS/GCP metadata
+    if (hostname.endsWith(".internal") || hostname.endsWith(".local")) return true;
+    // IPv4 private ranges
+    const parts = hostname.split(".").map(Number);
+    if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
+      if (parts[0] === 10) return true; // 10.0.0.0/8
+      if (parts[0] === 172 && parts[1]! >= 16 && parts[1]! <= 31) return true; // 172.16.0.0/12
+      if (parts[0] === 192 && parts[1] === 168) return true; // 192.168.0.0/16
+      if (parts[0] === 169 && parts[1] === 254) return true; // 169.254.0.0/16 (link-local)
+    }
+    // Block non-HTTP(S) schemes
+    const scheme = new URL(url).protocol;
+    if (scheme !== "http:" && scheme !== "https:") return true;
+    return false;
+  } catch {
+    return true; // reject unparseable URLs
+  }
+}
+
 async function fetchBuffer(url: string): Promise<Buffer | null> {
   try {
+    if (isPrivateUrl(url)) return null;
     const res = await fetch(url, {
       signal: AbortSignal.timeout(10000),
       headers: { "User-Agent": "HyperFrames/1.0" },
+      redirect: "follow",
     });
     if (!res.ok) return null;
     // Reject XML/HTML error pages disguised as 200 OK (common with S3/CloudFront)
