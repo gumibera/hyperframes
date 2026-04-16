@@ -77,6 +77,50 @@ let pooledCaptureMode: CaptureMode = "screenshot";
 // Preserve the producer-era export so re-export shims keep the same public API.
 export const ENABLE_BROWSER_POOL = DEFAULT_CONFIG.enableBrowserPool;
 
+// Flags only meaningful when Chrome's compositor is driven by
+// HeadlessExperimental.beginFrame. If we fall back to screenshot mode they
+// must be stripped — `--enable-begin-frame-control` in particular makes the
+// compositor wait for frames we'll never send, producing blank screenshots.
+const BEGINFRAME_ONLY_FLAGS = new Set([
+  "--deterministic-mode",
+  "--enable-begin-frame-control",
+  "--disable-new-content-rendering-timeout",
+  "--run-all-compositor-stages-before-draw",
+  "--disable-threaded-animation",
+  "--disable-threaded-scrolling",
+  "--disable-checker-imaging",
+  "--disable-image-animation-resync",
+  "--enable-surface-synchronization",
+]);
+
+function stripBeginFrameFlags(args: string[]): string[] {
+  return args.filter((a) => !BEGINFRAME_ONLY_FLAGS.has(a));
+}
+
+/**
+ * Probe whether the browser still speaks HeadlessExperimental.beginFrame.
+ * Chromium 132+ removed the domain; calling enable() on a fresh page throws
+ * "'HeadlessExperimental.enable' wasn't found". Returns true if supported.
+ */
+async function probeBeginFrameSupport(browser: Browser): Promise<boolean> {
+  let page;
+  try {
+    page = await browser.newPage();
+    const client = await page.createCDPSession();
+    await client.send("HeadlessExperimental.enable");
+    await client.detach().catch(() => {});
+    return true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/HeadlessExperimental\b.*(wasn't found|not found|not enabled)/i.test(msg)) {
+      return false;
+    }
+    throw err;
+  } finally {
+    await page?.close().catch(() => {});
+  }
+}
+
 export async function acquireBrowser(
   chromeArgs: string[],
   config?: Partial<
@@ -112,14 +156,40 @@ export async function acquireBrowser(
   }
 
   const ppt = await getPuppeteer();
-  const browser = await ppt.launch({
+  const browserTimeout = config?.browserTimeout ?? DEFAULT_CONFIG.browserTimeout;
+  const protocolTimeout = config?.protocolTimeout ?? DEFAULT_CONFIG.protocolTimeout;
+  let browser = await ppt.launch({
     headless: true,
     args: chromeArgs,
     defaultViewport: null,
     executablePath,
-    timeout: config?.browserTimeout ?? DEFAULT_CONFIG.browserTimeout,
-    protocolTimeout: config?.protocolTimeout ?? DEFAULT_CONFIG.protocolTimeout,
+    timeout: browserTimeout,
+    protocolTimeout,
   });
+
+  // Probe HeadlessExperimental availability — Chromium 132+ removed it and
+  // we'd otherwise render blank frames because `--enable-begin-frame-control`
+  // leaves the compositor waiting for beginFrames we can't send. Auto-fall
+  // back to screenshot mode with the appropriate flags.
+  if (captureMode === "beginframe") {
+    const supported = await probeBeginFrameSupport(browser).catch(() => true);
+    if (!supported) {
+      await browser.close().catch(() => {});
+      console.warn(
+        "[BrowserManager] HeadlessExperimental.beginFrame unavailable in this Chromium build; falling back to screenshot mode.",
+      );
+      captureMode = "screenshot";
+      browser = await ppt.launch({
+        headless: true,
+        args: stripBeginFrameFlags(chromeArgs),
+        defaultViewport: null,
+        executablePath,
+        timeout: browserTimeout,
+        protocolTimeout,
+      });
+    }
+  }
+
   if (enablePool) {
     pooledBrowser = browser;
     pooledBrowserRefCount = 1;
