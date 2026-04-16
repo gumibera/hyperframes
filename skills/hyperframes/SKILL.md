@@ -43,7 +43,13 @@ For small edits (fix a color, adjust timing, add one element), skip straight to 
 
 For compositions with 4 or more scenes, use the parallel subagent pipeline instead of a single pass. Read [references/multi-scene.md](references/multi-scene.md) for the full process.
 
-**BLOCKING GATE:** Do NOT dispatch the assembly agent until every scene has a `.eval.md` file with a PASS verdict in `.hyperframes/scenes/`. As each scene file appears, immediately dispatch an evaluator — do not batch. If you find yourself about to assemble without eval files, STOP. This is not optional.
+**BLOCKING GATES — these are NOT optional:**
+
+1. **Eval gate:** Do NOT assemble until every scene has a `.eval.md` file with PASS in `.hyperframes/scenes/`. Evaluate each scene as it arrives — do not batch.
+2. **Lint gate:** After assembly, run `npx hyperframes lint` BEFORE serving or reporting. If errors exist (not warnings), fix them before proceeding.
+3. **Validate gate:** After lint passes, run `npx hyperframes validate`. Report contrast warnings but don't block on them.
+
+If you find yourself about to skip any of these gates, STOP.
 
 ## Layout Before Animation
 
