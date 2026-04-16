@@ -1,6 +1,8 @@
 # Multi-Scene Build Pipeline
 
-For compositions with 4 or more scenes, build in phases instead of one pass. A single pass produces shallow results — detail drops as context fills with boilerplate.
+For compositions with 2 or more scenes, build in phases instead of one pass. A single pass produces shallow results — detail drops as context fills with boilerplate, and the authoring agent tends to under-decorate later scenes. Giving each scene its own subagent keeps per-scene density and decoration consistent.
+
+Single-pass is reserved for true one-scene compositions: title cards, standalone overlays, single-clip animations.
 
 ## Who runs this pipeline
 

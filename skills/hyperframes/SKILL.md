@@ -39,9 +39,9 @@ Before writing HTML, think at a high level:
 
 For small edits (fix a color, adjust timing, add one element), skip straight to the rules.
 
-### Multi-scene builds (4+ scenes)
+### Multi-scene builds (2+ scenes)
 
-For compositions with 4 or more scenes, use the parallel subagent pipeline instead of a single pass. Read [references/multi-scene.md](references/multi-scene.md) for the full process.
+For compositions with 2 or more scenes, use the parallel subagent pipeline instead of a single pass. Read [references/multi-scene.md](references/multi-scene.md) for the full process. The only single-pass builds are true one-scene compositions (title cards, single overlays, simple standalone scenes).
 
 **Who runs this pipeline:** The parallel dispatch MUST run from the top-level conversation agent (the one that received the user's `/hyperframes` invocation). That agent has the `Agent`/`Task` tool and can fan out. Dispatched subagents typically cannot spawn their own subagents, so if YOU are a nested subagent reading this skill, you cannot do the parallel fan-out — author fragments sequentially inline instead and still run through the assembler. Do not silently skip the pipeline; note the constraint and proceed serially.
 
@@ -345,7 +345,7 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 
 - **[references/prompt-expansion.md](references/prompt-expansion.md)** — Expand sparse user prompts into full scene-by-scene production prompts. Read when the user gives a brief description instead of a detailed breakdown.
 - **[references/design-picker.md](references/design-picker.md)** — Create a design.md via visual picker. Read when no design.md exists and the user wants to create one.
-- **[references/multi-scene.md](references/multi-scene.md)** — Multi-scene subagent pipeline: scaffold → parallel scene builds → streaming evaluation → assembly. Read for 4+ scene compositions.
+- **[references/multi-scene.md](references/multi-scene.md)** — Multi-scene subagent pipeline: scaffold → parallel scene builds → streaming evaluation → assembly. Read for any composition with 2 or more scenes.
 
 ### Composition authoring
 
