@@ -36,7 +36,7 @@ Before generating options, read the style references — all generated options m
    - Optionally include `components` (component styling rules) and `dos` (do's and don'ts) as strings — these appear in the generated design.md.
    - **Layout constraint:** All preview HTML must use percentage widths or `max-width: 100%`. Use `flex-wrap: wrap` on all flex rows. Absolute-positioned decoratives must stay within a parent with `overflow: hidden`.
    - **Palette variety:** Always include a mix of light, dark, and tinted backgrounds across the 6 palettes — even for calm/wellness prompts. A meditation app can be deep indigo + soft gold, not just cream + sage. This ensures the "Full palette" theme mode produces meaningfully different results per palette.
-4. Serve the page: `npx hyperframes preview` or a simple HTTP server. Tell the user to open it and pick a direction.
+4. Serve the page: `npx hyperframes preview` or `python3 -m http.server <port>`. Before giving the user the URL, verify the server is responding: `curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/pick-design.html` — only share the link if it returns 200.
 5. Once the user picks, write `design.md` to the project root with the chosen values:
 
 ```markdown
