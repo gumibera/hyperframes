@@ -41,7 +41,9 @@ For small edits (fix a color, adjust timing, add one element), skip straight to 
 
 ### Multi-scene builds (4+ scenes)
 
-For compositions with 4 or more scenes, use the parallel subagent pipeline instead of a single pass. Read [references/multi-scene.md](references/multi-scene.md) for the full 4-phase process: scaffold → scene subagents → streaming evaluation → assembly.
+For compositions with 4 or more scenes, use the parallel subagent pipeline instead of a single pass. Read [references/multi-scene.md](references/multi-scene.md) for the full process.
+
+**BLOCKING GATE:** Do NOT dispatch the assembly agent until every scene has a `.eval.md` file with a PASS verdict in `.hyperframes/scenes/`. As each scene file appears, immediately dispatch an evaluator — do not batch. If you find yourself about to assemble without eval files, STOP. This is not optional.
 
 ## Layout Before Animation
 
