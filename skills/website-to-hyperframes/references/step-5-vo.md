@@ -4,9 +4,9 @@
 
 Never use the first voice you find. Audition 2-3 voices with the first sentence of SCRIPT.md:
 
-- **ElevenLabs** (recommended — widest voice selection, most natural output) — `mcp__elevenlabs__search_voices` to browse, `mcp__elevenlabs__text_to_speech` to generate. Does not return timestamps — transcribe separately after.
-- **HeyGen TTS** (alternative — returns word timestamps automatically) — `mcp__claude_ai_HeyGen__text_to_speech`. Use `mcp__claude_ai_HeyGen__list_audio_voices` to browse. Look for relaxed, confident voices.
-- **Kokoro** (offline last resort — has Python dependency issues on many systems) — `npx hyperframes tts SCRIPT.md --voice af_nova --output narration.wav`. Only try this if ElevenLabs and HeyGen are unavailable.
+- **Kokoro** (try first — free, no API key) — `npx hyperframes tts SCRIPT.md --voice af_nova --output narration.wav`. Runs locally on CPU. Requires Python 3.10+ (macOS system Python 3.9 won't work — if it fails with an onnxruntime error, move to the next option).
+- **ElevenLabs** (best voice quality, widest selection) — `mcp__elevenlabs__search_voices` to browse, `mcp__elevenlabs__text_to_speech` to generate. Does not return timestamps — transcribe separately after.
+- **HeyGen TTS** (returns word timestamps automatically — saves a transcribe step) — `mcp__claude_ai_HeyGen__text_to_speech`. Use when you want timestamps without a separate transcription pass.
 
 Pick the voice that sounds most natural and conversational. Listen for pacing — does it breathe between sentences? Does it sound like a person or a robot?
 

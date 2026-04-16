@@ -59,13 +59,16 @@ export async function extractHtml(
       });
       // Add the CSS as a <style> tag in <head> via Puppeteer's addStyleTag
       await page.addStyleTag({ content: css });
-      // Remove the original <link> tag
-      await page.evaluate(`(() => {
-        var links = document.querySelectorAll('link[rel="stylesheet"]');
-        for (var i = 0; i < links.length; i++) {
-          if (links[i].href === "${href}") { links[i].remove(); break; }
+      // Remove the original <link> tag (use parameterized evaluate to avoid injection)
+      await page.evaluate((targetHref: string) => {
+        const links = document.querySelectorAll('link[rel="stylesheet"]');
+        for (const link of links) {
+          if ((link as HTMLLinkElement).href === targetHref) {
+            link.remove();
+            break;
+          }
         }
-      })()`);
+      }, href);
     } catch {
       /* network error — skip */
     }

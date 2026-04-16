@@ -160,15 +160,27 @@ export default defineCommand({
         console.log();
       }
     } catch (err) {
-      if (isJson) {
-        console.log(
-          JSON.stringify({
-            ok: false,
-            error: err instanceof Error ? err.message : String(err),
-          }),
+      const errMsg = err instanceof Error ? err.message : String(err);
+      // Write BLOCKED.md so the user/agent knows the capture failed
+      try {
+        const { mkdirSync, writeFileSync } = await import("node:fs");
+        mkdirSync(outputDir, { recursive: true });
+        const isTimeout = /timeout|timed out/i.test(errMsg);
+        const reason = isTimeout
+          ? "Page navigation timed out — the site may be blocking headless browsers or requires authentication."
+          : `Capture failed: ${errMsg}`;
+        writeFileSync(
+          `${outputDir}/BLOCKED.md`,
+          `# Capture Failed\n\n${reason}\n\nURL: ${url}\n\n## What to try\n\n- Re-run with a longer timeout: \`--timeout 60000\`\n- The site may block headless browsers (anti-bot protection)\n- Try capturing a different page on the same domain\n`,
+          "utf-8",
         );
+      } catch {
+        /* best-effort */
+      }
+      if (isJson) {
+        console.log(JSON.stringify({ ok: false, error: errMsg }));
       } else {
-        console.error(`\n  ✗ Capture failed: ${err}\n`);
+        console.error(`\n  ✗ Capture failed: ${errMsg}\n`);
       }
       process.exit(1);
     }

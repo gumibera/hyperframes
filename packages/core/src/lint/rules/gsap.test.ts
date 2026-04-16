@@ -322,6 +322,104 @@ describe("GSAP rules", () => {
     expect(conflicts[0]?.message).toMatch(/x\/scale|scale\/x/);
   });
 
+  // --- Inline style transform detection tests ---
+
+  it("warns when inline style transform: translateX conflicts with GSAP x", () => {
+    const html = `
+<html><body>
+  <div id="root" data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="centered" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">Text</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#centered", { x: 0, y: 0, opacity: 1, duration: 0.4 }, 0.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_css_transform_conflict");
+    expect(finding).toBeDefined();
+    expect(finding?.selector).toBe("#centered");
+  });
+
+  it("warns when inline style transform: scale conflicts with GSAP scale", () => {
+    const html = `
+<html><body>
+  <div id="root" data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="box" style="transform: scale(0.9);">Box</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#box", { scale: 1, duration: 0.5 }, 1.0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_css_transform_conflict");
+    expect(finding).toBeDefined();
+    expect(finding?.selector).toBe("#box");
+  });
+
+  it("does not false-positive on inline transform: rotate when GSAP uses rotation", () => {
+    const html = `
+<html><body>
+  <div id="root" data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="spinner" style="transform: rotate(12deg);">Icon</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#spinner", { rotation: 360, duration: 1 }, 0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    // rotation doesn't conflict with rotate() — GSAP handles rotation separately
+    const finding = result.findings.find((f) => f.code === "gsap_css_transform_conflict");
+    expect(finding).toBeUndefined();
+  });
+
+  it("detects conflict via class selector when element has multiple classes", () => {
+    const html = `
+<html><body>
+  <div id="root" data-composition-id="c1" data-width="1920" data-height="1080">
+    <div class="card hero" style="transform: translateX(-50%);">Card</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to(".hero", { x: 100, duration: 0.4 }, 0.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "gsap_css_transform_conflict");
+    expect(finding).toBeDefined();
+  });
+
+  it("handles both style block and inline style on same selector without crash", () => {
+    const html = `
+<html><body>
+  <div id="root" data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="dual" style="transform: scale(0.5);">Dual</div>
+  </div>
+  <style>
+    #dual { transform: translateY(-50%); }
+  </style>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.to("#dual", { y: 0, scale: 1, duration: 0.5 }, 0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const conflicts = result.findings.filter((f) => f.code === "gsap_css_transform_conflict");
+    expect(conflicts.length).toBeGreaterThanOrEqual(1);
+  });
+
   it("reports error when GSAP is used without a GSAP script tag", () => {
     const html = `
 <html><body>

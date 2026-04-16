@@ -22,14 +22,11 @@ Read each file below. After reading each one, **write a 1-2 sentence summary** o
 
 ### Must read (do not skip)
 
-1. **View the scroll screenshots** (NOT the full-page.png — it's too tall and compressed to read). View these in order:
-   - `screenshots/scroll-0.png` — the hero section at full 1920x1080 resolution. This is the most important image. Describe: is the background light or dark? What's the dominant visual element? What colors jump out?
-   - `screenshots/scroll-25.png` — the page at 25% scroll depth
-   - `screenshots/scroll-50.png` — the page at 50% scroll depth
-   - `screenshots/scroll-75.png` — the page at 75% scroll depth
-   - `screenshots/scroll-100.png` — the footer area
+1. **View the scroll screenshots** — viewport-sized captures covering the full page height (the number depends on the page length). Start with:
+   - `screenshots/scroll-000.png` — the hero section at full 1920x1080 resolution. This is the most important image. Describe: is the background light or dark? What's the dominant visual element? What colors jump out?
+   - Then scan through the rest to see the full page. Each screenshot overlaps the previous by ~30%.
 
-   After viewing all five, write 3-4 sentences describing the site's visual mood, layout patterns, color strategy, and overall feel.
+   After viewing them, write 3-4 sentences describing the site's visual mood, layout patterns, color strategy, and overall feel.
 
 2. **`extracted/tokens.json`** — Note the top 5-7 colors (HEX), all font families, number of sections, and number of headings/CTAs.
 

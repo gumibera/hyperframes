@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { existsSync, readFileSync, mkdirSync } from "node:fs";
-import { resolve, join, dirname } from "node:path";
+import { resolve, join, dirname, relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveProject } from "../utils/project.js";
 import { c } from "../ui/colors.js";
@@ -60,7 +60,8 @@ async function captureSnapshots(
       return;
     }
     const filePath = resolve(projectDir, decodeURIComponent(url).replace(/^\//, ""));
-    if (!filePath.startsWith(projectDir + "/") && filePath !== projectDir) {
+    const rel = relative(projectDir, filePath);
+    if (rel.startsWith("..") || isAbsolute(rel)) {
       res.writeHead(403);
       res.end();
       return;
@@ -142,13 +143,15 @@ async function captureSnapshots(
       // Get composition duration
       const duration = await page.evaluate(() => {
         const win = window as any;
-        if (win.__player?.duration) return win.__player.duration;
+        const pd = win.__player?.duration;
+        if (pd != null) return typeof pd === "function" ? pd() : pd;
         const root = document.querySelector("[data-composition-id][data-duration]");
         if (root) return parseFloat(root.getAttribute("data-duration") ?? "0");
         const tls = win.__timelines;
         if (tls) {
           for (const key in tls) {
-            if (tls[key]?.duration) return tls[key].duration();
+            const d = tls[key]?.duration;
+            if (d != null) return typeof d === "function" ? d() : d;
           }
         }
         return 0;

@@ -64,26 +64,11 @@ skills-lock.json
 skills/hyperframes-animation-map/
 skills/hyperframes-contrast/
 
-# Capture outputs (new captures go to captures/ by default)
+# Capture outputs
 captures/
-notion-promo/
-notion-com-capture/
-
-# Existing test captures at repo root (legacy)
-notion-demo/
-notion-ai-agents/
-stripe-launch/
-stripe-investor/
-stripe-website/
-linear-ad/
-soulscape-demo/
-soulscape-film/
-midjourney/
-vercel-tour/
-figma-ad/
-arc-browser/
-raycast-demo/
-rive-demo/
-lusion-brand/
-motion-zajno/
-notion/
+# Legacy test captures at repo root (use captures/ instead)
+*-capture/
+*-demo/
+*-ad/
+*-tour/
+*-brand/

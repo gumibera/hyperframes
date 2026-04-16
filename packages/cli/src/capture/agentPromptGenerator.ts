@@ -48,7 +48,7 @@ function buildPrompt(
   const title = tokens.title || hostname;
   const cues = detectImplementationCues(tokens, animations);
 
-  const colorSummary = tokens.colors.slice(0, 6).join(", ");
+  const colorSummary = tokens.colors.slice(0, 10).join(", ");
   const fontSummary = tokens.fonts.join(", ") || "none detected";
   const sectionCount = tokens.sections?.length ?? 0;
   const headingCount = tokens.headings?.length ?? 0;
@@ -75,7 +75,7 @@ If you don't have the skill installed, run: \`npx skills add heygen-com/hyperfra
 
 | File | Contents |
 |------|----------|
-${hasScreenshot ? "| `screenshots/full-page.png` | Full-page screenshot (very tall — hard to read details, use scroll screenshots instead) |\n| `screenshots/scroll-0.png` | Hero section at 1920x1080 — **VIEW THIS FIRST** to understand the site's look and feel |\n| `screenshots/scroll-25.png` | Page at 25% scroll — 1920x1080 readable viewport |\n| `screenshots/scroll-50.png` | Page at 50% scroll — 1920x1080 readable viewport |\n| `screenshots/scroll-75.png` | Page at 75% scroll — 1920x1080 readable viewport |\n| `screenshots/scroll-100.png` | Page bottom at 1920x1080 — footer and final sections |" : ""}
+${hasScreenshot ? "| `screenshots/scroll-*.png` | Viewport screenshots covering the full page (1920x1080 each, 30% overlap). **View scroll-000.png FIRST** (hero section), then scan through the rest to understand the full page. |" : ""}
 | \`extracted/tokens.json\` | Design tokens: ${tokens.colors.length} colors, ${tokens.fonts.length} fonts, ${headingCount} headings, ${ctaCount} CTAs, ${sectionCount} sections |
 | \`extracted/visible-text.txt\` | All visible text content in DOM order — use exact strings, never paraphrase |
 | \`extracted/assets-catalog.json\` | Every asset URL (images, fonts, videos, icons) with HTML context |

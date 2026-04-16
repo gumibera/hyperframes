@@ -198,10 +198,39 @@ export async function downloadAndRewriteFonts(css: string, outputDir: string): P
 
   if (fontUrls.size === 0) return css;
 
+  // Limit font downloads to avoid bloat. Google Fonts serves 20+ unicode-range
+  // subsets per weight — we only need a few per family for video production.
+  const MAX_FONTS_PER_FAMILY = 6;
+  const MAX_TOTAL_FONTS = 30;
+  const familyCounts = new Map<string, number>();
+
+  // Extract font-family from the @font-face rule containing each URL
+  const getFamilyForUrl = (url: string): string => {
+    const idx = css.indexOf(url);
+    if (idx === -1) return "_unknown";
+    const blockStart = css.lastIndexOf("@font-face", idx);
+    if (blockStart === -1) return "_unknown";
+    const blockSlice = css.slice(blockStart, idx);
+    const familyMatch = blockSlice.match(/font-family\s*:\s*['"]?([^'";}\n]+)/i);
+    return familyMatch?.[1] ? familyMatch[1].trim().toLowerCase() : "_unknown";
+  };
+
+  // Prioritize Latin subsets over CJK/Arabic/etc unicode ranges
+  const sortedUrls = Array.from(fontUrls).sort((a, b) => {
+    const aLatin = /latin|[A-Za-z0-9]{10,}\.woff/.test(a) ? 0 : 1;
+    const bLatin = /latin|[A-Za-z0-9]{10,}\.woff/.test(b) ? 0 : 1;
+    return aLatin - bLatin;
+  });
+
   let rewritten = css;
   let count = 0;
 
-  for (const fontUrl of fontUrls) {
+  for (const fontUrl of sortedUrls) {
+    if (count >= MAX_TOTAL_FONTS) break;
+    const family = getFamilyForUrl(fontUrl);
+    const familyCount = familyCounts.get(family) || 0;
+    if (familyCount >= MAX_FONTS_PER_FAMILY) continue;
+
     try {
       const urlObj = new URL(fontUrl);
       const filename = urlObj.pathname.split("/").pop() || `font-${count}.woff2`;
@@ -212,6 +241,7 @@ export async function downloadAndRewriteFonts(css: string, outputDir: string): P
       if (buffer) {
         writeFileSync(localPath, buffer);
         rewritten = rewritten.split(fontUrl).join(relativePath);
+        familyCounts.set(family, familyCount + 1);
         count++;
       }
     } catch {

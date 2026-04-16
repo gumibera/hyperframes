@@ -46,6 +46,37 @@ export async function captureWebsite(
     onProgress?.(stage, detail);
   };
 
+  // Load .env file from repo root if it exists (for GEMINI_API_KEY, etc.)
+  try {
+    const { readFileSync: readEnv } = await import("node:fs");
+    const { resolve: resolvePath } = await import("node:path");
+    // Walk up from outputDir to find .env in repo root
+    let dir = resolvePath(outputDir);
+    for (let i = 0; i < 5; i++) {
+      const envPath = resolvePath(dir, ".env");
+      try {
+        const envContent = readEnv(envPath, "utf-8");
+        for (const line of envContent.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith("#")) continue;
+          const eq = trimmed.indexOf("=");
+          if (eq === -1) continue;
+          const key = trimmed.slice(0, eq).trim();
+          const val = trimmed
+            .slice(eq + 1)
+            .trim()
+            .replace(/^["']|["']$/g, "");
+          if (!process.env[key]) process.env[key] = val;
+        }
+        break;
+      } catch {
+        dir = resolvePath(dir, "..");
+      }
+    }
+  } catch {
+    /* .env loading is best-effort */
+  }
+
   // Create output directories
   mkdirSync(join(outputDir, "extracted"), { recursive: true });
   mkdirSync(join(outputDir, "screenshots"), { recursive: true });
@@ -171,6 +202,30 @@ export async function captureWebsite(
 
     await page1.goto(url, { waitUntil: "networkidle0", timeout });
     await new Promise((r) => setTimeout(r, settleTime));
+
+    // Check if the page loaded real content or an anti-bot challenge
+    const pageContentCheck = (await page1.evaluate(`(() => {
+      var text = (document.body.innerText || "").trim();
+      var title = document.title || "";
+      var isChallenged = /cloudflare|just a moment|checking your browser|access denied|blocked|captcha|verify you are human/i.test(text + " " + title);
+      return { textLength: text.length, title: title, isChallenged: isChallenged };
+    })()`)) as { textLength: number; title: string; isChallenged: boolean };
+
+    if (pageContentCheck.isChallenged || pageContentCheck.textLength < 200) {
+      const reason = pageContentCheck.isChallenged
+        ? "Anti-bot protection detected (Cloudflare challenge or similar)"
+        : "Page has very little text content (" +
+          pageContentCheck.textLength +
+          " chars) — may be blocked or a client-rendered SPA that needs more time";
+      warnings.push(reason);
+      progress("warn", reason);
+      // Write a BLOCKED.md file so the user/agent knows what happened
+      writeFileSync(
+        join(outputDir, "BLOCKED.md"),
+        `# Capture Warning\n\n${reason}\n\nThe page at ${url} may not have been captured correctly.\n\n## What to try\n\n- Re-run with a longer timeout: \`--timeout 60000\`\n- The site may require authentication or block headless browsers\n- Try capturing from a different URL on the same domain\n`,
+        "utf-8",
+      );
+    }
 
     // Scroll through page to trigger lazy-loaded images and Lottie animations
     await page1.evaluate(`(async () => {
@@ -408,20 +463,12 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
     progress("animations", "Cataloging animations...");
     animationCatalog = await collectAnimationCatalog(page1, cdpAnims, cdp);
 
-    // Capture per-section viewport screenshots (1920x1080 each — readable by AI vision)
-    progress("screenshots", "Capturing viewport screenshots...");
-    const { captureScreenshots, captureFullPageScreenshot } =
-      await import("./screenshotCapture.js");
-    const sectionScreenshots = await captureScreenshots(page1, outputDir, { maxScreenshots: 24 });
-    progress("screenshots", `${sectionScreenshots.length} section screenshots captured`);
-
-    // Also capture full-page screenshot + scroll-position screenshots
-    progress("screenshots", "Capturing full-page screenshot...");
-    const fullPageScreenshot = await captureFullPageScreenshot(page1, outputDir, url);
-    const screenshots: string[] = [...sectionScreenshots];
-    if (fullPageScreenshot) {
-      screenshots.push(fullPageScreenshot);
-    }
+    // Capture scroll-position viewport screenshots (1920x1080 at 10 scroll depths)
+    // These show the page in its natural state — sticky headers, scroll animations fired.
+    progress("screenshots", "Capturing scroll screenshots...");
+    const { captureScrollScreenshots } = await import("./screenshotCapture.js");
+    const screenshots = await captureScrollScreenshots(page1, outputDir);
+    progress("screenshots", `${screenshots.length} scroll screenshots captured`);
 
     // Strip framework scripts from the extracted body — keep visual library scripts
     // IMPORTANT: Use non-greedy matching within individual script tags only
@@ -574,23 +621,25 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
             // Scroll to the video element so it's in the viewport
             await page1.evaluate(`window.scrollTo(0, ${Math.max(0, v.top - 100)})`);
             await new Promise((r) => setTimeout(r, 300));
-            // Re-measure viewport-relative position after scroll
-            const clipY = v.top - Math.max(0, v.top - 100);
-            await page1.evaluate(`(() => {
-              var vids = Array.from(document.querySelectorAll('video'));
-              vids.forEach(function(v) {
-                if ((v.src || v.currentSrc).includes(${JSON.stringify(v.filename)})) {
-                  try { v.play(); v.pause(); } catch(e) {}
-                }
-              });
-            })()`);
+            // Re-measure position after scroll (layout may have shifted)
+            const rect = (await page1.evaluate((fn) => {
+              const vid = [...document.querySelectorAll("video")].find((x) =>
+                (x.src || x.currentSrc || "").includes(fn),
+              );
+              if (!vid) return null;
+              // Seek to 0.1s and wait for a frame to decode
+              vid.currentTime = 0.1;
+              return vid.getBoundingClientRect().toJSON();
+            }, v.filename)) as { x: number; y: number; width: number; height: number } | null;
+            if (!rect || rect.width < 10) continue;
+            await new Promise((r) => setTimeout(r, 200)); // let decoder settle
             await page1.screenshot({
               path: previewPath,
               clip: {
-                x: Math.max(0, v.left),
-                y: Math.max(0, clipY),
-                width: Math.min(v.width, 1920),
-                height: Math.min(v.height, 1080),
+                x: Math.max(0, rect.x),
+                y: Math.max(0, rect.y),
+                width: Math.min(rect.width, 1920),
+                height: Math.min(rect.height, 1080),
               },
             });
           } catch {
@@ -858,7 +907,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
                     ],
                   },
                 ],
-                config: { maxOutputTokens: 100 },
+                config: { maxOutputTokens: 300 },
               });
               return { file, caption: response.text?.trim() || "" };
             }),
@@ -1093,7 +1142,7 @@ a.addEventListener('DOMLoaded',function(){a.goToAndStop(${midFrame},true);window
         url,
         tokens,
         animationCatalog,
-        !!fullPageScreenshot,
+        screenshots.length > 0,
         discoveredLotties.length > 0,
         existsSync(join(outputDir, "extracted", "shaders.json")),
         catalogedAssets,

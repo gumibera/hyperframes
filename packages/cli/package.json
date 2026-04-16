@@ -25,7 +25,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/genai": "^1.50.0",
     "@hono/node-server": "^1.8.0",
     "@puppeteer/browsers": "^2.13.0",
     "adm-zip": "^0.5.16",
@@ -36,7 +35,6 @@
     "hono": "^4.0.0",
     "mime-types": "^3.0.2",
     "open": "^10.0.0",
-    "playwright": "^1.59.1",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
     "puppeteer-core": "^24.39.1",
@@ -56,6 +54,9 @@
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
     "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "@google/genai": "^1.50.0"
   },
   "engines": {
     "node": ">=22"

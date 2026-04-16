@@ -28,10 +28,6 @@
     "generate:previews": "tsx scripts/generate-template-previews.ts",
     "prepare": "test -d .git && lefthook install || true"
   },
-  "dependencies": {
-    "patchright": "^1.59.3",
-    "purgecss": "^8.0.0"
-  },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
