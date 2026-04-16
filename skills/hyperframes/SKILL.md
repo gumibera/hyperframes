@@ -19,7 +19,7 @@ Check for a `design.md` in the project root. If one exists, read it — it defin
 
 If none exists, **ask the user:**
 
-> "No design system found for this project. I can create one — I'll show you 2-3 visual directions to choose from, and the one you pick becomes the design system for all compositions. Want to do that, or should I use defaults?"
+> "Want to pick a visual style before we build? (yes = design picker, no = use defaults)"
 
 If yes → read [references/design-picker.md](references/design-picker.md) for the full picker workflow. If no → follow [house-style.md](./house-style.md) defaults.
 
