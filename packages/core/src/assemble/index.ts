@@ -45,6 +45,8 @@ const PROHIBITED_PATTERNS: Array<[RegExp, string]> = [
   [/<html[\s>]/i, "<html> tag — fragments must not be standalone documents"],
   [/<head[\s>]/i, "<head> tag — fragments must not be standalone documents"],
   [/<body[\s>]/i, "<body> tag — fragments must not be standalone documents"],
+  [/<style[\s>]/i, "<style> tag — CSS section must be raw CSS, not wrapped in style tags"],
+  [/<\/style>/i, "</style> tag — CSS section must be raw CSS"],
   [/<script[\s>]/i, "<script> tag — GSAP section must be raw JS, not wrapped in script tags"],
   [/<\/script>/i, "</script> tag — GSAP section must be raw JS"],
   [/<script\s+src=/i, "external script loading — the scaffold handles dependencies"],
@@ -99,15 +101,22 @@ function validateFragment(content: string, filename: string): AssembleError[] {
   return errors;
 }
 
+function stripWrapperTags(text: string, openTag: RegExp, closeTag: RegExp): string {
+  return text.replace(openTag, "").replace(closeTag, "").trim();
+}
+
 function splitFragment(content: string): FragmentSections {
   const htmlStart = content.indexOf("<!-- HTML -->") + "<!-- HTML -->".length;
   const cssStart = content.indexOf("<!-- CSS -->");
   const gsapStart = content.indexOf("<!-- GSAP -->");
 
+  const rawCss = content.substring(cssStart + "<!-- CSS -->".length, gsapStart).trim();
+  const rawGsap = content.substring(gsapStart + "<!-- GSAP -->".length).trim();
+
   return {
     html: content.substring(htmlStart, cssStart).trim(),
-    css: content.substring(cssStart + "<!-- CSS -->".length, gsapStart).trim(),
-    gsap: content.substring(gsapStart + "<!-- GSAP -->".length).trim(),
+    css: stripWrapperTags(rawCss, /<style[^>]*>/gi, /<\/style>/gi),
+    gsap: stripWrapperTags(rawGsap, /<script[^>]*>/gi, /<\/script>/gi),
   };
 }
 

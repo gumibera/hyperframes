@@ -37,6 +37,7 @@ tl.to('#s3-heading', { opacity: 1, y: 0, duration: 0.4 }, S3 + 0.5);
 ### Prohibited
 
 - `<!DOCTYPE`, `<html`, `<head`, `<body` — this is a fragment, not a document
+- `<style>` or `</style>` tags — the CSS section is raw CSS, not wrapped in style tags. The scaffold's `<style>` block receives the content directly. Nested style tags break rendering.
 - `<script>` or `</script>` tags — the GSAP section is raw JS, not wrapped in script tags. The scaffold's single `<script>` block receives the content directly. Nested script tags cause `Unexpected token '<'` parse errors.
 - `<script src=` — no external script loading
 - `gsap.timeline(` — the scaffold creates the timeline
