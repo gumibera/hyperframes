@@ -381,4 +381,81 @@ describe("syncRuntimeMedia", () => {
     syncRuntimeMedia({ clips: [clip], timeSeconds: 7, playing: false, playbackRate: 1 });
     expect(clip.el.currentTime).toBe(7);
   });
+
+  it("asserts muted=true every tick while outputMuted is set", () => {
+    // Parent ownership has taken over audible playback via parent-frame
+    // proxies. The iframe runtime must silence every active media element
+    // per tick so new sub-composition media inherits the mute as soon as
+    // it appears in the DOM — otherwise a late <audio> insertion would
+    // briefly play audibly and double-voice the viewer.
+    const clip = createMockClip({ start: 0, end: 10, volume: 1 });
+    Object.defineProperty(clip.el, "readyState", { value: 4, writable: true });
+    Object.defineProperty(clip.el, "muted", { value: false, writable: true });
+    syncRuntimeMedia({
+      clips: [clip],
+      timeSeconds: 5,
+      playing: true,
+      playbackRate: 1,
+      outputMuted: true,
+    });
+    expect(clip.el.muted).toBe(true);
+    // A second tick re-asserts — captures the sticky behavior, since
+    // the bridge handler only runs on flip transitions.
+    Object.defineProperty(clip.el, "muted", { value: false, writable: true });
+    syncRuntimeMedia({
+      clips: [clip],
+      timeSeconds: 5.02,
+      playing: true,
+      playbackRate: 1,
+      outputMuted: true,
+    });
+    expect(clip.el.muted).toBe(true);
+  });
+
+  it("does not touch muted when outputMuted is absent", () => {
+    // The un-mute decision belongs to author intent (`<audio muted>`) and
+    // user preference (`onSetMuted`) — syncRuntimeMedia must not race them.
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 4, writable: true });
+    Object.defineProperty(clip.el, "muted", { value: true, writable: true });
+    syncRuntimeMedia({ clips: [clip], timeSeconds: 5, playing: true, playbackRate: 1 });
+    expect(clip.el.muted).toBe(true);
+  });
+
+  it("fires onAutoplayBlocked when play() rejects with NotAllowedError", async () => {
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 4, writable: true });
+    const rejection = Object.assign(new Error("blocked"), { name: "NotAllowedError" });
+    clip.el.play = vi.fn(() => Promise.reject(rejection));
+    const onAutoplayBlocked = vi.fn();
+    syncRuntimeMedia({
+      clips: [clip],
+      timeSeconds: 5,
+      playing: true,
+      playbackRate: 1,
+      onAutoplayBlocked,
+    });
+    // The rejection is delivered on a microtask — flush it.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onAutoplayBlocked).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire onAutoplayBlocked for non-autoplay rejections", async () => {
+    const clip = createMockClip({ start: 0, end: 10 });
+    Object.defineProperty(clip.el, "readyState", { value: 4, writable: true });
+    const rejection = Object.assign(new Error("aborted"), { name: "AbortError" });
+    clip.el.play = vi.fn(() => Promise.reject(rejection));
+    const onAutoplayBlocked = vi.fn();
+    syncRuntimeMedia({
+      clips: [clip],
+      timeSeconds: 5,
+      playing: true,
+      playbackRate: 1,
+      onAutoplayBlocked,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(onAutoplayBlocked).not.toHaveBeenCalled();
+  });
 });

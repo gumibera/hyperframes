@@ -5,6 +5,7 @@ type BridgeDeps = {
   onPause: () => void;
   onSeek: (frame: number, seekMode: "drag" | "commit") => void;
   onSetMuted: (muted: boolean) => void;
+  onSetMediaOutputMuted: (muted: boolean) => void;
   onSetPlaybackRate: (rate: number) => void;
   onEnablePickMode: () => void;
   onDisablePickMode: () => void;
@@ -37,6 +38,10 @@ export function installRuntimeControlBridge(deps: BridgeDeps): (event: MessageEv
     }
     if (action === "set-muted") {
       deps.onSetMuted(Boolean(data.muted));
+      return;
+    }
+    if (action === "set-media-output-muted") {
+      deps.onSetMediaOutputMuted(Boolean(data.muted));
       return;
     }
     if (action === "set-playback-rate") {

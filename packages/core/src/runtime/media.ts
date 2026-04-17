@@ -92,6 +92,20 @@ export function syncRuntimeMedia(params: {
   timeSeconds: number;
   playing: boolean;
   playbackRate: number;
+  /**
+   * When `true`, assert `el.muted = true` on every active media element on
+   * every tick. Sticky against newly-discovered media (sub-composition
+   * activation, dynamic DOM) so the parent-frame audio-owner invariant holds.
+   * `false` is a no-op — we don't un-mute, because other code paths
+   * (`<audio muted>` author intent, `onSetMuted`) own the un-mute decision.
+   */
+  outputMuted?: boolean;
+  /**
+   * Invoked at most once when a media element's `play()` promise rejects with
+   * `NotAllowedError`. The caller is expected to latch and post a single
+   * outbound message; further invocations are suppressed by the caller.
+   */
+  onAutoplayBlocked?: () => void;
 }): void {
   for (const clip of params.clips) {
     const { el } = clip;
@@ -108,6 +122,7 @@ export function syncRuntimeMedia(params: {
         }
       }
       if (clip.volume != null) el.volume = clip.volume;
+      if (params.outputMuted) el.muted = true;
       try {
         // Per-element rate × global transport rate
         el.playbackRate = clip.playbackRate * params.playbackRate;
@@ -167,11 +182,20 @@ export function syncRuntimeMedia(params: {
         // inserted after the runtime bound its listeners.
         if (el.preload !== "auto") el.preload = "auto";
         markPlayRequested(el);
-        void el.play().catch(() => {
+        void el.play().catch((err: unknown) => {
           // If play() rejects — e.g. autoplay blocked, element removed
           // mid-flight — drop the in-flight flag so a future sync tick can
           // retry rather than getting stuck waiting for `playing`/`pause`.
           playRequested.delete(el);
+          // `NotAllowedError` is the autoplay-gating browser response when
+          // the iframe has no user activation. Signal the parent exactly
+          // once so it can promote to parent-frame audio proxies. Retries
+          // here would be pointless — nothing the runtime does fixes it.
+          const name =
+            err && typeof err === "object" && "name" in err
+              ? String((err as { name?: unknown }).name ?? "")
+              : "";
+          if (name === "NotAllowedError") params.onAutoplayBlocked?.();
         });
       } else if (!params.playing && !el.paused) {
         el.pause();

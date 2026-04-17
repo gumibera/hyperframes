@@ -1189,6 +1189,12 @@ export function initSandboxRuntimeModular(): void {
       timeSeconds: state.currentTime,
       playing: state.isPlaying,
       playbackRate: state.playbackRate,
+      outputMuted: state.mediaOutputMuted,
+      onAutoplayBlocked: () => {
+        if (state.mediaAutoplayBlockedPosted) return;
+        state.mediaAutoplayBlockedPosted = true;
+        postRuntimeMessage({ source: "hf-preview", type: "media-autoplay-blocked" });
+      },
     });
     const rootCompId =
       document.querySelector("[data-composition-id]")?.getAttribute("data-composition-id") ?? null;
@@ -1424,10 +1430,20 @@ export function initSandboxRuntimeModular(): void {
     },
     onSetMuted: (muted) => {
       state.bridgeMuted = muted;
+      const effective = muted || state.mediaOutputMuted;
       const mediaEls = document.querySelectorAll("video, audio");
       for (const el of mediaEls) {
         if (!(el instanceof HTMLMediaElement)) continue;
-        el.muted = muted;
+        el.muted = effective;
+      }
+    },
+    onSetMediaOutputMuted: (muted) => {
+      state.mediaOutputMuted = muted;
+      const effective = muted || state.bridgeMuted;
+      const mediaEls = document.querySelectorAll("video, audio");
+      for (const el of mediaEls) {
+        if (!(el instanceof HTMLMediaElement)) continue;
+        el.muted = effective;
       }
     },
     onSetPlaybackRate: (rate) => applyPlaybackRate(rate),

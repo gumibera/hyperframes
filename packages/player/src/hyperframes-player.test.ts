@@ -57,17 +57,22 @@ describe("formatTime", () => {
   });
 });
 
-// ── Parent-frame media for mobile playback ──
+// ── Parent-frame audio proxies (ownership-based) ──
 //
-// Mobile browsers block media.play() inside iframes when the user gesture
-// happened in the parent. The player works around this by extracting media
-// from the iframe and playing it in the parent frame.
+// Parent-frame audio/video copies are preloaded mirror proxies of the iframe's
+// timed media. They exist as a fallback for environments that block iframe
+// `.play()`. Under the default `runtime` audio ownership, the iframe drives
+// audible playback and the proxies stay paused. Ownership flips to `parent`
+// only when the runtime posts `media-autoplay-blocked` — then the proxies
+// become the audible source and the iframe is silenced via bridge.
 
 describe("HyperframesPlayer parent-frame media", () => {
   type PlayerElement = HTMLElement & {
     play: () => void;
     pause: () => void;
     seek: (t: number) => void;
+    _audioOwner?: "runtime" | "parent";
+    _promoteToParentProxy?: () => void;
   };
 
   let player: PlayerElement;
@@ -143,28 +148,67 @@ describe("HyperframesPlayer parent-frame media", () => {
     expect(mockAudio.playbackRate).toBe(1.5);
   });
 
-  it("play() calls parentMedia.play()", () => {
+  it("play() does NOT start parent-proxy under runtime ownership", () => {
+    // Default ownership is `runtime` — the iframe drives audible playback.
+    // If we also started parent proxies here, both would play and the user
+    // would hear doubled, slightly-offset audio (the original bug).
     player.setAttribute("audio-src", "https://cdn.example.com/narration.mp3");
     document.body.appendChild(player);
 
     player.play();
-    expect(mockAudio.play).toHaveBeenCalled();
+    expect(mockAudio.play).not.toHaveBeenCalled();
+    expect(player._audioOwner).toBe("runtime");
   });
 
-  it("pause() calls parentMedia.pause()", () => {
+  it("pause() does NOT touch parent-proxy under runtime ownership", () => {
     player.setAttribute("audio-src", "https://cdn.example.com/narration.mp3");
     document.body.appendChild(player);
+
+    player.pause();
+    expect(mockAudio.pause).not.toHaveBeenCalled();
+  });
+
+  it("seek() does NOT update parent currentTime under runtime ownership", () => {
+    // Under runtime ownership the iframe is authoritative for time; touching
+    // the proxy's currentTime would just trigger a re-buffer for no gain.
+    player.setAttribute("audio-src", "https://cdn.example.com/narration.mp3");
+    document.body.appendChild(player);
+
+    player.seek(12.5);
+    expect(mockAudio.currentTime).toBe(0);
+  });
+
+  it("after promotion to parent ownership: play/pause/seek drive parent proxy", () => {
+    // Simulates the runtime having posted `media-autoplay-blocked`. Post
+    // promotion: the web component owns audible output and fully drives
+    // the parent proxy.
+    player.setAttribute("audio-src", "https://cdn.example.com/narration.mp3");
+    document.body.appendChild(player);
+
+    player._promoteToParentProxy?.();
+    expect(player._audioOwner).toBe("parent");
+
+    player.play();
+    expect(mockAudio.play).toHaveBeenCalled();
+
+    player.seek(12.5);
+    expect(mockAudio.currentTime).toBe(12.5);
 
     player.pause();
     expect(mockAudio.pause).toHaveBeenCalled();
   });
 
-  it("seek() sets parentMedia.currentTime", () => {
+  it("promotion is idempotent", () => {
     player.setAttribute("audio-src", "https://cdn.example.com/narration.mp3");
     document.body.appendChild(player);
 
-    player.seek(12.5);
-    expect(mockAudio.currentTime).toBe(12.5);
+    player._promoteToParentProxy?.();
+    player._promoteToParentProxy?.();
+    player._promoteToParentProxy?.();
+    // Only one play() attempt is triggered by promotion itself (gated on
+    // `!this._paused`, which is true by default so it doesn't trigger at all).
+    // The test's meaning is: ownership stays `parent`, no thrash, no errors.
+    expect(player._audioOwner).toBe("parent");
   });
 
   it("cleans up parent media on disconnect", () => {

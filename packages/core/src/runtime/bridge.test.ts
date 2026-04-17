@@ -7,6 +7,7 @@ function createMockDeps() {
     onPause: vi.fn(),
     onSeek: vi.fn(),
     onSetMuted: vi.fn(),
+    onSetMediaOutputMuted: vi.fn(),
     onSetPlaybackRate: vi.fn(),
     onEnablePickMode: vi.fn(),
     onDisablePickMode: vi.fn(),
@@ -53,6 +54,22 @@ describe("installRuntimeControlBridge", () => {
     const handler = installRuntimeControlBridge(deps);
     handler(makeControlMessage("set-muted", { muted: true }));
     expect(deps.onSetMuted).toHaveBeenCalledWith(true);
+  });
+
+  it("dispatches set-media-output-muted command", () => {
+    const deps = createMockDeps();
+    const handler = installRuntimeControlBridge(deps);
+    handler(makeControlMessage("set-media-output-muted", { muted: true }));
+    expect(deps.onSetMediaOutputMuted).toHaveBeenCalledWith(true);
+    handler(makeControlMessage("set-media-output-muted", { muted: false }));
+    expect(deps.onSetMediaOutputMuted).toHaveBeenCalledWith(false);
+  });
+
+  it("set-media-output-muted coerces absent flag to false", () => {
+    const deps = createMockDeps();
+    const handler = installRuntimeControlBridge(deps);
+    handler(makeControlMessage("set-media-output-muted"));
+    expect(deps.onSetMediaOutputMuted).toHaveBeenCalledWith(false);
   });
 
   it("dispatches set-playback-rate command", () => {

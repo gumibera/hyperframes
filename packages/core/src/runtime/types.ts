@@ -11,6 +11,7 @@ export type RuntimeBridgeControlAction =
   | "pause"
   | "seek"
   | "set-muted"
+  | "set-media-output-muted"
   | "set-playback-rate"
   | "enable-pick-mode"
   | "disable-pick-mode"
@@ -138,6 +139,18 @@ export type RuntimeStageSizeMessage = {
 };
 
 /**
+ * Fired once per session when the runtime's attempt to play a timed media
+ * element is rejected with `NotAllowedError`. The parent (web component / host
+ * app) uses this as the signal to promote to parent-frame audio proxies —
+ * iframes lose autoplay privileges when the user gesture originated in the
+ * parent frame, so the host has to take over audible playback there.
+ */
+export type RuntimeMediaAutoplayBlockedMessage = {
+  source: "hf-preview";
+  type: "media-autoplay-blocked";
+};
+
+/**
  * Analytics events emitted by the runtime.
  *
  * The host app receives these via postMessage and forwards to its analytics
@@ -167,6 +180,7 @@ export type RuntimeOutboundMessage =
   | RuntimePickerPickedManyMessage
   | RuntimePickerCancelledMessage
   | RuntimeStageSizeMessage
+  | RuntimeMediaAutoplayBlockedMessage
   | RuntimeAnalyticsMessage;
 
 export type RuntimePlayer = {
