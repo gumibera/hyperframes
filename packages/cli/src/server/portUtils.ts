@@ -50,14 +50,28 @@ function isPortAvailableOnHost(port: number, host: string): Promise<boolean> {
 }
 
 /**
- * Test a port across IPv4 and IPv6 interfaces in parallel. A port is only
- * unavailable if ANY host reports EADDRINUSE. This catches the devbox bug
- * where a port is free on localhost but occupied on 0.0.0.0 via SSH forwarding.
+ * Test a port across IPv4 and IPv6 interfaces. A port is only available if
+ * EVERY host binds and releases cleanly — that catches the devbox class of
+ * bug where a port is free on `127.0.0.1` but held on `0.0.0.0` via SSH
+ * forwarding.
+ *
+ * **Must be sequential, not Promise.all.** Binding `127.0.0.1` holds the
+ * socket open until `server.close()` resolves on the next event-loop tick.
+ * In parallel, the wildcard `0.0.0.0` / `::` tests race that still-open
+ * socket and return spurious `EADDRINUSE` — which makes every port in the
+ * scan range look occupied and the preview server refuse to start. Repro
+ * on Linux (Crostini on ChromeOS in the reporting environment, issue #309)
+ * is deterministic; on macOS/Windows the behaviour is less consistent but
+ * the race is there all the same. Serializing each bind past its close
+ * callback eliminates the window entirely.
  */
 export async function testPortOnAllHosts(port: number): Promise<boolean> {
   const hosts = ["127.0.0.1", "0.0.0.0", "::1", "::"];
-  const results = await Promise.all(hosts.map((h) => isPortAvailableOnHost(port, h)));
-  return results.every(Boolean);
+  for (const host of hosts) {
+    const available = await isPortAvailableOnHost(port, host);
+    if (!available) return false;
+  }
+  return true;
 }
 
 // ── Existing instance detection ────────────────────────────────────────────
