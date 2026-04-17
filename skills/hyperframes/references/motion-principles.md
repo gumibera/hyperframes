@@ -56,6 +56,34 @@ The element that moves first is perceived as most important. Stagger in order of
 
 Entrances need longer than exits. A card takes 0.4s to appear but 0.25s to disappear.
 
+## Motion Must Demonstrate the Content
+
+Most scenes fail at this. They depict a state — "here is a dashboard," "here is a scanner," "here is a workflow" — instead of showing the _thing happening_. The result is a series of screenshots with entrance animations, not a video. Two rules close this gap.
+
+### Process scenes animate the process
+
+When a scene's purpose is a process (scanning, loading, detecting, syncing, rendering, measuring, transmitting), the scene must include:
+
+1. **A value that changes deterministically across the scene's duration** — a counter ticking, a percentage rising, a frame index advancing, a byte count.
+2. **An ambient "system is alive" signal** — an LED blinking on finite repeat, a status dot pulse, a heartbeat, a scanner bar sweeping.
+3. **A progress indicator if the process has a clear start/end** — a filling bar, advancing ticks, a `strokeDashoffset` reveal.
+4. **No fully-formed result at scene start.** The viewer must see intermediate state. A scan scene that jumps from empty → complete is banned.
+
+A scene that depicts a scanner showing `03 → 04 → 05` in ticking text but no progress bar and no LED still violates this — the value changes, but there's no ambient life and no progress context. All four elements should be present.
+
+### Capability scenes enact the capability
+
+When a scene's headline implies an action — "Every account. One ledger.", "Convert in one step.", "From noise to signal.", "Three PVCs detected." — the scene must stage that action as motion _within the scene_, not as a labeled before/after diagram.
+
+- The "before" element(s) must physically transform into the "after" state visibly during the scene's duration.
+- The transformation is not delegated to the transition to the next scene. That's too late — the headline's claim is made in this scene, so the action must happen in this scene.
+
+Example of the right pattern: a scene describing "unify your accounts" shows five account chips → SVG hairlines draw from each chip → all lines converge at a central balance number that counts up. The viewer sees unification happen.
+
+Example of the wrong pattern: a scene showing five bank tiles in a grid, then cutting to a scene showing a unified balance. The unification is implied, not shown. The headline is unearned.
+
+If the scene's headline is a descriptive state ("Your balance"), not an action, this rule doesn't apply. It triggers specifically on action verbs in the scene's own text: _sync, connect, unify, convert, detect, build, transform, reveal, extract_.
+
 ## Visual Composition
 
 You build for the web. Video frames are not pages.

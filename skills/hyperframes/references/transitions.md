@@ -67,6 +67,74 @@ Think about what the transition _communicates_, not just what it looks like.
 | `instant`  | 0.15s    | `expo.inOut`      |
 | `luxe`     | 0.7s     | `power1.inOut`    |
 
+## Persistent-Element Continuity Morph
+
+A transition pattern that layers on top of whatever primary transition you're using. One element (or a small group) lives _outside_ the scene containers, in a shared overlay layer. Both scenes crossfade/push/blur underneath, but the persistent element animates to a new position, size, or role in the next scene — giving the viewer a visual thread they can follow across the cut.
+
+**Mandatory when two adjacent scenes share a semantically continuous subject.** If the same data point, coordinate, headline word, hero shape, or anchor element is present in both scenes, it MUST persist via a shared overlay — not be re-rendered in each scene's own DOM. Re-rendering breaks the illusion: the viewer sees the subject die with the outgoing scene and get reborn in the incoming one, when semantically it never left.
+
+Conditions that trigger the rule:
+
+- An ember at coordinates in scene N becomes one of a field of embers in scene N+1 (p5 Cinder)
+- A chart line endpoint in scene N becomes a dashboard tile value in scene N+1
+- A hero word ("harbor") in scene N becomes a label in scene N+1's content
+- A coordinate stamp in the corner of scene N moves to a pin on a map in scene N+1
+- A single circle in scene N scales up and its interior becomes scene N+1's content
+
+If any of these apply, the persistent element cannot live inside a `.scene` container. It lives in a sibling overlay above the scenes, and the timeline animates it across the transition boundary.
+
+**Use for any semantically related continuation** — one elaborates, continues, zooms into, or answers the previous. The shared element anchors the continuity:
+
+| Scene 1                                     | Scene 2                                 | Persistent element does                               |
+| ------------------------------------------- | --------------------------------------- | ----------------------------------------------------- |
+| A single data point at specific coordinates | A field of similar data points          | Moves + stays + becomes "one of many"                 |
+| A headline word                             | A label on a diagram                    | Shrinks + repositions to attach to the diagram        |
+| A line chart ending at a value              | A dashboard tile centered on that value | Chart line contracts into the tile's position         |
+| A hero circle                               | An exploded view of what's inside it    | Scales up to fill frame, fades out as insides fade in |
+| A coordinate stamp in the corner            | A map with that coordinate highlighted  | Translates from corner to the point on the map        |
+
+**Don't use when scenes are independent topics** — a persistent element across unrelated scenes just looks like an element that forgot to exit.
+
+### How to stage it
+
+The persistent element must NOT live inside a `.scene` container, because scene containers crossfade their opacity — the element would fade with its scene instead of persisting. Put it in a sibling overlay:
+
+```html
+<div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+  <div id="scene1" class="scene">...</div>
+  <div id="scene2" class="scene" style="opacity: 0">...</div>
+  <!-- persistent element lives ABOVE the scene containers -->
+  <div id="anchor" class="anchor-layer" style="position: absolute; z-index: 10">
+    <div class="ember"></div>
+  </div>
+</div>
+```
+
+Then the timeline runs three tracks:
+
+1. **Primary transition** on the scene containers (crossfade, push, blur — whatever mood fits).
+2. **Anchor tween(s)** on the persistent element — animate `x`/`y`/`scale`/`rotation` over a duration that _spans_ the transition. The transition's midpoint should roughly coincide with the anchor's midpoint so the eye has something to track.
+3. **New context** in scene 2 — once the anchor lands in its new role, scene 2's other elements enter around it with normal entrance animations.
+
+### When the anchor ends
+
+Either it becomes part of scene 2's composition (treated as a scene-2 element from that point on — its scene-2 role _is_ its final position), or it exits with scene 2. Don't leave an anchor element orphaned between scenes without a new role — that's just a thing floating around.
+
+### Multi-scene anchors
+
+One element can persist across more than one transition if each new scene gives it a new role. See `_evals2/branch/p5-long-below/` for a working example: one ember lives in a shared `#ember-layer` across all three scenes — coordinate marker in S1, part of an ember field in S2, tombstone marker in S3. The scene crossfades run underneath; the ember just migrates.
+
+### Pairing with primary transitions
+
+| Primary            | Anchor motion           | Feel                                    |
+| ------------------ | ----------------------- | --------------------------------------- |
+| Blur crossfade     | Slow linear translation | Meditative, documentary                 |
+| Push slide         | Short counter-push      | Editorial, "turning the page"           |
+| Focus pull         | Scale + subtle drift    | Luxury, attention shifting              |
+| Color dip to black | Long arc during dip     | Dramatic — the viewer only sees landing |
+
+Avoid pairing with high-energy transitions (zoom through, staggered blocks, glitch) — the anchor motion gets lost in the chaos.
+
 ## Implementation
 
 Read [transitions/catalog.md](transitions/catalog.md) for GSAP code and hard rules for every transition type.

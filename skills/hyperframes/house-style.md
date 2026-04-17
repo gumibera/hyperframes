@@ -34,13 +34,37 @@ If the content genuinely calls for one of these — centered layout for a solemn
 
 Every scene needs visual depth — persistent decorative elements that stay visible while content animates in. Without these, scenes feel empty during entrance staggering.
 
-Ideas (mix and match, 2-5 per scene):
+**Rule: domain-native chrome before editorial chrome.** Before reaching for generic editorial decoratives, ask: _"what chrome would the actual thing in this scene have?"_ If the composition depicts a real system — an instrument, a tool, a piece of hardware, a type of document — its own native chrome belongs in the scene first. Generic editorial decoratives are a fallback for abstract/brand content that has no domain vocabulary to draw from.
+
+### Domain-native chrome (prefer these when content has a domain)
+
+| Domain                | Native chrome to use                                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Medical / instrument  | Bracket annotations on anomalies, lead labels (`LEAD I`), sampling rate (`256Hz`), rhythm labels (`SINUS / PVC`) |
+| Scanner / loader      | Progress bar, status LED, frame ID, resolution readout, value flicker during operation                           |
+| Financial / dashboard | Account chips with institution names, balance deltas with sign, per-transaction timestamps, tabular-num columns  |
+| Vector editor / CAD   | Anchor dots, bezier handles with hairline + filled grip, per-anchor coord readouts, angle arcs at vertices       |
+| Map / geographic      | DMS coordinates (`N 43°39′ W 70°15′`), scale bar, elevation, timestamp with LOCAL/UTC                            |
+| Film / photo          | Perforation rails, frame numbers (`F-12`), film stock / roll code (`KODAK · JUL 1973 · ROLL 012`)                |
+| Code / terminal       | Prompt character, line numbers, syntax color, cursor blink, scrollback indicator                                 |
+| Audio / DAW           | Waveform envelope, dB meter, timecode (`01:23:45`), track labels, solo/mute indicators                           |
+
+If the composition's domain isn't in this table, build the equivalent — _what would exist on the actual thing?_ The chrome you add becomes part of the scene's world, not pasted on top of it.
+
+### Editorial fallbacks (use when content is abstract/brand with no domain)
+
+Mix and match, still 2–5 per scene:
 
 - Radial glows (accent-tinted, low opacity, breathing scale)
-- Ghost text (theme words at 3-8% opacity, very large, slow drift)
+- Ghost text (theme words at 3–8% opacity, very large, slow drift)
 - Accent lines (hairline rules, subtle pulse)
 - Grain/noise overlay, geometric shapes, grid patterns
-- Thematic decoratives (orbit rings for space, vinyl grooves for music, grid lines for data)
+
+### How to tell which you need
+
+- Pure brand/tagline/mood content → editorial fallbacks are correct
+- Product demo, instrument readout, tool UI, data system → domain-native chrome required; editorial fallbacks only as secondary layer
+- Mixed (brand + product) → domain-native on the product scenes, editorial on the pure-brand scenes
 
 All decoratives should have slow ambient GSAP animation — breathing, drift, pulse. Static decoratives feel dead.
 
