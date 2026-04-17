@@ -62,6 +62,13 @@ class HyperframesPlayer extends HTMLElement {
    */
   private _audioOwner: "runtime" | "parent" = "runtime";
 
+  /**
+   * Watches the iframe document for sub-composition media added after
+   * initial setup. Disconnected on iframe reload (fresh iframe = fresh
+   * observer against the new document).
+   */
+  private _mediaObserver?: MutationObserver;
+
   constructor() {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
@@ -114,6 +121,7 @@ class HyperframesPlayer extends HTMLElement {
     window.removeEventListener("message", this._onMessage);
     this.iframe.removeEventListener("load", this._onIframeLoad);
     if (this._probeInterval) clearInterval(this._probeInterval);
+    this._teardownMediaObserver();
     this.controlsApi?.destroy();
     for (const m of this._parentMedia) {
       m.el.pause();
@@ -366,6 +374,27 @@ class HyperframesPlayer extends HTMLElement {
   private _onIframeLoad() {
     let attempts = 0;
     this._runtimeInjected = false;
+    // A fresh iframe means a fresh runtime — `mediaOutputMuted` and the
+    // autoplay-blocked latch are both reset inside it. The web component's
+    // `_audioOwner` must reset to match, otherwise a composition switch on
+    // a previously-promoted player would leave the parent thinking it owns
+    // audio against a runtime that's happily playing the iframe copy again
+    // — briefly reintroducing the double-voice bug for one probe window.
+    // The next `NotAllowedError` (if any) will re-promote.
+    const wasPromoted = this._audioOwner === "parent";
+    this._audioOwner = "runtime";
+    this._pauseParentMedia();
+    // The old iframe document is about to go away. Disconnect the
+    // MutationObserver now so we don't hold a reference to it; a fresh
+    // one will attach once the new document settles in `_setupParentMedia`.
+    this._teardownMediaObserver();
+    if (wasPromoted) {
+      this.dispatchEvent(
+        new CustomEvent("audioownershipchange", {
+          detail: { owner: "runtime", reason: "iframe-reload" },
+        }),
+      );
+    }
     if (this._probeInterval) clearInterval(this._probeInterval);
 
     this._probeInterval = setInterval(() => {
@@ -527,10 +556,16 @@ class HyperframesPlayer extends HTMLElement {
   private _playParentMedia() {
     for (const m of this._parentMedia) {
       if (!m.el.src) continue;
-      // Best-effort: if the parent itself has no user activation, this will
-      // also reject — the caller has already decided parent ownership is
-      // warranted, and there's nothing better to fall back to from here.
-      m.el.play().catch(() => {});
+      // Under parent ownership the proxy is the only audible pipeline. If
+      // its `play()` rejects (rare — parent also lacks activation in some
+      // programmatic embed flows), swallowing silently leaves the viewer
+      // staring at motion with no audio and no signal. Surface it as a
+      // `playbackerror` event so host apps can recover or fall back.
+      m.el.play().catch((err: unknown) => {
+        this.dispatchEvent(
+          new CustomEvent("playbackerror", { detail: { source: "parent-proxy", error: err } }),
+        );
+      });
     }
   }
 
@@ -540,15 +575,22 @@ class HyperframesPlayer extends HTMLElement {
 
   /**
    * Drag parent-proxy `currentTime` onto the iframe's timeline. Called on
-   * every runtime state message under parent ownership. Only re-seeks when
-   * drift exceeds 150 ms so we don't trigger a re-buffer on every tick —
-   * native HTMLMediaElement playback rate drift stays well inside that.
+   * every runtime state message under parent ownership. Threshold is 50 ms
+   * — ITU-R BT.1359 puts A/V offset perceptibility at roughly ±45 ms, so
+   * anything looser risks audible lip-sync drift on talking-head content
+   * (a core use case). The re-seek cost at this tightness is a handful of
+   * extra `currentTime` writes per second; the media element's own buffer
+   * smooths them out without visible rebuffer on the mirror path.
    */
+  private static readonly MIRROR_DRIFT_THRESHOLD_SECONDS = 0.05;
+
   private _mirrorParentMediaTime(timelineSeconds: number) {
     for (const m of this._parentMedia) {
       const relTime = timelineSeconds - m.start;
       if (relTime < 0 || relTime >= m.duration) continue;
-      if (Math.abs(m.el.currentTime - relTime) > 0.15) m.el.currentTime = relTime;
+      if (Math.abs(m.el.currentTime - relTime) > HyperframesPlayer.MIRROR_DRIFT_THRESHOLD_SECONDS) {
+        m.el.currentTime = relTime;
+      }
     }
   }
 
@@ -571,9 +613,21 @@ class HyperframesPlayer extends HTMLElement {
   private _promoteToParentProxy() {
     if (this._audioOwner === "parent") return;
     this._audioOwner = "parent";
+    // `_sendControl` is async — the iframe won't see the mute for ~one
+    // message-loop tick. In that narrow window the runtime's next
+    // `syncRuntimeMedia` pass may still try `el.play()` on the iframe
+    // copy; we rely on the autoplay gate (which got us here in the first
+    // place) to keep rejecting until our mute lands. This is defensible
+    // precisely because the scenario that triggered promotion is
+    // "autoplay blocked" — the iframe can't make noise on its own.
     this._sendControl("set-media-output-muted", { muted: true });
     this._mirrorParentMediaTime(this._currentTime);
     if (!this._paused) this._playParentMedia();
+    this.dispatchEvent(
+      new CustomEvent("audioownershipchange", {
+        detail: { owner: "parent", reason: "autoplay-blocked" },
+      }),
+    );
   }
 
   /** Create a parent-frame media element, configure it, and start preloading. */
@@ -609,6 +663,13 @@ class HyperframesPlayer extends HTMLElement {
    * Under runtime ownership (the default) these proxies stay paused and
    * inert; the iframe is the audible source. Ownership flips only in
    * response to a real `media-autoplay-blocked` message from the runtime.
+   *
+   * Also installs a MutationObserver so that media added to the iframe
+   * *after* the initial scan (sub-composition activation is the common
+   * case) gets a proxy on the fly. Without this, under parent ownership
+   * late-added `<audio data-start>` would be silenced by the runtime
+   * (`outputMuted` sticks per-tick) but have no parent-frame counterpart
+   * to play — a silent hole in the audio track.
    */
   private _setupParentMedia() {
     try {
@@ -619,31 +680,96 @@ class HyperframesPlayer extends HTMLElement {
       const mediaEls = doc.querySelectorAll<HTMLMediaElement>(
         "audio[data-start], video[data-start]",
       );
+      for (const iframeEl of mediaEls) this._adoptIframeMedia(iframeEl);
 
-      for (const iframeEl of mediaEls) {
-        const rawSrc =
-          iframeEl.getAttribute("src") || iframeEl.querySelector("source")?.getAttribute("src");
-        if (!rawSrc) continue;
-
-        // Resolve against the iframe's baseURI. The parent-frame <audio>/<video>
-        // we create next lives in the host document, whose base URL differs from
-        // the iframe's — without this, a relative src like "assets/narration.wav"
-        // would resolve against the studio root and 404.
-        const src = new URL(rawSrc, iframeEl.ownerDocument.baseURI).href;
-
-        const start = parseFloat(iframeEl.getAttribute("data-start") || "0");
-        const duration = parseFloat(iframeEl.getAttribute("data-duration") || "Infinity");
-        const tag = iframeEl.tagName === "VIDEO" ? ("video" as const) : ("audio" as const);
-
-        this._createParentMedia(src, tag, start, duration);
-        // Iframe originals stay untouched — the runtime's `syncRuntimeMedia`
-        // queries `audio[data-start]` for state and needs them addressable.
-        // Their audible output is gated later by `set-media-output-muted`
-        // when (and only when) parent ownership is promoted.
-      }
+      this._observeDynamicMedia(doc);
     } catch {
       // Cross-origin iframe — can't access DOM, fall back to iframe media
     }
+  }
+
+  /**
+   * Create a parent-frame proxy mirroring a single iframe media element.
+   * Extracted so both the initial scan and the MutationObserver path use
+   * identical URL-resolution and attribute parsing.
+   */
+  private _adoptIframeMedia(iframeEl: HTMLMediaElement): void {
+    const rawSrc =
+      iframeEl.getAttribute("src") || iframeEl.querySelector("source")?.getAttribute("src");
+    if (!rawSrc) return;
+
+    // Resolve against the iframe's baseURI. The parent-frame <audio>/<video>
+    // we create next lives in the host document, whose base URL differs from
+    // the iframe's — without this, a relative src like "assets/narration.wav"
+    // would resolve against the studio root and 404.
+    const src = new URL(rawSrc, iframeEl.ownerDocument.baseURI).href;
+
+    const start = parseFloat(iframeEl.getAttribute("data-start") || "0");
+    const duration = parseFloat(iframeEl.getAttribute("data-duration") || "Infinity");
+    const tag = iframeEl.tagName === "VIDEO" ? ("video" as const) : ("audio" as const);
+
+    const beforeCount = this._parentMedia.length;
+    this._createParentMedia(src, tag, start, duration);
+    const created = this._parentMedia.length > beforeCount;
+    // Iframe originals stay untouched — the runtime's `syncRuntimeMedia`
+    // queries `audio[data-start]` for state and needs them addressable.
+    // Their audible output is gated later by `set-media-output-muted` when
+    // (and only when) parent ownership is promoted.
+
+    // If we're already under parent ownership and the player is playing,
+    // the new proxy needs to pick up where the timeline currently is and
+    // start producing audio right away — otherwise it sits silent through
+    // the next several hundred ms until the next runtime state message.
+    if (created && this._audioOwner === "parent") {
+      this._mirrorParentMediaTime(this._currentTime);
+      if (!this._paused) {
+        const last = this._parentMedia[this._parentMedia.length - 1];
+        if (last && last.el.src) {
+          last.el.play().catch((err: unknown) => {
+            this.dispatchEvent(
+              new CustomEvent("playbackerror", { detail: { source: "parent-proxy", error: err } }),
+            );
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Watch the iframe document for subtree additions of timed media so
+   * sub-composition activation (late-attached `<audio data-start>`) grows
+   * the parent-proxy set automatically. Disconnected on iframe reload via
+   * `_teardownMediaObserver`.
+   */
+  private _observeDynamicMedia(doc: Document): void {
+    this._teardownMediaObserver();
+    if (typeof MutationObserver === "undefined" || !doc.body) return;
+    const obs = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const added of m.addedNodes) {
+          if (!(added instanceof Element)) continue;
+          // Handle both the node itself and any timed media nested inside
+          // (sub-compositions typically inject a fragment whose root is a
+          // `<div data-composition-id=...>` with `<audio>` children).
+          const candidates: HTMLMediaElement[] = [];
+          if (added.matches?.("audio[data-start], video[data-start]")) {
+            candidates.push(added as HTMLMediaElement);
+          }
+          const inside = added.querySelectorAll?.<HTMLMediaElement>(
+            "audio[data-start], video[data-start]",
+          );
+          if (inside) for (const el of inside) candidates.push(el);
+          for (const el of candidates) this._adoptIframeMedia(el);
+        }
+      }
+    });
+    obs.observe(doc.body, { childList: true, subtree: true });
+    this._mediaObserver = obs;
+  }
+
+  private _teardownMediaObserver(): void {
+    this._mediaObserver?.disconnect();
+    this._mediaObserver = undefined;
   }
 
   private _hidePoster() {
