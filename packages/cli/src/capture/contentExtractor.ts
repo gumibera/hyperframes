@@ -174,7 +174,7 @@ export async function captionImagesWithGemini(
     // Free tier: 5 RPM → batch 5, 12s pause (~$0 but slow)
     // Paid tier: 2000 RPM → batch 20, 1s pause (~$0.001/image, fast)
     // We try a larger batch first; if rate-limited, fall back to smaller batches.
-    const model = "gemini-2.5-flash";
+    const model = "gemini-3.1-flash-lite-preview";
     const BATCH_SIZE = 20;
     for (let i = 0; i < imageFiles.length; i += BATCH_SIZE) {
       const batch = imageFiles.slice(i, i + BATCH_SIZE);
@@ -210,7 +210,7 @@ export async function captionImagesWithGemini(
           geminiCaptions[result.value.file] = result.value.caption;
         }
       }
-      // Pace requests to stay under free tier rate limits (5 RPM for gemini-2.5-flash)
+      // Pace requests between batches (paid tier: 2000+ RPM, free tier: rate-limited)
       if (i + BATCH_SIZE < imageFiles.length) {
         await new Promise((r) => setTimeout(r, 2000)); // 2s pause between batches — paid tier handles 2000 RPM, free tier retries via Promise.allSettled
       }

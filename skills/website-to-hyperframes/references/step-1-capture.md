@@ -8,7 +8,7 @@ npx hyperframes capture <URL> -o captures/<project-name>
 
 No API keys required. The capture extracts design tokens, screenshots, fonts, and assets with DOM-context descriptions automatically.
 
-**Optional:** Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) in a `.env` file at the repo root for richer AI-powered image descriptions via Gemini 2.5 Flash vision. Free tier: 5 RPM; paid tier removes the bottleneck.
+**Optional:** Set `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) in a `.env` file at the repo root for richer AI-powered image descriptions via Gemini 3.1 Flash Lite vision (~$0.001/image).
 
 Wait for it to complete. Print how many screenshots, assets, sections, and fonts were extracted.
 
