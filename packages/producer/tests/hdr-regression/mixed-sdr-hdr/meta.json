@@ -1,0 +1,31 @@
+{
+  "name": "HDR Regression — Mixed SDR + HDR (Shadow Cut)",
+  "description": "1920x1080 composition that mixes SDR (BT.709 8-bit) and HDR (BT.2020 PQ 10-bit) sources in the same scene stack — two SDR videos, two HDR videos, an SDR JPEG and a 16-bit HDR PNG, plus voiceover and captions. Renders twice through the regression harness: once SDR (BT.709 output, every HDR source must be tone-mapped down) and once with `--hdr` (BT.2020 PQ output, every SDR source must be promoted up). Exercises the engine's per-asset transfer auto-detection, the rgb48le cross-transfer compositor, and the Domain Warp shader transition in both SDR and HDR pixel spaces. Visual identity is Hans-Hillmann-inspired Shadow Cut.",
+  "tags": [
+    "hdr-regression",
+    "mixed",
+    "sdr",
+    "hdr",
+    "pq",
+    "bt2020",
+    "bt709",
+    "auto-detect",
+    "cross-transfer",
+    "video",
+    "audio",
+    "image",
+    "captions",
+    "shader-transitions",
+    "shadow-cut"
+  ],
+
+  "minPsnr": 26,
+  "maxFrameFailures": 0,
+
+  "minAudioCorrelation": 0.85,
+  "maxAudioLagWindows": 120,
+
+  "renderConfig": {
+    "fps": 30
+  }
+}

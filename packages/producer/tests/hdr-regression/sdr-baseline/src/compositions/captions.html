@@ -1,0 +1,170 @@
+<template id="captions-template">
+  <div
+    data-composition-id="captions"
+    data-start="0"
+    data-duration="10.0"
+    data-width="1920"
+    data-height="1080"
+  >
+    <div id="captions-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <style>
+      [data-composition-id="captions"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        padding-bottom: 96px;
+        pointer-events: none;
+      }
+
+      #captions-container {
+        position: relative;
+        width: 1280px;
+        min-height: 120px;
+        text-align: center;
+        font-family: "Cormorant Garamond", "Playfair Display", "Times New Roman", Times, serif;
+        font-weight: 500;
+        font-style: italic;
+        font-size: 56px;
+        color: #fffaf0;
+        text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+        letter-spacing: -0.005em;
+      }
+
+      .vs-chunk {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        opacity: 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0 18px;
+      }
+
+      .vs-word {
+        opacity: 0;
+        display: inline-block;
+        transition: none;
+        color: #fffaf0;
+      }
+
+      .vs-word.is-active {
+        color: #c9a55a;
+      }
+    </style>
+    <script>
+      (function () {
+        const TRANSCRIPT = [
+          { "text": "the", "start": 0.1, "end": 0.31 },
+          { "text": "makers", "start": 0.31, "end": 0.86 },
+          { "text": "of", "start": 0.94, "end": 1.13 },
+          { "text": "Subnautica,", "start": 1.13, "end": 2.28 },
+          { "text": "and", "start": 2.28, "end": 2.44 },
+          { "text": "he", "start": 2.44, "end": 2.54 },
+          { "text": "promised", "start": 2.54, "end": 2.99 },
+          { "text": "the", "start": 2.99, "end": 3.12 },
+          { "text": "founders", "start": 3.12, "end": 3.65 },
+          { "text": "$250", "start": 3.75, "end": 4.71 },
+          { "text": "million", "start": 4.71, "end": 5.4 },
+          { "text": "if", "start": 5.44, "end": 5.6 },
+          { "text": "their", "start": 5.6, "end": 5.95 },
+          { "text": "next", "start": 5.95, "end": 6.23 },
+          { "text": "game", "start": 6.24, "end": 6.64 },
+          { "text": "hits", "start": 6.64, "end": 6.91 },
+          { "text": "certain", "start": 6.98, "end": 7.36 },
+          { "text": "targets.", "start": 7.36, "end": 7.98 },
+          { "text": "And", "start": 8.06, "end": 8.14 },
+          { "text": "at", "start": 8.14, "end": 8.25 },
+          { "text": "the", "start": 8.25, "end": 8.41 },
+          { "text": "time,", "start": 8.41, "end": 8.72 },
+          { "text": "he", "start": 8.72, "end": 8.82 },
+          { "text": "thought", "start": 8.83, "end": 9.19 },
+          { "text": "there", "start": 9.24, "end": 9.48 },
+          { "text": "was", "start": 9.48, "end": 9.63 },
+          { "text": "no", "start": 9.64, "end": 9.75 },
+          { "text": "way-", "start": 9.75, "end": 9.98 }
+        ];
+
+        const container = document.getElementById("captions-container");
+        const tl = gsap.timeline({ paused: true });
+
+        // Group into chunks of 4 words
+        const chunks = [];
+        let current = [];
+        for (let i = 0; i < TRANSCRIPT.length; i++) {
+          current.push(TRANSCRIPT[i]);
+          if (current.length >= 4 || i === TRANSCRIPT.length - 1) {
+            chunks.push(current);
+            current = [];
+          }
+        }
+
+        chunks.forEach((chunk) => {
+          const start = chunk[0].start;
+          const end = chunk[chunk.length - 1].end;
+
+          const div = document.createElement("div");
+          div.className = "vs-chunk";
+          container.appendChild(div);
+
+          // Reveal chunk container
+          tl.fromTo(
+            div,
+            { opacity: 0, y: 14 },
+            { opacity: 1, y: 0, duration: 0.35, ease: "sine.out" },
+            start - 0.1,
+          );
+
+          chunk.forEach((wordData, wordIndex) => {
+            const w = document.createElement("span");
+            w.className = "vs-word";
+            w.innerText = wordData.text;
+            div.appendChild(w);
+
+            // Word entrance
+            tl.to(
+              w,
+              { opacity: 1, duration: 0.18, ease: "sine.out" },
+              wordData.start,
+            );
+
+            // Highlight on (gold)
+            tl.to(
+              w,
+              { color: "#c9a55a", duration: 0.08 },
+              wordData.start,
+            );
+
+            // Highlight off when next word fires (or chunk end)
+            const offTime =
+              wordIndex < chunk.length - 1 ? chunk[wordIndex + 1].start : end;
+            tl.to(
+              w,
+              { color: "#fffaf0", duration: 0.08 },
+              offTime,
+            );
+          });
+
+          // Hide chunk after last word
+          tl.to(
+            div,
+            { opacity: 0, y: -10, duration: 0.35, ease: "sine.in" },
+            end + 0.05,
+          );
+          // Deterministic kill — the karaoke word tweens can race the exit fade
+          tl.set(div, { opacity: 0, visibility: "hidden" }, end + 0.4);
+        });
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["captions"] = tl;
+      })();
+    </script>
+  </div>
+</template>

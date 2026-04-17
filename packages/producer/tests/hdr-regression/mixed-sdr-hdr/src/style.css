@@ -1,0 +1,314 @@
+/* ============================================================
+   Shadow Cut — Hans Hillmann inspired film-noir card style.
+   Near-monochrome stack: deep black, cold grey, stark white,
+   plus one accent — blood red (#C1121F). Every reveal emerges
+   from darkness; the shader transition (Domain Warp) is what
+   dissolves reality before the next plate appears.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;600&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: #0a0a0a;
+  font-family: "Inter", system-ui, sans-serif;
+  font-weight: 400;
+  color: #f4f4f4;
+  overflow: hidden;
+}
+
+#main {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  background: #0a0a0a;
+  overflow: hidden;
+}
+
+/* Persistent darkness — a faint cold-grey vignette that lives
+   behind every scene so even when html2canvas captures an
+   "empty" backdrop for a transition it carries the mood. */
+#main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(
+      ellipse at 50% 50%,
+      rgba(58, 58, 58, 0.18) 0%,
+      rgba(10, 10, 10, 0.0) 65%
+    ),
+    linear-gradient(
+      180deg,
+      #050505 0%,
+      #0a0a0a 50%,
+      #050505 100%
+    );
+  pointer-events: none;
+}
+
+/* Faint horizontal interrogation bars — top + bottom. Lend a
+   noir "redacted document" feel without competing with copy. */
+.bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: #050505;
+  border-top: 1px solid rgba(193, 18, 31, 0.35);
+  border-bottom: 1px solid rgba(193, 18, 31, 0.35);
+  z-index: 4;
+}
+
+.bar.top {
+  top: 0;
+}
+
+.bar.bottom {
+  bottom: 0;
+}
+
+/* ---------- Scene container baseline ----------
+   Shadow Cut uses shader transitions, so the library will set
+   non-target scenes to opacity:0 during transition and promote
+   the target to opacity:1 on completion. We mirror that — only
+   the intro is visible at frame 0. */
+
+.scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  opacity: 0;
+}
+
+#scene-intro {
+  opacity: 1;
+}
+
+/* ---------- Title cards (intro + outro) ---------- */
+
+.title-card {
+  flex-direction: column;
+  text-align: center;
+  padding: 0 180px;
+}
+
+.classification {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: #C1121F;
+  margin-bottom: 60px;
+}
+
+.classification::before,
+.classification::after {
+  content: "";
+  display: inline-block;
+  width: 38px;
+  height: 1px;
+  background: #C1121F;
+}
+
+.display {
+  font-family: "Bebas Neue", "Oswald", sans-serif;
+  font-size: 184px;
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: 0.012em;
+  color: #fafafa;
+  text-shadow:
+    0 6px 36px rgba(0, 0, 0, 0.85),
+    0 0 1px rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.display .accent {
+  color: #C1121F;
+  font-weight: 400;
+}
+
+.subdisplay {
+  margin-top: 48px;
+  font-family: "Inter", sans-serif;
+  font-size: 16px;
+  font-weight: 300;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: rgba(244, 244, 244, 0.55);
+}
+
+.colophon {
+  margin-top: 72px;
+  display: flex;
+  gap: 72px;
+  justify-content: center;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(193, 18, 31, 0.85);
+}
+
+/* ---------- Media-frame scenes ---------- */
+
+.media-frame {
+  background: #050505;
+}
+
+.media-frame video,
+.media-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Heavy shadow vignette so plates look like they're emerging
+   from darkness — Shadow Cut's whole reveal-from-black thing. */
+.shadow-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgba(193, 18, 31, 0.22),
+    inset 0 0 220px rgba(0, 0, 0, 0.78),
+    inset 0 0 80px rgba(0, 0, 0, 0.65);
+  z-index: 3;
+}
+
+/* Evidence-stamp HUD overlays in the corners. Mono, condensed. */
+.evidence {
+  position: absolute;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(244, 244, 244, 0.85);
+  z-index: 5;
+}
+
+.evidence .red {
+  color: #C1121F;
+}
+
+.evidence.top-left {
+  top: 64px;
+  left: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.evidence.top-right {
+  top: 64px;
+  right: 64px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.evidence.bottom-left {
+  bottom: 64px;
+  left: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Bottom-right "case label" — large mono number. */
+.case-label {
+  position: absolute;
+  bottom: 56px;
+  right: 64px;
+  text-align: right;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 600;
+  font-size: 64px;
+  letter-spacing: 0.04em;
+  color: #fafafa;
+  line-height: 1;
+  z-index: 5;
+}
+
+.case-label .label {
+  display: block;
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.32em;
+  color: rgba(193, 18, 31, 0.95);
+}
+
+/* Diagonal corner ticks — 4 small marks at the inside edge of
+   the plate, like a film slate. */
+.corner-tick {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  z-index: 5;
+}
+
+.corner-tick::before,
+.corner-tick::after {
+  content: "";
+  position: absolute;
+  background: rgba(244, 244, 244, 0.78);
+}
+
+.corner-tick::before {
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 1px;
+}
+
+.corner-tick::after {
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 22px;
+}
+
+.corner-tick.top-left {
+  top: 56px;
+  left: 56px;
+}
+
+.corner-tick.top-right {
+  top: 56px;
+  right: 56px;
+  transform: scaleX(-1);
+}
+
+.corner-tick.bottom-left {
+  bottom: 56px;
+  left: 56px;
+  transform: scaleY(-1);
+}
+
+.corner-tick.bottom-right {
+  bottom: 56px;
+  right: 56px;
+  transform: scale(-1, -1);
+}

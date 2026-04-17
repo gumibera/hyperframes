@@ -1,0 +1,27 @@
+{
+  "name": "HDR Regression — HDR PQ (Data Drift)",
+  "description": "1920x1080 native HDR composition with HDR video (BT.2020 PQ 10-bit), 16-bit HDR PNG photo, audio, captions, the Refik-Anadol-inspired Data Drift visual identity, and the @hyperframes/shader-transitions package driving Domain Warp / Gravitational Lens / Cross-Warp Morph handoffs. Renders with `--hdr` to exercise the rgb48le shader transition compositor, the PQ encode path, and the HDR side-data writer.",
+  "tags": [
+    "hdr-regression",
+    "hdr",
+    "pq",
+    "bt2020",
+    "10bit",
+    "video",
+    "audio",
+    "image",
+    "captions",
+    "shader-transitions",
+    "data-drift"
+  ],
+
+  "minPsnr": 26,
+  "maxFrameFailures": 0,
+
+  "minAudioCorrelation": 0.85,
+  "maxAudioLagWindows": 120,
+
+  "renderConfig": {
+    "fps": 30
+  }
+}

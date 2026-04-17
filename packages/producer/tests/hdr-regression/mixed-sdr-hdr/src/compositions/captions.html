@@ -1,0 +1,163 @@
+<template id="captions-template">
+  <div
+    data-composition-id="captions"
+    data-start="0"
+    data-duration="10.0"
+    data-width="1920"
+    data-height="1080"
+  >
+    <div id="captions-container"></div>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <style>
+      [data-composition-id="captions"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        padding-bottom: 150px;
+        pointer-events: none;
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      #captions-container {
+        position: relative;
+        width: 1320px;
+        min-height: 130px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 46px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: #fafafa;
+        text-shadow:
+          0 4px 22px rgba(0, 0, 0, 0.95),
+          0 0 36px rgba(0, 0, 0, 0.85),
+          0 0 1px rgba(255, 255, 255, 0.55);
+      }
+
+      .sc-chunk {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        opacity: 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 18px;
+      }
+
+      .sc-word {
+        opacity: 0;
+        display: inline-block;
+        transition: none;
+        color: rgba(244, 244, 244, 0.92);
+        will-change: opacity, color, transform;
+      }
+
+      .sc-word.is-active {
+        color: #C1121F;
+        text-shadow:
+          0 4px 22px rgba(0, 0, 0, 0.95),
+          0 0 24px rgba(193, 18, 31, 0.55),
+          0 0 1px rgba(255, 255, 255, 0.55);
+      }
+    </style>
+    <script>
+      (function () {
+        const TRANSCRIPT = [
+          { "text": "the", "start": 0.1, "end": 0.31 },
+          { "text": "makers", "start": 0.31, "end": 0.86 },
+          { "text": "of", "start": 0.94, "end": 1.13 },
+          { "text": "Subnautica,", "start": 1.13, "end": 2.28 },
+          { "text": "and", "start": 2.28, "end": 2.44 },
+          { "text": "he", "start": 2.44, "end": 2.54 },
+          { "text": "promised", "start": 2.54, "end": 2.99 },
+          { "text": "the", "start": 2.99, "end": 3.12 },
+          { "text": "founders", "start": 3.12, "end": 3.65 },
+          { "text": "$250", "start": 3.75, "end": 4.71 },
+          { "text": "million", "start": 4.71, "end": 5.4 },
+          { "text": "if", "start": 5.44, "end": 5.6 },
+          { "text": "their", "start": 5.6, "end": 5.95 },
+          { "text": "next", "start": 5.95, "end": 6.23 },
+          { "text": "game", "start": 6.24, "end": 6.64 },
+          { "text": "hits", "start": 6.64, "end": 6.91 },
+          { "text": "certain", "start": 6.98, "end": 7.36 },
+          { "text": "targets.", "start": 7.36, "end": 7.98 },
+          { "text": "And", "start": 8.06, "end": 8.14 },
+          { "text": "at", "start": 8.14, "end": 8.25 },
+          { "text": "the", "start": 8.25, "end": 8.41 },
+          { "text": "time,", "start": 8.41, "end": 8.72 },
+          { "text": "he", "start": 8.72, "end": 8.82 },
+          { "text": "thought", "start": 8.83, "end": 9.19 },
+          { "text": "there", "start": 9.24, "end": 9.48 },
+          { "text": "was", "start": 9.48, "end": 9.63 },
+          { "text": "no", "start": 9.64, "end": 9.75 },
+          { "text": "way-", "start": 9.75, "end": 9.98 }
+        ];
+
+        const container = document.getElementById("captions-container");
+        const tl = gsap.timeline({ paused: true });
+
+        const chunks = [];
+        let current = [];
+        for (let i = 0; i < TRANSCRIPT.length; i++) {
+          current.push(TRANSCRIPT[i]);
+          if (current.length >= 4 || i === TRANSCRIPT.length - 1) {
+            chunks.push(current);
+            current = [];
+          }
+        }
+
+        chunks.forEach((chunk) => {
+          const start = chunk[0].start;
+          const end = chunk[chunk.length - 1].end;
+
+          const div = document.createElement("div");
+          div.className = "sc-chunk";
+          container.appendChild(div);
+
+          tl.fromTo(
+            div,
+            { opacity: 0, y: 16, filter: "blur(6px)" },
+            { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.32, ease: "power3.out" },
+            start - 0.1,
+          );
+
+          chunk.forEach((wordData, wordIndex) => {
+            const w = document.createElement("span");
+            w.className = "sc-word";
+            w.innerText = wordData.text;
+            div.appendChild(w);
+
+            tl.to(
+              w,
+              { opacity: 1, duration: 0.16, ease: "power2.out" },
+              wordData.start,
+            );
+
+            tl.add(() => w.classList.add("is-active"), wordData.start);
+
+            const offTime =
+              wordIndex < chunk.length - 1 ? chunk[wordIndex + 1].start : end;
+            tl.add(() => w.classList.remove("is-active"), offTime);
+          });
+
+          tl.to(
+            div,
+            { opacity: 0, y: -10, filter: "blur(6px)", duration: 0.3, ease: "power4.in" },
+            end + 0.05,
+          );
+          tl.set(div, { opacity: 0, visibility: "hidden" }, end + 0.36);
+        });
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["captions"] = tl;
+      })();
+    </script>
+  </div>
+</template>

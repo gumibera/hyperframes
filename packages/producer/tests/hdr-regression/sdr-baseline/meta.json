@@ -1,0 +1,15 @@
+{
+  "name": "HDR Regression — SDR Baseline (Velvet Standard)",
+  "description": "Baseline 1920x1080 SDR composition with all media types (video, audio, images), CSS/GSAP transitions, captions, and the Velvet Standard visual identity. Used to confirm that introducing the HDR pipeline does not regress SDR output.",
+  "tags": ["hdr-regression", "sdr", "video", "audio", "image", "captions", "css-transitions", "velvet-standard"],
+
+  "minPsnr": 28,
+  "maxFrameFailures": 0,
+
+  "minAudioCorrelation": 0.85,
+  "maxAudioLagWindows": 120,
+
+  "renderConfig": {
+    "fps": 30
+  }
+}
