@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, statSync } from "fs";
 import { dirname } from "path";
 
 import { type GpuEncoder, getCachedGpuEncoder, getGpuEncoderName } from "../utils/gpuEncoder.js";
+import { getHdrEncoderColorParams } from "../utils/hdr.js";
 import { type EncoderOptions } from "./chunkEncoder.types.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
 
@@ -101,8 +102,11 @@ export interface StreamingEncoder {
  * Build FFmpeg args for streaming (image2pipe) input.
  * Reuses the same codec/quality/GPU logic as chunkEncoder's buildEncoderArgs
  * but with `-f image2pipe` instead of `-i <pattern>`.
+ *
+ * Exported so unit tests can assert on the constructed CLI without spawning
+ * FFmpeg — see streamingEncoder.test.ts.
  */
-function buildStreamingArgs(
+export function buildStreamingArgs(
   options: StreamingEncoderOptions,
   outputPath: string,
   gpuEncoder: GpuEncoder = null,
@@ -195,10 +199,14 @@ function buildStreamingArgs(
       else args.push("-crf", String(quality));
 
       // Encoder-specific params: anti-banding + color space tagging.
+      // For HDR, getHdrEncoderColorParams also emits the SMPTE ST 2086
+      // mastering-display and CTA-861.3 MaxCLL/MaxFALL SEI messages —
+      // without them, players (Apple, YouTube, HDR TVs) treat the file
+      // as SDR BT.2020 and tone-map incorrectly.
       const xParamsFlag = codec === "h264" ? "-x264-params" : "-x265-params";
       const colorParams =
         options.rawInputFormat && options.hdr
-          ? `colorprim=bt2020:transfer=${options.hdr.transfer === "pq" ? "smpte2084" : "arib-std-b67"}:colormatrix=bt2020nc`
+          ? getHdrEncoderColorParams(options.hdr.transfer).x265ColorParams
           : "colorprim=bt709:transfer=bt709:colormatrix=bt709";
       if (preset === "ultrafast") {
         args.push(xParamsFlag, `aq-mode=3:${colorParams}`);

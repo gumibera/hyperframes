@@ -38,25 +38,73 @@ export function detectTransfer(cs: VideoColorSpace | null): HdrTransfer {
   return "hlg";
 }
 
+/**
+ * HDR static metadata for the encoded stream.
+ *
+ * `masterDisplay` is the SMPTE ST 2086 mastering-display color volume string
+ * accepted by x265 (`G(Gx,Gy)B(Bx,By)R(Rx,Ry)WP(WPx,WPy)L(Lmax,Lmin)`).
+ * Chromaticity values are scaled by 50000 (0.00002 cd/m² per unit) and
+ * luminance values by 10000 (0.0001 cd/m² per unit).
+ *
+ * `maxCll` is the CTA-861.3 Content Light Level pair `MaxCLL,MaxFALL` in
+ * cd/m². Without these SEI messages, downstream players (Apple QuickTime,
+ * YouTube, HDR TVs) treat the stream as SDR BT.2020 and tone-map incorrectly
+ * — see packages/producer/scripts/hdr-smoke.ts for the regression assertion.
+ */
+export interface HdrMasteringMetadata {
+  masterDisplay: string;
+  maxCll: string;
+}
+
+/**
+ * Default HDR10 mastering metadata: P3-D65 primaries inside a BT.2020
+ * container, mastered for 0.0001–1000 cd/m² with MaxCLL=1000, MaxFALL=400.
+ *
+ * These are conservative defaults that match how most HDR10 grading suites
+ * (Premiere, DaVinci Resolve) tag content when per-frame measured values
+ * aren't available. A future PR can plumb measured MaxCLL through `--hdr-opt`.
+ */
+export const DEFAULT_HDR10_MASTERING: HdrMasteringMetadata = {
+  masterDisplay: "G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)",
+  maxCll: "1000,400",
+};
+
 export interface HdrEncoderColorParams {
   colorPrimaries: string;
   colorTrc: string;
   colorspace: string;
   pixelFormat: string;
+  /**
+   * Full x265-params string including color tagging and HDR static metadata.
+   * Pass directly to `-x265-params` (concatenate with other options via `:`).
+   */
   x265ColorParams: string;
+  /** The mastering metadata that was baked into `x265ColorParams`. */
+  mastering: HdrMasteringMetadata;
 }
 
 /**
  * Get FFmpeg encoder color parameters for a given HDR transfer function.
+ *
+ * The returned `x265ColorParams` includes both color tagging
+ * (`colorprim`/`transfer`/`colormatrix`) and HDR static metadata
+ * (`master-display`/`max-cll`). Without the static metadata the encoded
+ * stream is rejected as SDR by most HDR-aware players and CDNs.
  */
-export function getHdrEncoderColorParams(transfer: HdrTransfer): HdrEncoderColorParams {
+export function getHdrEncoderColorParams(
+  transfer: HdrTransfer,
+  mastering: HdrMasteringMetadata = DEFAULT_HDR10_MASTERING,
+): HdrEncoderColorParams {
   const colorTrc = transfer === "pq" ? "smpte2084" : "arib-std-b67";
+  const tagging = `colorprim=bt2020:transfer=${colorTrc}:colormatrix=bt2020nc`;
+  const metadata = `master-display=${mastering.masterDisplay}:max-cll=${mastering.maxCll}`;
   return {
     colorPrimaries: "bt2020",
     colorTrc,
     colorspace: "bt2020nc",
     pixelFormat: "yuv420p10le",
-    x265ColorParams: `colorprim=bt2020:transfer=${colorTrc}:colormatrix=bt2020nc`,
+    x265ColorParams: `${tagging}:${metadata}`,
+    mastering,
   };
 }
 
