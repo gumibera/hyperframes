@@ -55,7 +55,6 @@ import {
   spawnStreamingEncoder,
   createFrameReorderBuffer,
   type StreamingEncoder,
-  convertHdrFrameToRgb48le,
   analyzeCompositionHdr,
   isHdrColorSpace,
   extractVideoMetadata,
@@ -699,7 +698,10 @@ export async function executeRenderJob(
             }
           }
         }
-      } catch {
+      } catch (err) {
+        log.warn("Failed to gather browser diagnostics for zero-duration composition", {
+          error: err instanceof Error ? err.message : String(err),
+        });
         diagnostics.push("(Could not gather browser diagnostics — page may have crashed)");
       }
       const hint =
@@ -894,7 +896,7 @@ export async function executeRenderJob(
     //
     // This preserves HDR luminance from video sources while correctly
     // compositing DOM content (text, graphics, SDR overlays) on top.
-    // GSAP-animated video position/opacity is applied via queried bounds.
+    // Video position is applied via queried bounds; transform/opacity lands in a later PR.
     if (hasHdrVideo) {
       log.info("[Render] HDR two-pass: DOM layer + native HLG video compositing");
 
@@ -974,8 +976,12 @@ export async function executeRenderJob(
               `-pix_fmt rgb48le -c:v png "${join(frameDir, "frame_%04d.png")}"`,
             { maxBuffer: 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] },
           );
-        } catch {
-          // If extraction fails, frames won't exist — loop handles gracefully
+        } catch (err) {
+          log.warn("HDR frame pre-extraction failed; loop will fill with black", {
+            videoId,
+            srcPath,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
         hdrFrameDirs.set(videoId, frameDir);
       }
@@ -1029,7 +1035,11 @@ export async function executeRenderJob(
             if (existsSync(framePath)) {
               try {
                 hdrRgb = decodePngToRgb48le(readFileSync(framePath)).data;
-              } catch {
+              } catch (err) {
+                log.warn("Failed to decode pre-extracted HDR frame; using black", {
+                  framePath,
+                  error: err instanceof Error ? err.message : String(err),
+                });
                 hdrRgb = Buffer.alloc(width * height * 6);
               }
             } else {
@@ -1041,8 +1051,11 @@ export async function executeRenderJob(
               const { data: domRgba } = decodePng(domPng);
               const hdrTransfer = effectiveHdr ? effectiveHdr.transfer : ("hlg" as HdrTransfer);
               blitRgba8OverRgb48le(domRgba, hdrRgb, width, height, hdrTransfer);
-            } catch {
-              // Skip DOM layer if decode fails
+            } catch (err) {
+              log.warn("DOM layer decode/blit failed; skipping overlay for frame", {
+                frameIndex: i,
+                error: err instanceof Error ? err.message : String(err),
+              });
             }
             composited = hdrRgb;
           } else {
