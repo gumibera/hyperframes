@@ -305,9 +305,12 @@ export async function syncVideoFrameVisibility(
       const img = video.nextElementSibling as HTMLElement | null;
       const hasImg = img && img.classList.contains("__render_frame__");
       if (active.has(video.id)) {
-        // Active video: show injected <img>, hide native <video>
+        // Active video: show injected <img>, hide native <video>.
+        // Do NOT clobber inline opacity here — GSAP-controlled opacity must
+        // survive until injectVideoFramesBatch reads it via getComputedStyle.
+        // visibility:hidden alone hides the native element without affecting
+        // its computed opacity.
         video.style.setProperty("visibility", "hidden", "important");
-        video.style.setProperty("opacity", "0", "important");
         video.style.setProperty("pointer-events", "none", "important");
         if (hasImg) {
           img.style.visibility = "visible";

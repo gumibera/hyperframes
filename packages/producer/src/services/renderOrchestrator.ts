@@ -1036,13 +1036,15 @@ export async function executeRenderJob(
               hdrRgb = Buffer.alloc(width * height * 6);
             }
 
-            // In-memory alpha composite: DOM PNG over HDR rgb48le
+            // In-memory alpha composite: DOM PNG over HDR rgb48le (in-place)
             try {
               const { data: domRgba } = decodePng(domPng);
-              composited = blitRgba8OverRgb48le(domRgba, hdrRgb, width, height);
+              const hdrTransfer = effectiveHdr ? effectiveHdr.transfer : ("hlg" as HdrTransfer);
+              blitRgba8OverRgb48le(domRgba, hdrRgb, width, height, hdrTransfer);
             } catch {
-              composited = hdrRgb;
+              // Skip DOM layer if decode fails
             }
+            composited = hdrRgb;
           } else {
             composited = Buffer.alloc(width * height * 6);
           }
