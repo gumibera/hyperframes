@@ -18,6 +18,7 @@ import {
   mkdirSync,
   rmSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
   copyFileSync,
   appendFileSync,
@@ -97,6 +98,39 @@ async function safeCleanup(
       error: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+/**
+ * Cache of the maximum 1-based frame index present in each pre-extracted frame
+ * directory (e.g. `frame_0001.png … frame_0150.png` → 150). The directory is
+ * read once on first access and the max is computed by parsing filenames.
+ *
+ * Used to bounds-check `videoFrameIndex` against the directory size before
+ * calling `existsSync` per frame, which avoids redundant filesystem syscalls
+ * when the requested time falls past the last extracted frame (e.g. a clip
+ * shorter than the composition's effective video range).
+ */
+const frameDirMaxIndexCache = new Map<string, number>();
+
+const FRAME_FILENAME_RE = /^frame_(\d+)\.png$/;
+
+function getMaxFrameIndex(frameDir: string): number {
+  const cached = frameDirMaxIndexCache.get(frameDir);
+  if (cached !== undefined) return cached;
+  let max = 0;
+  try {
+    for (const name of readdirSync(frameDir)) {
+      const m = FRAME_FILENAME_RE.exec(name);
+      if (!m) continue;
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+  } catch {
+    // Directory missing or unreadable → max stays 0; downstream existsSync
+    // check will still produce the right "no frame" outcome.
+  }
+  frameDirMaxIndexCache.set(frameDir, max);
+  return max;
 }
 
 export type RenderStatus =
@@ -1024,15 +1058,19 @@ export async function executeRenderJob(
 
           let composited: Buffer;
           if (video && frameDir) {
-            // Frame index within the video (1-based for FFmpeg image2 output)
-            const videoFrameIndex = Math.round((time - video.start) * job.config.fps) + 1;
-            const framePath = join(
-              frameDir,
-              `frame_${String(videoFrameIndex).padStart(4, "0")}.png`,
-            );
+            // Frame index within the video (1-based for FFmpeg image2 output).
+            // Clamp against the highest extracted frame in the directory to
+            // avoid issuing an existsSync per requested time when the
+            // composition outlives the source clip.
+            const rawIndex = Math.round((time - video.start) * job.config.fps) + 1;
+            const maxIndex = getMaxFrameIndex(frameDir);
+            const inBounds = rawIndex >= 1 && (maxIndex === 0 || rawIndex <= maxIndex);
+            const framePath = inBounds
+              ? join(frameDir, `frame_${String(rawIndex).padStart(4, "0")}.png`)
+              : null;
 
             let hdrRgb: Buffer;
-            if (existsSync(framePath)) {
+            if (framePath !== null && existsSync(framePath)) {
               try {
                 hdrRgb = decodePngToRgb48le(readFileSync(framePath)).data;
               } catch (err) {

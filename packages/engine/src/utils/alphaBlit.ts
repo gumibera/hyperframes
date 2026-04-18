@@ -398,14 +398,15 @@ export function roundedRectAlpha(
  * at position (dx, dy). Clips to canvas bounds. Optional opacity blending
  * (0.0–1.0) over existing canvas content.
  *
- * @param canvas  Destination rgb48le buffer (canvasWidth * canvasHeight * 6 bytes)
- * @param source  Source rgb48le buffer (sw * sh * 6 bytes)
- * @param dx      Destination X offset on canvas
- * @param dy      Destination Y offset on canvas
- * @param sw      Source width in pixels
- * @param sh      Source height in pixels
+ * @param canvas       Destination rgb48le buffer (canvasWidth * canvasHeight * 6 bytes)
+ * @param source       Source rgb48le buffer (sw * sh * 6 bytes)
+ * @param dx           Destination X offset on canvas
+ * @param dy           Destination Y offset on canvas
+ * @param sw           Source width in pixels
+ * @param sh           Source height in pixels
  * @param canvasWidth  Canvas width in pixels (needed for stride calculation)
- * @param opacity  Optional opacity 0.0–1.0 (default 1.0 = fully opaque copy)
+ * @param canvasHeight Canvas height in pixels (used to clip the destination region)
+ * @param opacity      Optional opacity 0.0–1.0 (default 1.0 = fully opaque copy)
  */
 export function blitRgb48leRegion(
   canvas: Buffer,
@@ -415,13 +416,13 @@ export function blitRgb48leRegion(
   sw: number,
   sh: number,
   canvasWidth: number,
+  canvasHeight: number,
   opacity?: number,
   borderRadius?: [number, number, number, number],
 ): void {
   if (sw <= 0 || sh <= 0) return;
 
   const op = opacity ?? 1.0;
-  const canvasHeight = canvas.length / (canvasWidth * 6);
 
   const x0 = Math.max(0, dx);
   const y0 = Math.max(0, dy);

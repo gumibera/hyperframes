@@ -633,7 +633,7 @@ describe("blitRgb48leRegion", () => {
   it("copies a region at position (0,0) — full overlap", () => {
     const canvas = Buffer.alloc(4 * 4 * 6); // 4x4 black
     const source = makeHdrFrame(2, 2, 10000, 20000, 30000);
-    blitRgb48leRegion(canvas, source, 0, 0, 2, 2, 4);
+    blitRgb48leRegion(canvas, source, 0, 0, 2, 2, 4, 4);
     expect(canvas.readUInt16LE(0)).toBe(10000);
     expect(canvas.readUInt16LE(2)).toBe(20000);
     expect(canvas.readUInt16LE(4)).toBe(30000);
@@ -643,7 +643,7 @@ describe("blitRgb48leRegion", () => {
   it("copies a region at offset position", () => {
     const canvas = Buffer.alloc(4 * 4 * 6);
     const source = makeHdrFrame(2, 2, 50000, 40000, 30000);
-    blitRgb48leRegion(canvas, source, 1, 1, 2, 2, 4);
+    blitRgb48leRegion(canvas, source, 1, 1, 2, 2, 4, 4);
     expect(canvas.readUInt16LE(0)).toBe(0);
     const off = (1 * 4 + 1) * 6;
     expect(canvas.readUInt16LE(off)).toBe(50000);
@@ -652,7 +652,7 @@ describe("blitRgb48leRegion", () => {
   it("clips when region extends beyond canvas edge", () => {
     const canvas = Buffer.alloc(4 * 4 * 6);
     const source = makeHdrFrame(3, 3, 10000, 20000, 30000);
-    blitRgb48leRegion(canvas, source, 2, 2, 3, 3, 4);
+    blitRgb48leRegion(canvas, source, 2, 2, 3, 3, 4, 4);
     const off = (2 * 4 + 2) * 6;
     expect(canvas.readUInt16LE(off)).toBe(10000);
     const off2 = (3 * 4 + 3) * 6;
@@ -663,14 +663,14 @@ describe("blitRgb48leRegion", () => {
   it("applies opacity when provided", () => {
     const canvas = Buffer.alloc(1 * 1 * 6);
     const source = makeHdrFrame(1, 1, 40000, 40000, 40000);
-    blitRgb48leRegion(canvas, source, 0, 0, 1, 1, 1, 0.5);
+    blitRgb48leRegion(canvas, source, 0, 0, 1, 1, 1, 1, 0.5);
     expect(canvas.readUInt16LE(0)).toBe(20000);
   });
 
   it("no-op for zero-size region", () => {
     const canvas = Buffer.alloc(4 * 4 * 6);
     const source = makeHdrFrame(2, 2, 10000, 20000, 30000);
-    blitRgb48leRegion(canvas, source, 0, 0, 0, 0, 4);
+    blitRgb48leRegion(canvas, source, 0, 0, 0, 0, 4, 4);
     expect(canvas.readUInt16LE(0)).toBe(0);
   });
 });
@@ -725,7 +725,7 @@ describe("blitRgb48leAffine", () => {
     const source = makeHdrFrame(2, 2, 10000, 20000, 30000);
     const identity = [1, 0, 0, 1, 0, 0];
 
-    blitRgb48leRegion(canvas1, source, 0, 0, 2, 2, 4);
+    blitRgb48leRegion(canvas1, source, 0, 0, 2, 2, 4, 4);
     blitRgb48leAffine(canvas2, source, identity, 2, 2, 4, 4);
 
     expect(Buffer.compare(canvas1, canvas2)).toBe(0);
@@ -904,7 +904,7 @@ describe("blitRgb48leRegion with borderRadius", () => {
     const canvas = Buffer.alloc(10 * 10 * 6);
     const source = makeHdrFrame(10, 10, 40000, 30000, 20000);
     const br: [number, number, number, number] = [5, 5, 5, 5];
-    blitRgb48leRegion(canvas, source, 0, 0, 10, 10, 10, undefined, br);
+    blitRgb48leRegion(canvas, source, 0, 0, 10, 10, 10, 10, undefined, br);
 
     // Center pixel should be written
     const centerOff = (5 * 10 + 5) * 6;
@@ -919,8 +919,8 @@ describe("blitRgb48leRegion with borderRadius", () => {
     const canvas2 = Buffer.alloc(4 * 4 * 6);
     const source = makeHdrFrame(4, 4, 40000, 30000, 20000);
 
-    blitRgb48leRegion(canvas1, source, 0, 0, 4, 4, 4);
-    blitRgb48leRegion(canvas2, source, 0, 0, 4, 4, 4, undefined, [0, 0, 0, 0]);
+    blitRgb48leRegion(canvas1, source, 0, 0, 4, 4, 4, 4);
+    blitRgb48leRegion(canvas2, source, 0, 0, 4, 4, 4, 4, undefined, [0, 0, 0, 0]);
 
     expect(Buffer.compare(canvas1, canvas2)).toBe(0);
   });
@@ -931,7 +931,7 @@ describe("blitRgb48leRegion with borderRadius", () => {
     const source = makeHdrFrame(10, 10, 60000, 60000, 60000);
     const br: [number, number, number, number] = [3, 3, 3, 3];
 
-    blitRgb48leRegion(canvas, source, 0, 0, 10, 10, 10, 0.5, br);
+    blitRgb48leRegion(canvas, source, 0, 0, 10, 10, 10, 10, 0.5, br);
 
     // Center pixel: opacity 0.5, mask 1.0 → effective 0.5
     // Result: 60000 * 0.5 + 20000 * 0.5 = 40000
