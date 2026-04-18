@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { analyzeAudioSamples, computeBandEdges, decodeAudioToMono } from "./extract.js";
+
+function hasFfmpeg(): boolean {
+  try {
+    execFileSync("ffmpeg", ["-version"], { stdio: "ignore", timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 describe("audio analysis helpers", () => {
   it("computes monotonically increasing logarithmic band edges", () => {
@@ -32,9 +42,12 @@ describe("audio analysis helpers", () => {
     expect(firstBands.some((band) => band > 0.1)).toBe(true);
   });
 
-  it("decodes real fixture audio with ffmpeg", () => {
-    // Uses the narration.wav committed with the audio-reactive-render-compat
-    // producer fixture so the test works in CI and on any checkout.
+  // Uses the narration.wav committed with the audio-reactive-render-compat
+  // producer fixture so the test works on any checkout. Skipped when ffmpeg
+  // isn't on PATH — the CLI runtime check in `doctor` covers the missing-
+  // binary case for real users; tests just need to not hard-fail on CI
+  // runners that haven't installed ffmpeg.
+  it.skipIf(!hasFfmpeg())("decodes real fixture audio with ffmpeg", () => {
     const fixture = join(
       import.meta.dirname,
       "../../../producer/tests/audio-reactive-render-compat/src/narration.wav",

@@ -224,7 +224,14 @@ export function analyzeAudioSamples(
   const freqPerBin = sampleRate / FFT_SIZE;
 
   const rmsValues = new Float32Array(totalFrames);
-  const bandValues = Array.from({ length: totalFrames }, () => new Float32Array(nBands));
+  // Explicit `Float32Array[]` — avoids a TS 5.7+ variance error where the
+  // inferred type from `Array.from(..., () => new Float32Array(n))` narrows
+  // the buffer type parameter and clashes with the `Float32Array` returned
+  // from `computeFftBands` at line 241.
+  const bandValues: Float32Array[] = Array.from(
+    { length: totalFrames },
+    () => new Float32Array(nBands),
+  );
   const bandPeaks = new Float32Array(nBands);
   let peakRms = 0;
 
