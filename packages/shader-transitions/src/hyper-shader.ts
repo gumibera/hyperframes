@@ -83,6 +83,23 @@ function deriveAccentColors(hex: string): AccentColors {
 export function init(config: HyperShaderConfig): GsapTimeline {
   const { bgColor, scenes, transitions } = config;
 
+  if (transitions.length > 0 && scenes.length !== transitions.length + 1) {
+    console.warn(
+      `[HyperShader] Scene/transition count mismatch: ${scenes.length} scenes vs ${transitions.length} transitions (expected scenes = transitions + 1). Some transitions will be skipped.`,
+    );
+  }
+
+  if (typeof window !== "undefined" && (window as any).__hf) {
+    (window as any).__hf.transitions = transitions.map((t: TransitionConfig, i: number) => ({
+      time: t.time,
+      duration: t.duration ?? 1,
+      shader: t.shader,
+      ease: t.ease ?? "none",
+      fromScene: scenes[i],
+      toScene: scenes[i + 1],
+    }));
+  }
+
   const accentColors: AccentColors = config.accentColor
     ? deriveAccentColors(config.accentColor)
     : { accent: [1, 0.6, 0.2], dark: [0.4, 0.15, 0], bright: [1, 0.85, 0.5] };
