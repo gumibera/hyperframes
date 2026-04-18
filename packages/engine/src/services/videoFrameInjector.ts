@@ -432,7 +432,11 @@ export async function queryElementStacking(
         style.display !== "none" &&
         rect.width > 0 &&
         rect.height > 0;
-      const htmlEl = el as HTMLElement;
+      // offsetWidth/offsetHeight only exist on HTMLElement (not on
+      // SVGElement, MathMLElement, etc.). Fall back to the bounding rect
+      // dimensions for non-HTML elements so callers always get sensible
+      // layout numbers.
+      const htmlEl = el instanceof HTMLElement ? el : null;
       results.push({
         id,
         zIndex,
@@ -440,8 +444,8 @@ export async function queryElementStacking(
         y: Math.round(rect.y),
         width: Math.round(rect.width),
         height: Math.round(rect.height),
-        layoutWidth: htmlEl.offsetWidth || Math.round(rect.width),
-        layoutHeight: htmlEl.offsetHeight || Math.round(rect.height),
+        layoutWidth: htmlEl?.offsetWidth || Math.round(rect.width),
+        layoutHeight: htmlEl?.offsetHeight || Math.round(rect.height),
         opacity,
         visible,
         isHdr: hdrSet.has(id),

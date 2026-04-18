@@ -1179,10 +1179,13 @@ export async function executeRenderJob(
 
               try {
                 const { data: domRgba } = decodePng(domPng);
-                // We're inside `if (hasHdrVideo)` which already required `effectiveHdr` to be set,
-                // but be defensive: fall back to HLG so we always feed the encoder a valid transfer.
-                const hdrTransfer: HdrTransfer = effectiveHdr ? effectiveHdr.transfer : "hlg";
-                blitRgba8OverRgb48le(domRgba, canvas, width, height, hdrTransfer);
+                // Invariant: `hasHdrVideo` requires `effectiveHdr` to be set (see line ~870).
+                if (!effectiveHdr) {
+                  throw new Error(
+                    "Invariant violation: effectiveHdr is undefined inside hasHdrVideo branch",
+                  );
+                }
+                blitRgba8OverRgb48le(domRgba, canvas, width, height, effectiveHdr.transfer);
               } catch (err) {
                 log.warn("DOM layer decode/blit failed; skipping overlay for frame", {
                   frameIndex: i,
