@@ -393,7 +393,10 @@ export function applyRenderModeHints(
  * and the transition dual-scene compositing loop to avoid duplicating
  * the frame lookup, fallback, decode, transform, and blit logic.
  */
-function blitHdrVideoLayer(
+type HdrDecodeCacheEntry = { hdrRgb: Buffer; srcW: number; srcH: number };
+type HdrDecodeCache = Map<string, HdrDecodeCacheEntry>;
+
+export function blitHdrVideoLayer(
   canvas: Buffer,
   el: ElementStackingInfo,
   time: number,
@@ -405,6 +408,7 @@ function blitHdrVideoLayer(
   log?: ProducerLogger,
   sourceTransfer?: HdrTransfer,
   targetTransfer?: HdrTransfer,
+  decodeCache?: HdrDecodeCache,
 ): void {
   const frameDir = hdrFrameDirs.get(el.id);
   const startTime = hdrStartTimes.get(el.id);
@@ -428,11 +432,38 @@ function blitHdrVideoLayer(
   }
 
   try {
-    const { data: hdrRgb, width: srcW, height: srcH } = decodePngToRgb48le(readFileSync(framePath));
+    // Decode-once cache for HDR image layers (still images blitted on every frame
+    // they're visible). Caller passes `decodeCache` only for image layers — video
+    // layers would bloat memory because each frame has a unique path. Cache key
+    // includes both transfers because convertTransfer mutates the decoded buffer
+    // in-place. Cached entries are read-only (blit functions don't mutate source).
+    const cacheKey = decodeCache
+      ? `${framePath}::${sourceTransfer ?? "none"}::${targetTransfer ?? "none"}`
+      : undefined;
+    const cached = cacheKey ? decodeCache?.get(cacheKey) : undefined;
 
-    // Convert between HDR transfer functions if source doesn't match output
-    if (sourceTransfer && targetTransfer && sourceTransfer !== targetTransfer) {
-      convertTransfer(hdrRgb, sourceTransfer, targetTransfer);
+    let hdrRgb: Buffer;
+    let srcW: number;
+    let srcH: number;
+
+    if (cached) {
+      hdrRgb = cached.hdrRgb;
+      srcW = cached.srcW;
+      srcH = cached.srcH;
+    } else {
+      const decoded = decodePngToRgb48le(readFileSync(framePath));
+      hdrRgb = decoded.data;
+      srcW = decoded.width;
+      srcH = decoded.height;
+
+      // Convert between HDR transfer functions if source doesn't match output
+      if (sourceTransfer && targetTransfer && sourceTransfer !== targetTransfer) {
+        convertTransfer(hdrRgb, sourceTransfer, targetTransfer);
+      }
+
+      if (cacheKey && decodeCache) {
+        decodeCache.set(cacheKey, { hdrRgb, srcW, srcH });
+      }
     }
 
     const viewportMatrix = parseTransformMatrix(el.transform);
@@ -472,7 +503,7 @@ function blitHdrVideoLayer(
     }
   } catch (err) {
     if (log) {
-      log.debug(`HDR blit failed for ${el.id}`, {
+      log.warn(`HDR blit failed for ${el.id}`, {
         error: err instanceof Error ? err.message : String(err),
       });
     }
@@ -1426,6 +1457,7 @@ export async function executeRenderJob(
                 log,
                 videoTransfers.get(layer.element.id),
                 effectiveHdr?.transfer,
+                hdrImageIds.has(layer.element.id) ? hdrDecodeCache : undefined,
               );
               if (shouldLog) {
                 const after = countNonZeroRgb48(canvas);
@@ -1554,6 +1586,14 @@ export async function executeRenderJob(
         // to avoid ~37 MB allocation per frame in the hot loop.
         const normalCanvas = Buffer.alloc(bufSize);
 
+        // ── Decode-once cache for HDR image layers ──────────────────────────
+        // Render-scoped cache for decoded rgb48le buffers. Only image layers use it
+        // (videos have unique paths per-frame and would bloat memory: 300 frames ×
+        // ~37 MB at 1080p = ~11 GB). Images decode once and are reused for every
+        // visible frame (~150–1800 hits each). Cleared when the render job ends.
+        const hdrDecodeCache: HdrDecodeCache = new Map();
+        const hdrImageIds = new Set(composition.images.map((i) => i.id));
+
         for (let i = 0; i < totalFrames; i++) {
           assertNotAborted();
           const time = i / job.config.fps;
@@ -1632,6 +1672,7 @@ export async function executeRenderJob(
                   log,
                   videoTransfers.get(el.id),
                   effectiveHdr?.transfer,
+                  hdrImageIds.has(el.id) ? hdrDecodeCache : undefined,
                 );
               }
 
