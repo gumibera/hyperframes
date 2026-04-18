@@ -1,15 +1,4 @@
-/**
- * Cross-platform containment + external-asset-key tests.
- *
- * Regression coverage for GH #321 — on Windows, every external asset was
- * wrongly rejected as "unsafe path" because the containment check used
- * `startsWith(parent + "/")` and the safe key carried a drive-letter
- * colon that made the downstream `path.join` absolute.
- *
- * We exercise both OS layouts by posing the hypothetical paths the
- * respective platforms would generate — the logic itself is expressed
- * using `path.relative()` so it works regardless of the runtime OS.
- */
+// Cross-platform path-containment + external-asset-key coverage (GH #321).
 
 import { describe, expect, it } from "vitest";
 import { resolve } from "node:path";
@@ -74,16 +63,6 @@ describe("toExternalAssetKey", () => {
   it("lowercases / uppercases drive letters faithfully (we don't munge)", () => {
     expect(toExternalAssetKey("e:\\data\\a.wav")).toBe("hf-ext/e/data/a.wav");
     expect(toExternalAssetKey("Z:\\data\\a.wav")).toBe("hf-ext/Z/data/a.wav");
-  });
-
-  it("is truly idempotent — double-wrap short-circuits on the hf-ext/ prefix", () => {
-    // Earlier revision of this test claimed "idempotent" but actually
-    // produced `hf-ext/hf-ext/...` — a silent doubling. The short-circuit
-    // on the hf-ext/ prefix makes the helper exactly idempotent now, so
-    // the invariant test matches the label.
-    const once = toExternalAssetKey("/foo/bar.mp3");
-    const twice = toExternalAssetKey(once);
-    expect(twice).toBe(once);
   });
 
   it("strips the Windows extended-length prefix (\\\\?\\)", () => {

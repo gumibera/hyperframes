@@ -245,11 +245,27 @@ function installDebugLogger(logPath: string, log: ProducerLogger = defaultLogger
 }
 
 /**
+ * Copy external assets (files outside projectDir) under `compileDir` so
+ * the file server can serve them. Rejects keys that would escape
+ * `compileDir` — defence in depth against a buggy upstream producing
+ * `..`-bearing keys. Exported for integration testing.
+ */
+export function copyExternalAssets(externalAssets: Map<string, string>, compileDir: string): void {
+  for (const [relativePath, absolutePath] of externalAssets) {
+    const outPath = resolve(join(compileDir, relativePath));
+    if (!isPathInside(outPath, compileDir)) {
+      console.warn(`[Render] Skipping external asset with unsafe path: ${relativePath}`);
+      continue;
+    }
+    mkdirSync(dirname(outPath), { recursive: true });
+    copyFileSync(absolutePath, outPath);
+  }
+}
+
+/**
  * Write compiled HTML and sub-compositions to the work directory.
  */
-// Exported for integration tests. Not part of the stable public API —
-// callers outside this package should use `executeRenderJob` instead.
-export function writeCompiledArtifacts(
+function writeCompiledArtifacts(
   compiled: CompiledComposition,
   workDir: string,
   includeSummary: boolean,
@@ -265,20 +281,7 @@ export function writeCompiledArtifacts(
     writeFileSync(outPath, html, "utf-8");
   }
 
-  // Copy external assets (files outside projectDir) into the compiled directory
-  // so the file server can serve them. The safe-path check uses
-  // `isPathInside()` rather than a hardcoded separator — on Windows,
-  // `compileDir + "/"` never matches because paths use `\\`, which caused
-  // every external asset to be wrongly rejected as "unsafe" (see GH #321).
-  for (const [relativePath, absolutePath] of compiled.externalAssets) {
-    const outPath = resolve(join(compileDir, relativePath));
-    if (!isPathInside(outPath, compileDir)) {
-      console.warn(`[Render] Skipping external asset with unsafe path: ${relativePath}`);
-      continue;
-    }
-    mkdirSync(dirname(outPath), { recursive: true });
-    copyFileSync(absolutePath, outPath);
-  }
+  copyExternalAssets(compiled.externalAssets, compileDir);
 
   if (includeSummary) {
     const summary = {
