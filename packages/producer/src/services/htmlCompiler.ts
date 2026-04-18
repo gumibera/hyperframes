@@ -43,7 +43,7 @@ export interface CompiledComposition {
   subCompositions: Map<string, string>;
   videos: VideoElement[];
   audios: AudioElement[];
-  images: ImageElement[];
+  images?: ImageElement[];
   unresolvedCompositions: UnresolvedElement[];
   /** Assets that resolve outside projectDir. Keys are the path used in HTML, values are absolute filesystem paths. */
   externalAssets: Map<string, string>;
