@@ -371,7 +371,10 @@ export async function queryElementStacking(
       let current: Element | null = node;
       while (current instanceof HTMLElement) {
         chain.push(current);
-        current = current.offsetParent as Element | null;
+        const next: Element | null =
+          (current.offsetParent as Element | null) ?? current.parentElement;
+        if (next === current) break;
+        current = next;
       }
       let mat = new DOMMatrix();
       for (let i = chain.length - 1; i >= 0; i--) {
@@ -380,16 +383,36 @@ export async function queryElementStacking(
         mat = mat.translate(htmlEl.offsetLeft, htmlEl.offsetTop);
         const cs = window.getComputedStyle(htmlEl);
         if (cs.transform && cs.transform !== "none") {
-          // Chrome's computed matrix does NOT include transform-origin.
-          // CSS applies transforms as: translate(origin) * M * translate(-origin).
-          // Parse the origin (defaults to "50% 50%") and wrap the matrix.
           const origin = cs.transformOrigin.split(" ");
-          const ox = parseFloat(origin[0] || "0");
-          const oy = parseFloat(origin[1] || "0");
-          mat = mat.translate(ox, oy).multiply(new DOMMatrix(cs.transform)).translate(-ox, -oy);
+          const ox = resolveLength(origin[0] ?? "0", htmlEl.offsetWidth);
+          const oy = resolveLength(origin[1] ?? "0", htmlEl.offsetHeight);
+          try {
+            const t = new DOMMatrix(cs.transform);
+            if (
+              Number.isFinite(t.a) &&
+              Number.isFinite(t.b) &&
+              Number.isFinite(t.c) &&
+              Number.isFinite(t.d) &&
+              Number.isFinite(t.e) &&
+              Number.isFinite(t.f)
+            ) {
+              mat = mat.translate(ox, oy).multiply(t).translate(-ox, -oy);
+            }
+          } catch {
+            // DOMMatrix constructor throws on malformed input — skip ancestor.
+          }
         }
       }
       return mat.toString();
+    }
+
+    function resolveLength(value: string, basis: number): number {
+      if (value.endsWith("%")) {
+        const pct = parseFloat(value) / 100;
+        return Number.isFinite(pct) ? pct * basis : 0;
+      }
+      const n = parseFloat(value);
+      return Number.isFinite(n) ? n : 0;
     }
 
     for (const el of elements) {
