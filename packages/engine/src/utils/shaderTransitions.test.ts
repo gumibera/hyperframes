@@ -406,7 +406,11 @@ describe("all transitions smoke test", () => {
         expect(fn).toBeDefined();
         fn?.(from, to, out, 8, 8, 0);
         const o = P0_PIXEL[name] ?? (4 * 8 + 4) * 6;
-        expect(out.readUInt16LE(o)).toBeGreaterThan(25000);
+        // At progress=0 the result should be the `from` pixel (R=40000).
+        // The midpoint between from (40000) and to (10000) is 25000, so a
+        // tighter threshold catches transitions that are halfway-blended
+        // when they should be fully on the `from` side.
+        expect(out.readUInt16LE(o)).toBeGreaterThan(35000);
       });
       it("at progress=1, center pixel ≈ to", () => {
         const from = makeBuffer(8, 8, 40000, 30000, 20000);
@@ -416,7 +420,10 @@ describe("all transitions smoke test", () => {
         expect(fn).toBeDefined();
         fn?.(from, to, out, 8, 8, 1);
         const o = (4 * 8 + 4) * 6;
-        expect(out.readUInt16LE(o)).toBeLessThan(25000);
+        // At progress=1 the result should be the `to` pixel (R=10000).
+        // Tighter than the previous halfway midpoint (25000) so that any
+        // transition that is still half-blended will fail.
+        expect(out.readUInt16LE(o)).toBeLessThan(15000);
       });
     });
   }

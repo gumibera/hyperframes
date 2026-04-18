@@ -65,6 +65,15 @@ export interface HfTransitionMeta {
  * GSAP, Framer Motion, CSS animations, Three.js — anything works as long
  * as `seek()` produces deterministic visual output for a given time.
  */
+export interface HfTransitionMeta {
+  time: number;
+  duration: number;
+  shader: string;
+  ease: string;
+  fromScene: string;
+  toScene: string;
+}
+
 export interface HfProtocol {
   /** Total duration of the composition in seconds */
   duration: number;
@@ -72,7 +81,7 @@ export interface HfProtocol {
   seek(time: number): void;
   /** Optional: media elements the engine should handle */
   media?: HfMediaElement[];
-  /** Optional: shader transition metadata for HDR-aware compositing */
+  /** Optional: shader transition metadata, populated by @hyperframes/shader-transitions */
   transitions?: HfTransitionMeta[];
 }
 

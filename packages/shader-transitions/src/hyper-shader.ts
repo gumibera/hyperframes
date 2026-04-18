@@ -83,21 +83,57 @@ function deriveAccentColors(hex: string): AccentColors {
 export function init(config: HyperShaderConfig): GsapTimeline {
   const { bgColor, scenes, transitions } = config;
 
-  if (transitions.length > 0 && scenes.length !== transitions.length + 1) {
-    console.warn(
-      `[HyperShader] Scene/transition count mismatch: ${scenes.length} scenes vs ${transitions.length} transitions (expected scenes = transitions + 1). Some transitions will be skipped.`,
+  if (scenes.length !== transitions.length + 1) {
+    throw new Error(
+      `[HyperShader] init(): expected scenes.length === transitions.length + 1, got scenes=${scenes.length}, transitions=${transitions.length}`,
     );
   }
 
-  if (typeof window !== "undefined" && (window as any).__hf) {
-    (window as any).__hf.transitions = transitions.map((t: TransitionConfig, i: number) => ({
-      time: t.time,
-      duration: t.duration ?? 1,
-      shader: t.shader,
-      ease: t.ease ?? "none",
-      fromScene: scenes[i],
-      toScene: scenes[i + 1],
-    }));
+  // Verify each scene id resolves to an element with the `.scene` class.
+  // Capture and compositing later assume both — without this guard the
+  // texture map gets stale ids and transitions silently no-op.
+  if (typeof document !== "undefined") {
+    const missing: string[] = [];
+    const notScene: string[] = [];
+    for (const id of scenes) {
+      const el = document.getElementById(id);
+      if (!el) {
+        missing.push(id);
+      } else if (!el.classList.contains("scene")) {
+        notScene.push(id);
+      }
+    }
+    if (missing.length > 0) {
+      throw new Error(`[HyperShader] init(): scene ids not found in DOM: ${missing.join(", ")}`);
+    }
+    if (notScene.length > 0) {
+      throw new Error(
+        `[HyperShader] init(): elements found but missing .scene class: ${notScene.join(", ")}`,
+      );
+    }
+  }
+
+  interface HfTransitionMeta {
+    time: number;
+    duration: number;
+    shader: string;
+    ease: string;
+    fromScene: string;
+    toScene: string;
+  }
+  type HfWindowWrite = { __hf?: { transitions?: HfTransitionMeta[] } };
+  if (typeof window !== "undefined") {
+    const hfWin = window as unknown as HfWindowWrite;
+    if (hfWin.__hf) {
+      hfWin.__hf.transitions = transitions.map((t: TransitionConfig, i: number) => ({
+        time: t.time,
+        duration: t.duration ?? 1,
+        shader: t.shader,
+        ease: t.ease ?? "none",
+        fromScene: scenes[i] ?? "",
+        toScene: scenes[i + 1] ?? "",
+      }));
+    }
   }
 
   const accentColors: AccentColors = config.accentColor
