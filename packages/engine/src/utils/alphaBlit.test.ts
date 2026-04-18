@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { deflateSync } from "zlib";
 import {
   decodePng,
+  decodePngToRgb48le,
   blitRgba8OverRgb48le,
   blitRgb48leRegion,
   blitRgb48leAffine,
@@ -157,6 +158,294 @@ describe("decodePng", () => {
   });
 });
 
+// ── PNG filter coverage ─────────────────────────────────────────────────────
+//
+// `makePng` only exercises filter type 0 (None). libpng (and Chrome) pick
+// other filter types heuristically; these tests build raw IDAT bytes with each
+// filter type so the defilter logic gets actual coverage.
+
+const paethRef = (a: number, b: number, c: number): number => {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  if (pa <= pb && pa <= pc) return a;
+  if (pb <= pc) return b;
+  return c;
+};
+
+/**
+ * Build a PNG with a specific filter type applied to every row. Encodes a
+ * 3×2 RGBA image with unique per-channel values so any cross-channel mistake
+ * in the defilter loop shows up as an assertion failure.
+ *
+ * @param filterType  0=None, 1=Sub, 2=Up, 3=Average, 4=Paeth
+ */
+function makePngWithFilter(filterType: 0 | 1 | 2 | 3 | 4): {
+  png: Buffer;
+  expectedPixels: number[];
+} {
+  const width = 3;
+  const height = 2;
+  const bpp = 4; // RGBA, 8-bit
+  const stride = width * bpp;
+
+  // Unique pixels so any defilter bug is observable
+  const expectedPixels = [
+    10, 20, 30, 255, 50, 60, 70, 255, 90, 100, 110, 255, 130, 140, 150, 255, 170, 180, 190, 255,
+    210, 220, 230, 255,
+  ];
+
+  const filtered: number[] = [];
+  const prev = new Uint8Array(stride);
+  for (let y = 0; y < height; y++) {
+    filtered.push(filterType);
+    const rowStart = y * stride;
+    const curr = new Uint8Array(stride);
+    for (let x = 0; x < stride; x++) curr[x] = expectedPixels[rowStart + x] ?? 0;
+
+    const out = new Uint8Array(stride);
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? (curr[x - bpp] ?? 0) : 0;
+      const b = prev[x] ?? 0;
+      const c = x >= bpp ? (prev[x - bpp] ?? 0) : 0;
+      const cv = curr[x] ?? 0;
+      switch (filterType) {
+        case 0:
+          out[x] = cv;
+          break;
+        case 1:
+          out[x] = (cv - a) & 0xff;
+          break;
+        case 2:
+          out[x] = (cv - b) & 0xff;
+          break;
+        case 3:
+          out[x] = (cv - Math.floor((a + b) / 2)) & 0xff;
+          break;
+        case 4:
+          out[x] = (cv - paethRef(a, b, c)) & 0xff;
+          break;
+      }
+    }
+    for (let x = 0; x < stride; x++) filtered.push(out[x] ?? 0);
+    prev.set(curr);
+  }
+
+  const ihdr = Buffer.allocUnsafe(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  const idat = deflateSync(Buffer.from(filtered));
+
+  return {
+    png: Buffer.concat([
+      PNG_SIG,
+      makeChunk("IHDR", ihdr),
+      makeChunk("IDAT", idat),
+      makeChunk("IEND", Buffer.alloc(0)),
+    ]),
+    expectedPixels,
+  };
+}
+
+describe("decodePng filter coverage", () => {
+  it.each([
+    [0, "None"],
+    [1, "Sub"],
+    [2, "Up"],
+    [3, "Average"],
+    [4, "Paeth"],
+  ] as const)("round-trips a 3×2 PNG with filter type %d (%s)", (filterType) => {
+    const { png, expectedPixels } = makePngWithFilter(filterType);
+    const { width, height, data } = decodePng(png);
+    expect(width).toBe(3);
+    expect(height).toBe(2);
+    for (let i = 0; i < expectedPixels.length; i++) {
+      expect(data[i]).toBe(expectedPixels[i]);
+    }
+  });
+
+  it("decodes a PNG split across multiple IDAT chunks", () => {
+    // Build a normal single-IDAT PNG, then split its IDAT payload in half.
+    // Chrome routinely emits multi-chunk IDATs (default ~8KB segment size).
+    const { png: singleIdatPng, expectedPixels } = makePngWithFilter(0);
+
+    // Walk chunks to find IDAT
+    let pos = 8;
+    let ihdrChunk: Buffer | null = null;
+    let idatPayload: Buffer | null = null;
+    while (pos + 12 <= singleIdatPng.length) {
+      const len = singleIdatPng.readUInt32BE(pos);
+      const type = singleIdatPng.toString("ascii", pos + 4, pos + 8);
+      const data = singleIdatPng.subarray(pos + 8, pos + 8 + len);
+      const fullChunk = singleIdatPng.subarray(pos, pos + 12 + len);
+      if (type === "IHDR") ihdrChunk = Buffer.from(fullChunk);
+      if (type === "IDAT") idatPayload = Buffer.from(data);
+      if (type === "IEND") break;
+      pos += 12 + len;
+    }
+    expect(ihdrChunk).not.toBeNull();
+    expect(idatPayload).not.toBeNull();
+    if (!ihdrChunk || !idatPayload) return;
+
+    // Split the IDAT payload roughly in half across two IDAT chunks
+    const split = Math.floor(idatPayload.length / 2);
+    const part1 = idatPayload.subarray(0, split);
+    const part2 = idatPayload.subarray(split);
+
+    const multiIdatPng = Buffer.concat([
+      PNG_SIG,
+      ihdrChunk,
+      makeChunk("IDAT", Buffer.from(part1)),
+      makeChunk("IDAT", Buffer.from(part2)),
+      makeChunk("IEND", Buffer.alloc(0)),
+    ]);
+
+    const { data } = decodePng(multiIdatPng);
+    for (let i = 0; i < expectedPixels.length; i++) {
+      expect(data[i]).toBe(expectedPixels[i]);
+    }
+  });
+
+  it("throws on Adam7-interlaced PNGs", () => {
+    const ihdr = Buffer.allocUnsafe(13);
+    ihdr.writeUInt32BE(1, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 6;
+    ihdr[10] = 0;
+    ihdr[11] = 0;
+    ihdr[12] = 1; // Adam7 interlace
+    const idat = deflateSync(Buffer.from([0, 0, 0, 0, 255]));
+    const png = Buffer.concat([
+      PNG_SIG,
+      makeChunk("IHDR", ihdr),
+      makeChunk("IDAT", idat),
+      makeChunk("IEND", Buffer.alloc(0)),
+    ]);
+    expect(() => decodePng(png)).toThrow("interlace");
+  });
+
+  it("throws on PNGs missing the IHDR chunk", () => {
+    const idat = deflateSync(Buffer.from([0, 0, 0, 0, 255]));
+    const png = Buffer.concat([
+      PNG_SIG,
+      makeChunk("IDAT", idat),
+      makeChunk("IEND", Buffer.alloc(0)),
+    ]);
+    expect(() => decodePng(png)).toThrow("IHDR");
+  });
+});
+
+// ── decodePngToRgb48le tests ────────────────────────────────────────────────
+//
+// FFmpeg emits 16-bit RGB PNGs (big-endian on the wire). The decoder swaps to
+// little-endian for the streaming HDR encoder. These tests cover the byte-order
+// swap, precision preservation, and multi-pixel row-major layout that the
+// 8-bit suite cannot exercise.
+
+/**
+ * Build a 16-bit RGB PNG (colorType 2, bitDepth 16). PNG stores each 16-bit
+ * sample as two big-endian bytes; the decoder must swap them to LE.
+ *
+ * @param pixels  Flat array of [r16, g16, b16, r16, g16, b16, ...] values
+ *                (one entry per channel sample, 0–65535).
+ */
+function makePng16(width: number, height: number, pixels: number[]): Buffer {
+  const ihdr = Buffer.allocUnsafe(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 16; // bit depth
+  ihdr[9] = 2; // color type RGB
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  const stride = width * 6; // 3 channels × 2 bytes
+  const filtered: number[] = [];
+  for (let y = 0; y < height; y++) {
+    filtered.push(0); // filter type None
+    for (let x = 0; x < width; x++) {
+      const baseSample = (y * width + x) * 3;
+      for (let ch = 0; ch < 3; ch++) {
+        const v = pixels[baseSample + ch] ?? 0;
+        filtered.push((v >> 8) & 0xff); // high byte (BE on wire)
+        filtered.push(v & 0xff); // low byte
+      }
+    }
+    void stride;
+  }
+
+  const idat = deflateSync(Buffer.from(filtered));
+  return Buffer.concat([
+    PNG_SIG,
+    makeChunk("IHDR", ihdr),
+    makeChunk("IDAT", idat),
+    makeChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+describe("decodePngToRgb48le", () => {
+  it("swaps PNG big-endian samples to little-endian rgb48le", () => {
+    // Pick a value where high and low bytes differ so a missed swap is observable
+    const v = 0x1234;
+    const png = makePng16(1, 1, [v, v, v]);
+    const { width, height, data } = decodePngToRgb48le(png);
+    expect(width).toBe(1);
+    expect(height).toBe(1);
+    expect(data.length).toBe(6);
+    expect(data.readUInt16LE(0)).toBe(v);
+    expect(data.readUInt16LE(2)).toBe(v);
+    expect(data.readUInt16LE(4)).toBe(v);
+    // Spot-check raw byte order: low byte first, then high
+    expect(data[0]).toBe(0x34);
+    expect(data[1]).toBe(0x12);
+  });
+
+  it("preserves full 16-bit precision (no 8-bit truncation)", () => {
+    // A value whose low byte alone would be misleading — proves both bytes survive
+    const r = 0xabcd;
+    const g = 0xfedc;
+    const b = 0x0102;
+    const png = makePng16(1, 1, [r, g, b]);
+    const { data } = decodePngToRgb48le(png);
+    expect(data.readUInt16LE(0)).toBe(r);
+    expect(data.readUInt16LE(2)).toBe(g);
+    expect(data.readUInt16LE(4)).toBe(b);
+  });
+
+  it("decodes a 2×2 image with row-major layout", () => {
+    const pixels = [
+      // row 0
+      1000, 2000, 3000, 4000, 5000, 6000,
+      // row 1
+      7000, 8000, 9000, 10000, 11000, 12000,
+    ];
+    const png = makePng16(2, 2, pixels);
+    const { width, height, data } = decodePngToRgb48le(png);
+    expect(width).toBe(2);
+    expect(height).toBe(2);
+    expect(data.length).toBe(2 * 2 * 6);
+
+    for (let i = 0; i < 4; i++) {
+      expect(data.readUInt16LE(i * 6 + 0)).toBe(pixels[i * 3 + 0]);
+      expect(data.readUInt16LE(i * 6 + 2)).toBe(pixels[i * 3 + 1]);
+      expect(data.readUInt16LE(i * 6 + 4)).toBe(pixels[i * 3 + 2]);
+    }
+  });
+
+  it("rejects 8-bit PNGs with a clear error", () => {
+    const png = makePng(1, 1, [255, 0, 0, 255]); // 8-bit RGBA
+    expect(() => decodePngToRgb48le(png)).toThrow(/bit depth/);
+  });
+});
+
 // ── blitRgba8OverRgb48le tests ───────────────────────────────────────────────
 
 /** Build an rgb48le buffer with a single solid color (16-bit per channel) */
@@ -254,6 +543,29 @@ describe("blitRgba8OverRgb48le", () => {
     // sRGB 200 → HLG value, blended ~50/50 with canvas red=32000
     // Result should be higher than 32000 (pulled up by the HLG-converted DOM value)
     expect(canvas.readUInt16LE(0)).toBeGreaterThan(32000);
+  });
+
+  it("α=254 still blends (no fast-path overwrite at the opaque boundary)", () => {
+    // Reviewer feedback: confirm the alpha branch is taken for any α < 255.
+    // α=254 should *almost* match α=255 but still leave a sliver of the canvas
+    // value visible — proving we didn't accidentally fast-path α >= 254.
+    const canvasOpaque = makeHdrFrame(1, 1, 0, 0, 0);
+    const domOpaque = makeDomRgba(1, 1, 255, 255, 255, 255);
+    blitRgba8OverRgb48le(domOpaque, canvasOpaque, 1, 1);
+    const opaqueR = canvasOpaque.readUInt16LE(0);
+
+    const canvasNear = makeHdrFrame(1, 1, 1000, 1000, 1000);
+    const domNear = makeDomRgba(1, 1, 255, 255, 255, 254);
+    blitRgba8OverRgb48le(domNear, canvasNear, 1, 1);
+    const nearR = canvasNear.readUInt16LE(0);
+
+    // α=255 over black gave us the pure HLG-of-white value
+    expect(opaqueR).toBe(65535);
+    // α=254 over (1000, 1000, 1000) must be *strictly less* than α=255 over black —
+    // if the implementation short-circuits at α >= 254 it would also return 65535.
+    expect(nearR).toBeLessThan(opaqueR);
+    // …but it should still be very close (within ~1% of full white)
+    expect(nearR).toBeGreaterThan(64000);
   });
 
   it("handles a 2x2 frame correctly pixel-by-pixel", () => {
