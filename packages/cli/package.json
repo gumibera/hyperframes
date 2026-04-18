@@ -17,11 +17,11 @@
   "scripts": {
     "test": "vitest run",
     "dev": "tsx src/cli.ts",
-    "build": "bun run build:fonts && bun run build:studio && tsup && bun run build:runtime && bun run build:copy",
+    "build": "bun run build:fonts && tsup && bun run build:runtime && bun run build:copy",
     "build:fonts": "cd ../producer && tsx scripts/generate-font-data.ts",
-    "build:studio": "cd ../studio && bun run build",
+    "//build:studio": "Intentionally removed — the root `bun run build` serializes studio first, so nesting another studio build here only creates a race on ../studio/dist.",
     "build:runtime": "tsx scripts/build-runtime.ts",
-    "build:copy": "mkdir -p dist/studio dist/docs dist/templates dist/skills dist/docker && cp -r ../studio/dist/* dist/studio/ && cp -r src/templates/blank src/templates/_shared dist/templates/ && cp -r ../../skills/hyperframes ../../skills/hyperframes-cli ../../skills/gsap dist/skills/ && cp src/docker/Dockerfile.render dist/docker/ && (cp src/docs/*.md dist/docs/ 2>/dev/null || true)",
+    "build:copy": "bash -e scripts/build-copy.sh",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
