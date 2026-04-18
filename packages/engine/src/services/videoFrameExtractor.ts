@@ -114,13 +114,15 @@ export function parseImageElements(html: string): ImageElement[] {
     const src = el.getAttribute("src");
     if (!src) continue;
     const id = el.getAttribute("id") || `hf-img-${autoIdCounter++}`;
-    if (!el.getAttribute("id")) {
-      el.setAttribute("id", id);
-    }
     const start = parseFloat(el.getAttribute("data-start") ?? "0");
     const duration = parseFloat(el.getAttribute("data-duration") ?? "0");
-    if (duration <= 0) continue;
-    images.push({ id, src, start, end: start + duration });
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    images.push({
+      id,
+      src,
+      start: Number.isFinite(start) ? start : 0,
+      end: (Number.isFinite(start) ? start : 0) + duration,
+    });
   }
   return images;
 }

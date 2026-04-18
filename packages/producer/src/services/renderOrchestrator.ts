@@ -650,7 +650,7 @@ export async function executeRenderJob(
       duration: compiled.staticDuration,
       videos: compiled.videos,
       audios: compiled.audios,
-      images: compiled.images,
+      images: compiled.images ?? [],
       width: compiled.width,
       height: compiled.height,
     };
@@ -922,7 +922,9 @@ export async function executeRenderJob(
       );
     }
 
-    // Probe images for HDR color space (also gated by --hdr)
+    // Probe images for HDR color space (also gated by --hdr). Tolerates per-image
+    // probe failures (corrupt file, unsupported format) so one bad image doesn't
+    // abort the render — mirrors the video probe path.
     if (job.config.hdr && composition.images.length > 0) {
       await Promise.all(
         composition.images.map(async (img) => {
@@ -933,11 +935,25 @@ export async function executeRenderJob(
               : join(projectDir, imgPath);
             imgPath = fromCompiled;
           }
-          if (!existsSync(imgPath)) return;
-          const meta = await extractVideoMetadata(imgPath);
-          if (isHdrColorSpace(meta.colorSpace)) {
-            nativeHdrVideoIds.add(img.id);
-            videoTransfers.set(img.id, detectTransfer(meta.colorSpace));
+          if (!existsSync(imgPath)) {
+            log.warn(`HDR probe skipped — image not found: ${img.src} (id=${img.id})`);
+            return;
+          }
+          try {
+            const meta = await extractVideoMetadata(imgPath);
+            if (isHdrColorSpace(meta.colorSpace)) {
+              if (meta.fps > 0 || meta.durationSeconds > 0.05) {
+                log.warn(
+                  `HDR image ${img.id} appears animated (fps=${meta.fps}, duration=${meta.durationSeconds.toFixed(3)}s). Only the first frame will be used — HDR <img> currently supports still images only.`,
+                );
+              }
+              nativeHdrVideoIds.add(img.id);
+              videoTransfers.set(img.id, detectTransfer(meta.colorSpace));
+            }
+          } catch (err) {
+            log.warn(
+              `HDR probe failed for ${img.id}: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         }),
       );
@@ -1193,20 +1209,20 @@ export async function executeRenderJob(
       // visible at t=0 (e.g., data-start > 0) need to be queried at their own
       // start time so their layout dimensions are available.
       const hdrExtractionDims = new Map<string, { width: number; height: number }>();
-      const hdrVideoStartTimes = new Map<string, number>();
+      const hdrLayerStartTimes = new Map<string, number>();
       for (const v of composition.videos) {
         if (hdrVideoIds.includes(v.id)) {
-          hdrVideoStartTimes.set(v.id, v.start);
+          hdrLayerStartTimes.set(v.id, v.start);
         }
       }
       for (const img of composition.images) {
         if (nativeHdrVideoIds.has(img.id)) {
-          hdrVideoStartTimes.set(img.id, img.start);
+          hdrLayerStartTimes.set(img.id, img.start);
         }
       }
 
       // Collect unique start times to minimize seek operations
-      const uniqueStartTimes = [...new Set(hdrVideoStartTimes.values())].sort((a, b) => a - b);
+      const uniqueStartTimes = [...new Set(hdrLayerStartTimes.values())].sort((a, b) => a - b);
       for (const seekTime of uniqueStartTimes) {
         await domSession.page.evaluate((t: number) => {
           if (window.__hf && typeof window.__hf.seek === "function") window.__hf.seek(t);
@@ -1276,7 +1292,7 @@ export async function executeRenderJob(
           const fromCompiled = join(compiledDir, imgPath);
           imgPath = existsSync(fromCompiled) ? fromCompiled : join(projectDir, imgPath);
         }
-        const frameDir = join(framesDir, `hdr_${img.id}`);
+        const frameDir = join(framesDir, `hdr_img_${img.id}`);
         mkdirSync(frameDir, { recursive: true });
         const dims = hdrExtractionDims.get(img.id) ?? { width, height };
         const imgResult = await runFfmpeg(
@@ -1297,9 +1313,9 @@ export async function executeRenderJob(
           { signal: abortSignal },
         );
         if (!imgResult.success) {
-          log.debug(`HDR image extraction failed for ${img.id}`, {
-            error: imgResult.stderr.slice(-200),
-          });
+          log.warn(`HDR image extraction failed for ${img.id}: ${imgResult.stderr.slice(-200)}`);
+          nativeHdrVideoIds.delete(img.id);
+          continue;
         }
         hdrFrameDirs.set(img.id, frameDir);
       }
@@ -1404,7 +1420,7 @@ export async function executeRenderJob(
                 time,
                 job.config.fps,
                 hdrFrameDirs,
-                hdrVideoStartTimes,
+                hdrLayerStartTimes,
                 width,
                 height,
                 log,
@@ -1610,7 +1626,7 @@ export async function executeRenderJob(
                   time,
                   job.config.fps,
                   hdrFrameDirs,
-                  hdrVideoStartTimes,
+                  hdrLayerStartTimes,
                   width,
                   height,
                   log,
