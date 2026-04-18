@@ -64,9 +64,11 @@ import {
   decodePng,
   decodePngToRgb48le,
   blitRgba8OverRgb48le,
+  blitRgb48leRegion,
   hideVideoElements,
   showVideoElements,
-  queryVideoElementBounds,
+  queryElementStacking,
+  groupIntoLayers,
 } from "@hyperframes/engine";
 import { join, dirname, resolve } from "path";
 import { randomUUID } from "crypto";
@@ -923,16 +925,13 @@ export async function executeRenderJob(
 
     job.framesRendered = 0;
 
-    // ── HDR two-pass compositing path ────────────────────────────────────
-    // Pass 1: Capture DOM layer with alpha (Chrome, video elements hidden)
-    // Pass 2: Extract native HLG frames from video sources (FFmpeg)
-    // Composite: overlay DOM on top of HDR video in FFmpeg per-frame
-    //
-    // This preserves HDR luminance from video sources while correctly
-    // compositing DOM content (text, graphics, SDR overlays) on top.
-    // Video position is applied via queried bounds; transform/opacity lands in a later PR.
+    // ── HDR z-ordered multi-layer compositing ──────────────────────────────
+    // Per frame: query all elements' z-order, group into layers (DOM or HDR),
+    // composite bottom-to-top in Node.js memory. HDR layers use native
+    // pre-extracted HLG pixels; DOM layers use Chrome alpha screenshots
+    // with sRGB→HLG conversion. Video position/opacity applied via queried bounds.
     if (hasHdrVideo) {
-      log.info("[Render] HDR two-pass: DOM layer + native HLG video compositing");
+      log.info("[Render] HDR layered composite: z-ordered DOM + native HLG video layers");
 
       // Use NATIVE HDR IDs (probed before SDR→HDR conversion) so only originally-HDR
       // videos are hidden + extracted natively. SDR videos stay in the DOM screenshot
@@ -1035,72 +1034,114 @@ export async function executeRenderJob(
             if (window.__hf && typeof window.__hf.seek === "function") window.__hf.seek(t);
           }, time);
 
-          // Inject SDR video frames into the DOM (the hook handles all videos,
-          // but hideVideoElements below will hide the HDR ones before screenshot)
+          // Inject SDR video frames into the DOM
           if (beforeCaptureHook) {
             await beforeCaptureHook(domSession.page, time);
           }
 
-          // Query video element positions BEFORE hiding (so GSAP has already moved them)
-          const bounds = await queryVideoElementBounds(domSession.page, hdrVideoIds);
-          const activeBounds = bounds.filter((b) => b.visible);
+          // Query ALL timed elements for z-order analysis
+          const stackingInfo = await queryElementStacking(domSession.page, nativeHdrVideoIds);
 
-          // Pass 1: Hide HDR videos (and their injected frames), capture DOM with alpha.
-          // SDR video frames remain visible in the screenshot.
-          await hideVideoElements(domSession.page, hdrVideoIds);
-          const domPng = await captureAlphaPng(domSession.page, width, height);
-          await showVideoElements(domSession.page, hdrVideoIds);
+          // Group into z-ordered layers
+          const layers = groupIntoLayers(stackingInfo);
 
-          // Pass 2: Read pre-extracted HDR frame and composite with DOM layer
-          const activeVideoId = activeBounds[0]?.videoId ?? hdrVideoIds[0];
-          const video = composition.videos.find((v) => v.id === activeVideoId);
-          const frameDir = activeVideoId ? hdrFrameDirs.get(activeVideoId) : undefined;
-
-          let composited: Buffer;
-          if (video && frameDir) {
-            // Frame index within the video (1-based for FFmpeg image2 output).
-            // Clamp against the highest extracted frame in the directory to
-            // avoid issuing an existsSync per requested time when the
-            // composition outlives the source clip.
-            const rawIndex = Math.round((time - video.start) * job.config.fps) + 1;
-            const maxIndex = getMaxFrameIndex(frameDir);
-            const inBounds = rawIndex >= 1 && (maxIndex === 0 || rawIndex <= maxIndex);
-            const framePath = inBounds
-              ? join(frameDir, `frame_${String(rawIndex).padStart(4, "0")}.png`)
-              : null;
-
-            let hdrRgb: Buffer;
-            if (framePath !== null && existsSync(framePath)) {
-              try {
-                hdrRgb = decodePngToRgb48le(readFileSync(framePath)).data;
-              } catch (err) {
-                log.warn("Failed to decode pre-extracted HDR frame; using black", {
-                  framePath,
-                  error: err instanceof Error ? err.message : String(err),
-                });
-                hdrRgb = Buffer.alloc(width * height * 6);
-              }
-            } else {
-              hdrRgb = Buffer.alloc(width * height * 6);
-            }
-
-            // In-memory alpha composite: DOM PNG over HDR rgb48le (in-place)
-            try {
-              const { data: domRgba } = decodePng(domPng);
-              const hdrTransfer = effectiveHdr ? effectiveHdr.transfer : ("hlg" as HdrTransfer);
-              blitRgba8OverRgb48le(domRgba, hdrRgb, width, height, hdrTransfer);
-            } catch (err) {
-              log.warn("DOM layer decode/blit failed; skipping overlay for frame", {
-                frameIndex: i,
-                error: err instanceof Error ? err.message : String(err),
-              });
-            }
-            composited = hdrRgb;
-          } else {
-            composited = Buffer.alloc(width * height * 6);
+          if (i % 30 === 0) {
+            const hdrEl = stackingInfo.find((e) => e.isHdr);
+            const hdrInLayers = layers.some((l) => l.type === "hdr");
+            log.debug("[Render] HDR layer composite frame", {
+              frame: i,
+              time: time.toFixed(2),
+              hdrElement: hdrEl
+                ? { z: hdrEl.zIndex, visible: hdrEl.visible, width: hdrEl.width }
+                : null,
+              hdrLayerPresent: hdrInLayers,
+              layerCount: layers.length,
+            });
           }
 
-          hdrEncoder.writeFrame(composited);
+          // Start with a black canvas
+          const canvas = Buffer.alloc(width * height * 6);
+
+          // Composite layers bottom-to-top
+          for (const layer of layers) {
+            if (layer.type === "hdr") {
+              const el = layer.element;
+              const frameDir = hdrFrameDirs.get(el.id);
+              const video = composition.videos.find((v) => v.id === el.id);
+              if (!frameDir || !video) continue;
+
+              // Frame index within the video (1-based for FFmpeg image2 output).
+              // Clamp against the highest extracted frame in the directory to
+              // avoid issuing an existsSync per requested time when the
+              // composition outlives the source clip.
+              const videoFrameIndex = Math.round((time - video.start) * job.config.fps) + 1;
+              const maxIndex = getMaxFrameIndex(frameDir);
+              const inBounds =
+                videoFrameIndex >= 1 && (maxIndex === 0 || videoFrameIndex <= maxIndex);
+              const framePath = inBounds
+                ? join(frameDir, `frame_${String(videoFrameIndex).padStart(4, "0")}.png`)
+                : null;
+
+              if (framePath !== null && existsSync(framePath)) {
+                try {
+                  const hdrRgb = decodePngToRgb48le(readFileSync(framePath)).data;
+                  blitRgb48leRegion(
+                    canvas,
+                    hdrRgb,
+                    el.x,
+                    el.y,
+                    el.width,
+                    el.height,
+                    width,
+                    height,
+                    el.opacity < 0.999 ? el.opacity : undefined,
+                  );
+                } catch (err) {
+                  log.warn("HDR layer decode/blit failed; skipping layer for frame", {
+                    frameIndex: i,
+                    videoId: el.id,
+                    framePath,
+                    error: err instanceof Error ? err.message : String(err),
+                  });
+                }
+              }
+            } else {
+              // DOM layer: hide elements NOT in this layer + all HDR videos.
+              // All elements (including invisible SDR videos) are in the stacking
+              // info so their injected <img> replacements get hidden from other layers.
+              const allElementIds = stackingInfo.map((e) => e.id);
+              const layerIds = new Set(layer.elementIds);
+              const hideIds = allElementIds.filter(
+                (id) => !layerIds.has(id) || nativeHdrVideoIds.has(id),
+              );
+
+              await hideVideoElements(domSession.page, hideIds);
+              const domPng = await captureAlphaPng(domSession.page, width, height);
+              await showVideoElements(domSession.page, hideIds);
+
+              // Re-seek GSAP to restore animated properties (opacity, transforms)
+              // that showVideoElements clobbered via removeProperty.
+              await domSession.page.evaluate((t: number) => {
+                if (window.__hf && typeof window.__hf.seek === "function") window.__hf.seek(t);
+              }, time);
+
+              try {
+                const { data: domRgba } = decodePng(domPng);
+                // We're inside `if (hasHdrVideo)` which already required `effectiveHdr` to be set,
+                // but be defensive: fall back to HLG so we always feed the encoder a valid transfer.
+                const hdrTransfer: HdrTransfer = effectiveHdr ? effectiveHdr.transfer : "hlg";
+                blitRgba8OverRgb48le(domRgba, canvas, width, height, hdrTransfer);
+              } catch (err) {
+                log.warn("DOM layer decode/blit failed; skipping overlay for frame", {
+                  frameIndex: i,
+                  layerIds: layer.elementIds,
+                  error: err instanceof Error ? err.message : String(err),
+                });
+              }
+            }
+          }
+
+          hdrEncoder.writeFrame(canvas);
 
           job.framesRendered = i + 1;
           if ((i + 1) % 10 === 0 || i + 1 === job.totalFrames!) {
