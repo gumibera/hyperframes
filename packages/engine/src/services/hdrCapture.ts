@@ -304,7 +304,11 @@ export async function launchHdrBrowser(
   try {
     const mod = await import("puppeteer" as string);
     ppt = mod.default;
-  } catch {
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException | undefined)?.code;
+    if (code !== "ERR_MODULE_NOT_FOUND" && code !== "MODULE_NOT_FOUND") {
+      throw err;
+    }
     const mod = await import("puppeteer-core");
     ppt = mod.default;
   }

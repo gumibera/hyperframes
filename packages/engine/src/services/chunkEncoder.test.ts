@@ -285,7 +285,7 @@ describe("buildEncoderArgs HDR color space", () => {
   const baseOptions = { fps: 30, width: 1920, height: 1080 };
   const inputArgs = ["-framerate", "30", "-i", "frames/%04d.png"];
 
-  it("uses bt709 color tags for HDR output (Chrome captures sRGB)", () => {
+  it("keeps bt709 color tags when HDR flag is set but frames are still Chrome sRGB captures", () => {
     // HDR flag gives H.265 + 10-bit encoding but pixels are still sRGB/bt709.
     // Tagging as bt2020 causes orange shift — so we tag truthfully as bt709.
     const args = buildEncoderArgs(

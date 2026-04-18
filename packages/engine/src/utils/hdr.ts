@@ -25,7 +25,13 @@ export function isHdrColorSpace(cs: VideoColorSpace | null): boolean {
 
 /**
  * Determine the HDR transfer function from a video's color space metadata.
- * Returns "pq" for SMPTE 2084, "hlg" for ARIB STD-B67, or defaults to "hlg".
+ *
+ * IMPORTANT: Callers must gate on `isHdrColorSpace(cs)` first. This function
+ * assumes the input has already been classified as HDR and defaults ambiguous
+ * inputs to "hlg" — calling it with an SDR color space silently returns "hlg",
+ * which is wrong for SDR.
+ *
+ * Returns "pq" for SMPTE 2084, "hlg" for ARIB STD-B67, defaults to "hlg".
  */
 export function detectTransfer(cs: VideoColorSpace | null): HdrTransfer {
   if (cs?.colorTransfer === "smpte2084") return "pq";

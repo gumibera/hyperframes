@@ -355,10 +355,12 @@ export async function spawnStreamingEncoder(
         return false;
       }
       // Copy the buffer before writing — Node streams hold a reference to the
-      // provided buffer and drain it asynchronously. If the caller reuses the
-      // buffer (e.g. zero-filling transOutput for the next transition frame),
-      // the pipe would read partially-overwritten data, causing horizontal
-      // banding artifacts that flicker frame-to-frame.
+      // provided buffer and drain it asynchronously. The HDR path's compositor
+      // reuses pre-allocated transOutput/normalCanvas buffers across frames,
+      // so without this copy the pipe would read partially-overwritten data
+      // and flicker. The SDR path doesn't invoke writeFrame at all (it pipes
+      // PNG files via encodeFramesFromDir), so the memcpy here is HDR-only
+      // and justified by correctness.
       const copy = Buffer.from(buffer);
       return ffmpeg.stdin.write(copy);
     },
