@@ -262,6 +262,22 @@ export async function queryElementStacking(
     // positioned ancestor with a z-index. CSS z-index only applies to
     // positioned elements; video elements inside positioned wrappers
     // inherit the wrapper's stacking context.
+    //
+    // ## Supported subset
+    //
+    // This implementation looks for explicit `z-index` on positioned
+    // (non-static) ancestors. It does NOT detect the CSS stacking contexts
+    // created implicitly by other properties — including `opacity < 1`,
+    // `transform`, `filter`, `will-change`, `isolation: isolate`, and
+    // `mix-blend-mode`. GSAP routinely sets `transform` on wrappers, which
+    // creates an implicit stacking context with auto z-index; an HDR video
+    // inside such a wrapper with no explicit z-index will return the
+    // wrapper-of-the-wrapper's z-index here, potentially reordering layers
+    // incorrectly relative to sibling stacking contexts.
+    //
+    // The workaround is to set explicit `z-index` on the positioned wrapper
+    // when you want it treated as a compositing layer root. This matches
+    // what compositions need to do anyway for deterministic z-ordering.
     function getEffectiveZIndex(node: Element): number {
       let current: Element | null = node;
       while (current) {

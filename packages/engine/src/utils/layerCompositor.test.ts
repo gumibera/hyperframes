@@ -3,7 +3,21 @@ import { groupIntoLayers } from "./layerCompositor.js";
 import type { ElementStackingInfo } from "../services/videoFrameInjector.js";
 
 function makeEl(id: string, zIndex: number, isHdr: boolean): ElementStackingInfo {
-  return { id, zIndex, x: 0, y: 0, width: 1920, height: 1080, opacity: 1, visible: true, isHdr };
+  return {
+    id,
+    zIndex,
+    x: 0,
+    y: 0,
+    width: 1920,
+    height: 1080,
+    layoutWidth: 1920,
+    layoutHeight: 1080,
+    opacity: 1,
+    visible: true,
+    isHdr,
+    transform: "none",
+    borderRadius: [0, 0, 0, 0],
+  };
 }
 
 describe("groupIntoLayers", () => {
@@ -95,6 +109,33 @@ describe("groupIntoLayers", () => {
     expect(layers[2]!.type).toBe("dom"); // title
     if (layers[0]!.type === "dom") {
       expect(layers[0]!.elementIds).toEqual(["bg", "hidden-sdr"]);
+    }
+  });
+
+  it("returns an empty array for empty input", () => {
+    expect(groupIntoLayers([])).toEqual([]);
+  });
+
+  it("handles negative z-index (valid CSS back layers)", () => {
+    const elements = [makeEl("fg", 1, false), makeEl("bg", -5, false)];
+    const layers = groupIntoLayers(elements);
+    expect(layers).toHaveLength(1);
+    expect(layers[0]!.type).toBe("dom");
+    if (layers[0]!.type === "dom") {
+      expect(layers[0]!.elementIds).toEqual(["bg", "fg"]);
+    }
+  });
+
+  it("preserves input order for equal z-index (stable tie-break)", () => {
+    const elements = [
+      makeEl("first", 0, false),
+      makeEl("second", 0, false),
+      makeEl("third", 0, false),
+    ];
+    const layers = groupIntoLayers(elements);
+    expect(layers).toHaveLength(1);
+    if (layers[0]!.type === "dom") {
+      expect(layers[0]!.elementIds).toEqual(["first", "second", "third"]);
     }
   });
 });
