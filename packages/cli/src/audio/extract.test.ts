@@ -33,9 +33,11 @@ describe("audio analysis helpers", () => {
   });
 
   it("decodes real fixture audio with ffmpeg", () => {
+    // Uses the narration.wav committed with the audio-reactive-render-compat
+    // producer fixture so the test works in CI and on any checkout.
     const fixture = join(
       import.meta.dirname,
-      "../../../../../hf-vs-remotion/baselines/audio-reactive/narration.wav",
+      "../../../producer/tests/audio-reactive-render-compat/src/narration.wav",
     );
     const samples = decodeAudioToMono(fixture);
     expect(samples.length > 1000).toBe(true);
