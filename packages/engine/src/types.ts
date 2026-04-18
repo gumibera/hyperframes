@@ -32,6 +32,29 @@ export interface HfMediaElement {
 }
 
 /**
+ * Metadata for a shader transition between two scenes.
+ *
+ * Compositions using @hyperframes/shader-transitions populate
+ * `window.__hf.transitions` with one entry per transition so the
+ * producer can pre-compute scene ranges, capture per-scene buffers,
+ * and apply the transition in HDR-aware compositing.
+ */
+export interface HfTransitionMeta {
+  /** Time the transition starts (seconds) */
+  time: number;
+  /** Transition duration (seconds) */
+  duration: number;
+  /** Shader identifier (e.g. "fade", "wipe") */
+  shader: string;
+  /** GSAP easing string (e.g. "power2.inOut") */
+  ease: string;
+  /** Scene id the transition starts from */
+  fromScene: string;
+  /** Scene id the transition ends on */
+  toScene: string;
+}
+
+/**
  * The seek protocol. The only contract between the engine and a page.
  *
  * The engine reads `duration` to calculate total frames, calls `seek(time)`
@@ -49,6 +72,8 @@ export interface HfProtocol {
   seek(time: number): void;
   /** Optional: media elements the engine should handle */
   media?: HfMediaElement[];
+  /** Optional: shader transition metadata for HDR-aware compositing */
+  transitions?: HfTransitionMeta[];
 }
 
 // ── Capture Types ──────────────────────────────────────────────────────────────
