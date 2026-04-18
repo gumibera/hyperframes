@@ -247,7 +247,9 @@ function installDebugLogger(logPath: string, log: ProducerLogger = defaultLogger
 /**
  * Write compiled HTML and sub-compositions to the work directory.
  */
-function writeCompiledArtifacts(
+// Exported for integration tests. Not part of the stable public API —
+// callers outside this package should use `executeRenderJob` instead.
+export function writeCompiledArtifacts(
   compiled: CompiledComposition,
   workDir: string,
   includeSummary: boolean,

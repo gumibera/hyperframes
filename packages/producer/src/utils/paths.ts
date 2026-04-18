@@ -47,17 +47,42 @@ export function isPathInside(childPath: string, parentPath: string): boolean {
  *   2. The backslashes and colon are invalid inside some OS sandboxes
  *      and HTTP URL encodings.
  *
- * We sanitise into `hf-ext/<drive>/<path>` form using forward slashes
- * and stripping the colon after the drive letter. The result is a pure
- * relative path that joins cleanly on every platform.
+ * We sanitise into `hf-ext/...` form using forward slashes, stripping
+ * the colon after drive letters, the Windows extended-length prefix
+ * (`\\?\`), and the UNC prefix (`\\server\share\`). The result is a
+ * pure relative path that joins cleanly on every platform.
+ *
+ * Caller contract: `absPath` is expected to be canonical — typically
+ * produced by `path.resolve()` upstream. This helper does NOT strip
+ * `..` components on its own. `isPathInside` at copy time is the
+ * defensive backstop.
  */
 export function toExternalAssetKey(absPath: string): string {
-  // Normalise to forward slashes first.
+  // Short-circuit if already a sanitised key — prevents double-wrap
+  // producing `hf-ext/hf-ext/...`.
+  if (absPath.startsWith("hf-ext/")) return absPath;
+
+  // Normalise to forward slashes first so every subsequent pattern is
+  // separator-agnostic.
   let normalised = absPath.replace(/\\/g, "/");
-  // Strip a leading forward slash (Unix absolute).
+
+  // Windows extended-length prefix: `//?/` (was `\\?\`). Strip entirely —
+  // the actual path follows. `//?/UNC/server/share/...` is the UNC
+  // extended-length form; normalise to match the UNC branch below.
+  normalised = normalised.replace(/^\/\/\?\/UNC\//i, "//");
+  normalised = normalised.replace(/^\/\/\?\//, "");
+
+  // UNC paths (`\\server\share\file`). Collapse to
+  // `unc/server/share/file` so two different servers can't collide
+  // under the same relative key.
+  normalised = normalised.replace(/^\/\/([^/]+)\//, "unc/$1/");
+
+  // Strip remaining leading forward slashes (Unix absolute).
   normalised = normalised.replace(/^\/+/, "");
+
   // Strip a leading drive-letter colon (Windows: "D:/coder" → "D/coder").
   normalised = normalised.replace(/^([A-Za-z]):\/?/, "$1/");
+
   return "hf-ext/" + normalised;
 }
 
