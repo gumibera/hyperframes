@@ -29,6 +29,7 @@ const subCommands = {
   catalog: () => import("./commands/catalog.js").then((m) => m.default),
   play: () => import("./commands/play.js").then((m) => m.default),
   preview: () => import("./commands/preview.js").then((m) => m.default),
+  publish: () => import("./commands/publish.js").then((m) => m.default),
   render: () => import("./commands/render.js").then((m) => m.default),
   lint: () => import("./commands/lint.js").then((m) => m.default),
   info: () => import("./commands/info.js").then((m) => m.default),
@@ -82,18 +83,9 @@ if (!isHelp && command !== "telemetry" && command !== "unknown") {
 }
 
 if (!isHelp && !hasJsonFlag && command !== "upgrade") {
-  // Report any completed auto-install from the previous run first, before
-  // kicking off the next check — so the user sees "updated to vX" once and
-  // we don't over-print.
-  import("./utils/autoUpdate.js").then((mod) => mod.reportCompletedUpdate()).catch(() => {});
-
-  import("./utils/updateCheck.js").then(async (mod) => {
+  import("./utils/updateCheck.js").then((mod) => {
     _printUpdateNotice = mod.printUpdateNotice;
-    const result = await mod.checkForUpdate().catch(() => null);
-    if (result?.updateAvailable) {
-      const auto = await import("./utils/autoUpdate.js").catch(() => null);
-      auto?.scheduleBackgroundInstall(result.latest, result.current);
-    }
+    mod.checkForUpdate().catch(() => {});
   });
 }
 

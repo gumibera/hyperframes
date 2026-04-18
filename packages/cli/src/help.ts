@@ -24,6 +24,7 @@ const GROUPS: Group[] = [
       ["capture", "Capture a website for video production"],
       ["catalog", "Browse and install blocks and components"],
       ["preview", "Start the studio for previewing compositions"],
+      ["publish", "Expose the preview via a public URL so collaborators can view it"],
       ["render", "Render a composition to MP4 or WebM"],
     ],
   },
@@ -72,6 +73,7 @@ import type { Example } from "./commands/_examples.js";
 const ROOT_EXAMPLES: Example[] = [
   ["Create a new project", "hyperframes init my-video"],
   ["Start the live preview studio", "hyperframes preview"],
+  ["Share via public URL", "hyperframes publish"],
   ["Render to MP4", "hyperframes render -o out.mp4"],
   ["Transparent WebM overlay", "hyperframes render --format webm -o out.webm"],
   ["Validate your composition", "hyperframes lint"],
