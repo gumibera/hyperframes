@@ -70,6 +70,16 @@ const FIXTURES: Fixture[] = [
       requireHdrSideData: true,
     },
   },
+  {
+    id: "hdr-feature-stack",
+    hdr: true,
+    expected: {
+      pixFmt: "yuv420p10le",
+      colorTransfer: "smpte2084",
+      colorPrimaries: "bt2020",
+      requireHdrSideData: true,
+    },
+  },
 ];
 
 interface ProbeResult {

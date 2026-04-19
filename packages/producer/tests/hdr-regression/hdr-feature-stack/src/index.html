@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>hyperframes · hdr-feature-stack</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <!-- Vendored local build of @hyperframes/shader-transitions@0.4.6 because the
+         published CDN bundle at this version is missing the window.__hf.transitions
+         write logic the engine needs for native HDR compositing. Once a fixed build
+         is published, switch back to the CDN. -->
+    <script src="vendor/shader-transitions.js"></script>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="30"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- ═══ Scene 1 (0–5s): Pure HDR · DOM badge overlay ═══ -->
+      <section id="scene-1" class="scene">
+        <video
+          id="vid-1-hdr"
+          class="clip full-frame"
+          src="../assets/hdr.mp4"
+          data-start="0"
+          data-duration="5"
+          data-track-index="0"
+          muted
+          playsinline
+        ></video>
+        <div class="hud-slate" id="s1-slate">
+          <div class="hud-tag">01 / Pure HDR</div>
+          <div class="hud-line">BT.2020 · PQ · 10-bit · single layer</div>
+        </div>
+      </section>
+
+      <!-- ═══ Scene 2 (5–10s): SDR + HDR + DOM ═══ -->
+      <section id="scene-2" class="scene">
+        <video
+          id="vid-2-bg"
+          class="clip full-frame"
+          src="../assets/hdr.mp4"
+          data-start="5"
+          data-duration="5"
+          data-media-start="2"
+          data-track-index="1"
+          muted
+          playsinline
+        ></video>
+        <div class="s2-pip" id="s2-pip">
+          <video
+            id="vid-2-sdr"
+            class="clip pip-video"
+            src="../assets/sdr.mp4"
+            data-start="5"
+            data-duration="5"
+            data-track-index="2"
+            muted
+            playsinline
+          ></video>
+          <div class="pip-caption">SDR · BT.709 · 8-bit</div>
+        </div>
+        <div class="s2-headline" id="s2-headline">MIXED</div>
+        <div class="s2-sub" id="s2-sub">HDR background · SDR picture-in-picture · sRGB DOM</div>
+        <div class="hud-slate" id="s2-slate">
+          <div class="hud-tag">02 / SDR + HDR + DOM</div>
+          <div class="hud-line">Different transfer functions · one composite frame</div>
+        </div>
+      </section>
+
+      <!-- ═══ Scene 3 (10–15s): HDR Image ═══ -->
+      <section id="scene-3" class="scene">
+        <img
+          id="img-3-hdr"
+          class="full-frame"
+          src="../assets/photo-hdr.png"
+          alt="HDR reference photograph"
+        />
+        <div class="s3-caption" id="s3-caption">16-bit HDR PNG · BT.2020 PQ</div>
+        <div class="hud-slate" id="s3-slate">
+          <div class="hud-tag">03 / HDR Image</div>
+          <div class="hud-line">Static asset path · sRGB DOM caption on top</div>
+        </div>
+      </section>
+
+      <!-- ═══ Scene 4 (15–20s): Border-radius masks ═══ -->
+      <section id="scene-4" class="scene">
+        <div class="s4-grid">
+          <div class="s4-mask s4-circle" id="s4-circle">
+            <video
+              id="vid-4-circle"
+              class="clip"
+              src="../assets/hdr.mp4"
+              data-start="15"
+              data-duration="5"
+              data-media-start="4"
+              data-track-index="3"
+              muted
+              playsinline
+            ></video>
+            <div class="mask-label">circle · border-radius 50%</div>
+          </div>
+          <div class="s4-mask s4-rounded" id="s4-rounded">
+            <video
+              id="vid-4-rounded"
+              class="clip"
+              src="../assets/hdr-b.mp4"
+              data-start="15"
+              data-duration="5"
+              data-track-index="4"
+              muted
+              playsinline
+            ></video>
+            <div class="mask-label">rounded · border-radius 32px</div>
+          </div>
+        </div>
+        <div class="hud-slate" id="s4-slate">
+          <div class="hud-tag">04 / Border-radius masks on HDR video</div>
+          <div class="hud-line">overflow: hidden · border-radius drives alpha</div>
+        </div>
+      </section>
+
+      <!-- ═══ Scene 5 (20–25s): Layered framed videos ═══ -->
+      <section id="scene-5" class="scene">
+        <div class="s5-stack">
+          <div class="s5-card s5-a" id="s5-a">
+            <video
+              id="vid-5-a"
+              class="clip"
+              src="../assets/hdr.mp4"
+              data-start="20"
+              data-duration="5"
+              data-media-start="3"
+              data-track-index="5"
+              muted
+              playsinline
+            ></video>
+            <div class="card-tag hdr">HDR · z 1</div>
+          </div>
+          <div class="s5-card s5-b" id="s5-b">
+            <video
+              id="vid-5-b"
+              class="clip"
+              src="../assets/sdr.mp4"
+              data-start="20"
+              data-duration="5"
+              data-media-start="2"
+              data-track-index="6"
+              muted
+              playsinline
+            ></video>
+            <div class="card-tag sdr">SDR · z 2</div>
+          </div>
+          <div class="s5-card s5-c" id="s5-c">
+            <video
+              id="vid-5-c"
+              class="clip"
+              src="../assets/hdr-b.mp4"
+              data-start="20"
+              data-duration="5"
+              data-track-index="7"
+              muted
+              playsinline
+            ></video>
+            <div class="card-tag hdr">HDR · z 3</div>
+          </div>
+        </div>
+        <div class="hud-slate" id="s5-slate">
+          <div class="hud-tag">05 / Layered (mixed transfer functions)</div>
+          <div class="hud-line">Three videos · z-ordered · visibly overlapping</div>
+        </div>
+      </section>
+
+      <!-- ═══ Scene 6 (25–30s): Transform + opacity choreography ═══ -->
+      <section id="scene-6" class="scene">
+        <div class="s6-row">
+          <div class="s6-frame" id="s6-f1">
+            <video
+              id="vid-6-a"
+              class="clip"
+              src="../assets/hdr.mp4"
+              data-start="25"
+              data-duration="5"
+              data-media-start="1"
+              data-track-index="8"
+              muted
+              playsinline
+            ></video>
+            <div class="frame-tag">translate + rotate</div>
+          </div>
+          <div class="s6-frame" id="s6-f2">
+            <video
+              id="vid-6-b"
+              class="clip"
+              src="../assets/hdr-b.mp4"
+              data-start="25"
+              data-duration="5"
+              data-track-index="9"
+              muted
+              playsinline
+            ></video>
+            <div class="frame-tag">scale + skew</div>
+          </div>
+          <div class="s6-frame" id="s6-f3">
+            <video
+              id="vid-6-c"
+              class="clip"
+              src="../assets/sdr-b.mp4"
+              data-start="25"
+              data-duration="5"
+              data-track-index="10"
+              muted
+              playsinline
+            ></video>
+            <div class="frame-tag">opacity + translateY</div>
+          </div>
+        </div>
+        <div class="hud-slate" id="s6-slate">
+          <div class="hud-tag">06 / Transforms + Opacity</div>
+          <div class="hud-line">Three HDR/SDR frames · per-element compositor layers</div>
+        </div>
+      </section>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+    </script>
+    <script src="script.js"></script>
+  </body>
+</html>

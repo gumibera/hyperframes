@@ -1,0 +1,316 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #f4f4f6;
+}
+
+#root {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #050507;
+}
+
+/* Scene visibility model: only one scene paints at a time. CSS hides every
+ * scene by default; the first scene is force-shown so the page is visible
+ * before the first shader transition fires. After each transition the
+ * @hyperframes/shader-transitions runtime hard-sets inline opacity:1 on the
+ * destination scene (and 0 on the rest), taking over from the CSS default. */
+.scene {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+#scene-1 {
+  opacity: 1;
+}
+
+.full-frame {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  object-fit: cover;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * HUD slate (per-scene top-left badge)
+ * ────────────────────────────────────────────────────────────── */
+.hud-slate {
+  position: absolute;
+  top: 48px;
+  left: 48px;
+  padding: 18px 26px;
+  background: rgba(8, 8, 12, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  z-index: 100;
+}
+
+.hud-tag {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fafafa;
+  text-transform: uppercase;
+}
+
+.hud-line {
+  margin-top: 6px;
+  font-size: 16px;
+  color: #a8a8b4;
+  letter-spacing: 0.02em;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Scene 2 — SDR PiP + DOM headline
+ * ────────────────────────────────────────────────────────────── */
+.s2-pip {
+  position: absolute;
+  top: 60px;
+  right: 60px;
+  width: 720px;
+  height: 405px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+.pip-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pip-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 22px;
+  background: rgba(0, 0, 0, 0.68);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 18px;
+  color: #f4f4f6;
+  letter-spacing: 0.02em;
+}
+
+.s2-headline {
+  position: absolute;
+  bottom: 200px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 220px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  text-shadow: 0 6px 32px rgba(0, 0, 0, 0.45);
+}
+
+.s2-sub {
+  position: absolute;
+  bottom: 140px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 26px;
+  color: #d4d4dc;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Scene 3 — HDR image caption
+ * ────────────────────────────────────────────────────────────── */
+.s3-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100px;
+  text-align: center;
+  font-size: 44px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Scene 4 — masked HDR frames
+ * ────────────────────────────────────────────────────────────── */
+.s4-grid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 80px;
+}
+
+.s4-mask {
+  position: relative;
+  background: #000;
+}
+
+.s4-mask video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.s4-circle {
+  width: 640px;
+  height: 640px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.s4-rounded {
+  width: 800px;
+  height: 640px;
+  border-radius: 32px;
+  overflow: hidden;
+}
+
+.mask-label {
+  position: absolute;
+  bottom: -42px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 18px;
+  color: #c4c4cc;
+  letter-spacing: 0.04em;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Scene 5 — layered framed videos (z-stack)
+ * ────────────────────────────────────────────────────────────── */
+.s5-stack {
+  position: absolute;
+  inset: 0;
+}
+
+.s5-card {
+  position: absolute;
+  width: 880px;
+  height: 495px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65);
+  background: #000;
+}
+
+.s5-card video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.s5-a {
+  top: 80px;
+  left: 100px;
+  z-index: 1;
+}
+
+.s5-b {
+  top: 290px;
+  left: 520px;
+  z-index: 2;
+}
+
+.s5-c {
+  top: 500px;
+  left: 940px;
+  z-index: 3;
+}
+
+.card-tag {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.card-tag.hdr {
+  background: rgba(40, 200, 255, 0.18);
+  color: #aff0ff;
+  border: 1px solid rgba(120, 220, 255, 0.4);
+}
+
+.card-tag.sdr {
+  background: rgba(255, 180, 60, 0.16);
+  color: #ffd6a0;
+  border: 1px solid rgba(255, 200, 100, 0.4);
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Scene 6 — three frames, transform + opacity
+ * ────────────────────────────────────────────────────────────── */
+.s6-row {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 60px;
+}
+
+.s6-frame {
+  position: relative;
+  width: 520px;
+  height: 360px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.s6-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.frame-tag {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 15px;
+  color: #f0f0f4;
+  text-align: center;
+  letter-spacing: 0.04em;
+}
