@@ -335,6 +335,13 @@ export async function spawnStreamingEncoder(
     exitPromiseResolve?.();
   });
 
+  // Prevent unhandled 'error' events on stdin from crashing the process.
+  // Writes to a pipe that ffmpeg has already closed (e.g. the last frame
+  // races with ffmpeg's exit) emit EINVAL/EPIPE. The close handler above
+  // captures the exit status; swallowing the stdin error avoids a crash
+  // while still reporting the failure via the result object.
+  ffmpeg.stdin?.on("error", () => {});
+
   // Handle abort signal
   const onAbort = () => {
     if (exitStatus === "running") {
