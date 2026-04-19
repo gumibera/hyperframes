@@ -262,8 +262,27 @@ const RENDER_MODE_SCRIPT = `(function() {
 })();`;
 
 /**
+ * Early stub: ensures `window.__hf` exists *before* any user `<script>` in
+ * `<body>` executes. Without this, libraries that opportunistically write to
+ * `__hf` during page-script execution (notably `@hyperframes/shader-transitions`,
+ * which writes the active transition map to `__hf.transitions` inside its
+ * `init()` call) silently no-op because `__hf` hasn't been created yet — the
+ * full bridge script is injected at end-of-body and runs *after* user scripts.
+ *
+ * Injected at the very start of `<head>` so it runs before all other scripts.
+ */
+const HF_EARLY_STUB = `(function() {
+  if (typeof window === "undefined") return;
+  if (!window.__hf) window.__hf = {};
+})();`;
+
+/**
  * Bridge script: maps window.__player (Hyperframe runtime) → window.__hf (engine protocol).
  * Injected after RENDER_MODE_SCRIPT so the engine's frameCapture can find window.__hf.
+ *
+ * This script *patches* the existing __hf object rather than replacing it, so
+ * fields written during page-script execution (e.g. transitions metadata from
+ * @hyperframes/shader-transitions) are preserved through to engine query time.
  */
 const HF_BRIDGE_SCRIPT = `(function() {
   var __realSetInterval =
@@ -310,20 +329,24 @@ const HF_BRIDGE_SCRIPT = `(function() {
     if (!p || typeof p.renderSeek !== "function" || typeof p.getDuration !== "function") {
       return false;
     }
-    window.__hf = {
-      get duration() {
+    var hf = window.__hf || {};
+    Object.defineProperty(hf, "duration", {
+      configurable: true,
+      enumerable: true,
+      get: function() {
         var d = p.getDuration();
         return d > 0 ? d : getDeclaredDuration();
       },
-      seek: function(t) {
-        p.renderSeek(t);
-        var nextTimeMs = (Math.max(0, Number(t) || 0)) * 1000;
-        if (window.__HF_VIRTUAL_TIME__ && typeof window.__HF_VIRTUAL_TIME__.seekToTime === "function") {
-          window.__HF_VIRTUAL_TIME__.seekToTime(nextTimeMs);
-        }
-        seekSameOriginChildFrames(window, nextTimeMs);
-      },
+    });
+    hf.seek = function(t) {
+      p.renderSeek(t);
+      var nextTimeMs = (Math.max(0, Number(t) || 0)) * 1000;
+      if (window.__HF_VIRTUAL_TIME__ && typeof window.__HF_VIRTUAL_TIME__.seekToTime === "function") {
+        window.__HF_VIRTUAL_TIME__.seekToTime(nextTimeMs);
+      }
+      seekSameOriginChildFrames(window, nextTimeMs);
     };
+    window.__hf = hf;
     return true;
   }
   if (bridge()) return;
@@ -437,7 +460,13 @@ export interface FileServerHandle {
 export function createFileServer(options: FileServerOptions): Promise<FileServerHandle> {
   const { projectDir, compiledDir, port = 0, stripEmbeddedRuntime = true } = options;
 
-  const preHeadScripts = options.preHeadScripts ?? [];
+  // HF_EARLY_STUB must run before *any* page script so libraries that write
+  // to window.__hf during page-script execution (e.g. shader-transitions
+  // populating __hf.transitions) find it already defined. The full bridge in
+  // bodyScripts later upgrades this stub with `seek` / `duration` once the
+  // Hyperframe runtime's __player is ready, while preserving any fields
+  // already written.
+  const preHeadScripts = [HF_EARLY_STUB, ...(options.preHeadScripts ?? [])];
   // Default scripts: Hyperframe runtime in <head>, render mode in </body>
   const headScripts = options.headScripts ?? [getVerifiedHyperframeRuntimeSource()];
   const bodyScripts = options.bodyScripts ?? [RENDER_MODE_SCRIPT, HF_BRIDGE_SCRIPT];
@@ -514,4 +543,4 @@ export function createFileServer(options: FileServerOptions): Promise<FileServer
   });
 }
 
-export { HF_BRIDGE_SCRIPT, VIRTUAL_TIME_SHIM };
+export { HF_BRIDGE_SCRIPT, HF_EARLY_STUB, VIRTUAL_TIME_SHIM };
