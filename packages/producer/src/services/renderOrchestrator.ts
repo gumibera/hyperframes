@@ -1467,7 +1467,7 @@ export async function executeRenderJob(
               if (shouldLog) {
                 const after = countNonZeroRgb48(canvas);
                 const frameDir = hdrFrameDirs.get(layer.element.id);
-                const startTime = hdrVideoStartTimes.get(layer.element.id) ?? 0;
+                const startTime = hdrLayerStartTimes.get(layer.element.id) ?? 0;
                 const localTime = time - startTime;
                 const frameNum = Math.floor(localTime * job.config.fps) + 1;
                 const expectedFrame = frameDir
