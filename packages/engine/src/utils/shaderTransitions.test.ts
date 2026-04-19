@@ -81,6 +81,153 @@ describe("sampleRgb48le", () => {
     expect(g).toBe(2000);
     expect(b).toBe(3000);
   });
+
+  // ── Wider coverage for the perf-migration follow-up ────────────────────────
+  // These pin down sub-pixel sampling semantics so a future Uint16Array
+  // implementation can swap in and verify byte-equivalent output.
+
+  it("bilinearly interpolates between two vertically adjacent pixels", () => {
+    // 1x2 buffer: row 0 = (0,0,0), row 1 = (40000,40000,40000)
+    const buf = Buffer.alloc(12);
+    buf.writeUInt16LE(0, 0);
+    buf.writeUInt16LE(0, 2);
+    buf.writeUInt16LE(0, 4);
+    buf.writeUInt16LE(40000, 6);
+    buf.writeUInt16LE(40000, 8);
+    buf.writeUInt16LE(40000, 10);
+    const [r, g, b] = sampleRgb48le(buf, 0, 0.5, 1, 2);
+    expect(r).toBe(20000);
+    expect(g).toBe(20000);
+    expect(b).toBe(20000);
+  });
+
+  it("bilinearly interpolates the centroid of a 2x2 block", () => {
+    // Layout (R channel only, others mirror):
+    //   (1000)  (5000)
+    //   (3000)  (7000)
+    // Centroid (u=v=0.5) → average of all four = 4000
+    const buf = Buffer.alloc(24);
+    const corners = [1000, 5000, 3000, 7000];
+    for (let i = 0; i < 4; i++) {
+      const off = i * 6;
+      buf.writeUInt16LE(corners[i] ?? 0, off);
+      buf.writeUInt16LE(corners[i] ?? 0, off + 2);
+      buf.writeUInt16LE(corners[i] ?? 0, off + 4);
+    }
+    const [r, g, b] = sampleRgb48le(buf, 0.5, 0.5, 2, 2);
+    expect(r).toBe(4000);
+    expect(g).toBe(4000);
+    expect(b).toBe(4000);
+  });
+
+  it("does not bleed channels — R, G, B sampled independently", () => {
+    // 2x1 buffer with distinct per-channel gradients.
+    //   pixel 0: R=1000 G=20000 B=50000
+    //   pixel 1: R=9000 G=30000 B=60000
+    const buf = Buffer.alloc(12);
+    buf.writeUInt16LE(1000, 0);
+    buf.writeUInt16LE(20000, 2);
+    buf.writeUInt16LE(50000, 4);
+    buf.writeUInt16LE(9000, 6);
+    buf.writeUInt16LE(30000, 8);
+    buf.writeUInt16LE(60000, 10);
+    const [r, g, b] = sampleRgb48le(buf, 0.5, 0, 2, 1);
+    expect(r).toBe(5000);
+    expect(g).toBe(25000);
+    expect(b).toBe(55000);
+  });
+
+  it("samples last pixel exactly when u=v=1 (no overflow past the edge)", () => {
+    // 2x2 buffer where (1,1) corner has a unique value the first three pixels
+    // do not. If sampleRgb48le tried to read off-edge, the result would mix in
+    // out-of-bounds garbage.
+    const buf = Buffer.alloc(24);
+    const fill = [10, 20, 30, 65000];
+    for (let i = 0; i < 4; i++) {
+      const off = i * 6;
+      buf.writeUInt16LE(fill[i] ?? 0, off);
+      buf.writeUInt16LE(fill[i] ?? 0, off + 2);
+      buf.writeUInt16LE(fill[i] ?? 0, off + 4);
+    }
+    const [r, g, b] = sampleRgb48le(buf, 1, 1, 2, 2);
+    expect(r).toBe(65000);
+    expect(g).toBe(65000);
+    expect(b).toBe(65000);
+  });
+
+  it("respects asymmetric off-center UV weights", () => {
+    // 2x1 buffer, R-only differentiation: pixel 0 = 0, pixel 1 = 10000
+    // u=0.25 → x = 0.25 * (2 - 1) = 0.25
+    // weight on pixel 0 = 0.75, weight on pixel 1 = 0.25
+    // expected R = round(0 * 0.75 + 10000 * 0.25) = 2500
+    const buf = Buffer.alloc(12);
+    buf.writeUInt16LE(0, 0);
+    buf.writeUInt16LE(0, 2);
+    buf.writeUInt16LE(0, 4);
+    buf.writeUInt16LE(10000, 6);
+    buf.writeUInt16LE(10000, 8);
+    buf.writeUInt16LE(10000, 10);
+    const [r, g, b] = sampleRgb48le(buf, 0.25, 0, 2, 1);
+    expect(r).toBe(2500);
+    expect(g).toBe(2500);
+    expect(b).toBe(2500);
+  });
+
+  it("preserves max 16-bit values without clipping or rollover", () => {
+    // Verify the 65535 ceiling round-trips through bilinear weights without
+    // losing precision. A naïve 32-bit accumulator would still be fine here,
+    // but a future packed-Uint16 implementation must be checked for overflow
+    // in intermediate sums.
+    const buf = Buffer.alloc(24);
+    for (let i = 0; i < 4; i++) {
+      const off = i * 6;
+      buf.writeUInt16LE(65535, off);
+      buf.writeUInt16LE(65535, off + 2);
+      buf.writeUInt16LE(65535, off + 4);
+    }
+    const [r, g, b] = sampleRgb48le(buf, 0.5, 0.5, 2, 2);
+    expect(r).toBe(65535);
+    expect(g).toBe(65535);
+    expect(b).toBe(65535);
+  });
+
+  it("works on a large 256x256 canvas with sub-pixel UV", () => {
+    // Sanity check that buffer offset math scales — exercises the (y * w + x) * 6
+    // indexing on a non-trivial stride.
+    const w = 256;
+    const h = 256;
+    const buf = Buffer.alloc(w * h * 6);
+    // Diagonal gradient in R: pixel (x, y).R = x
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const off = (y * w + x) * 6;
+        buf.writeUInt16LE(x, off);
+      }
+    }
+    // u = 0.5 → sx = 0.5 * (w - 1) = 127.5 → R should be ≈ 127.5 → rounds to 128
+    const [r] = sampleRgb48le(buf, 0.5, 0.5, w, h);
+    expect(r).toBe(128);
+  });
+
+  it("handles 1x1 source with arbitrary UV (no x1=x0 division by zero)", () => {
+    // x0+1 gets clamped back to w-1=0, so x0 == x1. The weights still sum to 1
+    // and the result must equal the single pixel value.
+    const buf = Buffer.alloc(6);
+    buf.writeUInt16LE(12345, 0);
+    buf.writeUInt16LE(23456, 2);
+    buf.writeUInt16LE(34567, 4);
+    for (const [u, v] of [
+      [0, 0],
+      [0.5, 0.5],
+      [1, 1],
+      [0.7, 0.3],
+    ] as const) {
+      const [r, g, b] = sampleRgb48le(buf, u, v, 1, 1);
+      expect(r).toBe(12345);
+      expect(g).toBe(23456);
+      expect(b).toBe(34567);
+    }
+  });
 });
 
 // ── mix16 ─────────────────────────────────────────────────────────────────────
