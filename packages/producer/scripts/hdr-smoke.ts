@@ -80,6 +80,16 @@ const FIXTURES: Fixture[] = [
       requireHdrSideData: true,
     },
   },
+  {
+    id: "opacity-mixed-fade",
+    hdr: true,
+    expected: {
+      pixFmt: "yuv420p10le",
+      colorTransfer: "smpte2084",
+      colorPrimaries: "bt2020",
+      requireHdrSideData: true,
+    },
+  },
 ];
 
 interface ProbeResult {

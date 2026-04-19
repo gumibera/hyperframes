@@ -1,0 +1,99 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #111;
+}
+
+#root {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.hud-slate {
+  position: absolute;
+  top: 32px;
+  left: 32px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.78);
+  color: #f4f4f6;
+  padding: 12px 18px;
+  border-radius: 6px;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  max-width: 720px;
+}
+
+.hud-tag {
+  font-weight: 600;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.hud-line {
+  opacity: 0.85;
+  font-size: 16px;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Two equally-sized halves. The wrapper divs are what GSAP animates:
+ * the inner <video> elements are replaced by injected <img> frames
+ * during render, and the opacity must walk through these wrappers
+ * for both the HDR (native compositor) and SDR (DOM mask) paths.
+ * ──────────────────────────────────────────────────────────────── */
+.frame {
+  position: absolute;
+  top: 80px;
+  width: 880px;
+  height: 920px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.frame-left {
+  left: 80px;
+}
+
+.frame-right {
+  right: 80px;
+}
+
+.frame .clip {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.frame-tag {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #f4f4f6;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
