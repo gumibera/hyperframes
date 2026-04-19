@@ -121,6 +121,7 @@ export async function extractVisibleText(page: Page): Promise<string> {
   let visibleTextContent = "";
   try {
     visibleTextContent = (await page.evaluate(`(() => {
+      var cookieRe = /^(accept|cookie|privacy|that's fine|got it|i agree|reject all|accept all|manage cookies|consent)$/i;
       var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
       var texts = [];
       var node;
@@ -133,7 +134,13 @@ export async function extractVisibleText(page: Page): Promise<string> {
         if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
         var tag = el.tagName.toLowerCase();
         if (tag === 'script' || tag === 'style' || tag === 'noscript') continue;
-        texts.push(text);
+        // Skip very short text inside nav/footer (catches single-word nav links)
+        // Threshold is 8 chars to preserve footer copy like "© 2026 Stripe" (16 chars)
+        var inNavOrFooter = el.closest('nav, footer, [role="navigation"]');
+        if (inNavOrFooter && text.length < 8) continue;
+        // Skip common cookie/consent patterns
+        if (cookieRe.test(text)) continue;
+        texts.push('[' + tag + '] ' + text);
       }
       return texts.join('\\n');
     })()`)) as string;

@@ -78,3 +78,9 @@ captures/
 *-ad/
 *-tour/
 *-brand/
+
+# Local regression-test and video project scratch directories.
+# These hold per-site captures, compositions, narration audio, rendered MP4s.
+cursor-tests/
+basecamp-video/
+launch-video*/

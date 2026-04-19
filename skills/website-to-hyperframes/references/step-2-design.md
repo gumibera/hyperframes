@@ -126,3 +126,53 @@ Soulscape 2026 is a cinematic, "high-signal" digital experience that positions i
 - Do not use standard drop shadows — use radial glow or bloom effects instead.
 - Do not use sharp high-speed animations — all motion should be fluid and breathing.
 ```
+
+Here is a contrasting example from a light, corporate brand to show the range:
+
+```markdown
+# Design System
+
+## Overview
+
+Stripe's visual personality is defined by high-precision, technical sophistication, and a fluid, forward-moving motion language. The layout is dense but expertly balanced, utilizing a "canary" grid system that favors high-density data visualizations and modular bento-style layouts. The tone is authoritative and innovative, characterized by smooth CSS animations, complex SVG graphics that mimic UI dashboards, and the iconic "hero wave" background that uses layered gradients to create depth and movement.
+
+## Colors
+
+- **Brand Primary**: #635bff (The signature Stripe Blurple)
+- **Text Solid**: #0a2540 (Deep navy for primary headings)
+- **Text Soft**: #424770 (Subdued slate for descriptions and secondary text)
+- **Surface Background**: #ffffff (White primary surface)
+- **Surface Subdued**: #f6f9fc (Light gray for section contrast)
+- **Accent Green**: #212d45 (Used in high-converting success UI graphics)
+- **Accent Orange**: #ff6118 (Used for specific product highlights like Connect)
+- **Accent Yellow**: #fc5 (Warm highlight used in bento cards)
+- **Border Quiet**: #e6ebf1 (Soft borders for cards and dividers)
+
+## Typography
+
+- **Primary Font**: Sohne (sohne-var), a custom neo-grotesque that balances technical precision with approachability. Used across all headers and body copy.
+- **Monospace Font**: SourceCodePro-Medium, specifically for code snippets, tabular data, and technical UI identifiers.
+- **Heading Scale**: hds-heading--xxl ~3rem, hds-heading--lg ~1.5rem, hds-heading--md ~1.125rem
+- **Body Scale**: Standard body text centers around 1rem (16px) with a line-height of 1.5-1.6.
+
+## Elevation
+
+- **Shadows**: Multi-layered shadow system (e.g., 0 30px 60px -12px rgba(50,50,93,0.25)). Shadows are diffused and deep for a floating effect.
+- **Borders**: Heavy use of 1px solid borders to define bento grid boundaries instead of shadows in flat sections.
+- **Glass/Layering**: Navigation overlays use backdrop-filter blur(5px) with translucent white background.
+
+## Components
+
+- **Navigation Popover**: Animated dropdown spanning page margin with multi-column bento layouts.
+- **Bento Cards**: Interactive grid-aligned containers with gradient hover effects that follow the cursor.
+- **Customer Marquee**: Seamless horizontal scrolling loop of flat-colored SVG logos.
+- **UI Graphics**: Custom HTML/CSS representations of the Stripe Dashboard with tabular numbers and mini-charts.
+- **CTA Buttons**: Rounded-pill shapes with subtle scale transforms on hover.
+
+## Do's and Don'ts
+
+- **Do**: Use smooth cubic-bezier(.25, 1, .5, 1) transitions for all hover states and entering animations.
+- **Do**: Maintain strict vertical alignment between iconography and text labels.
+- **Don't**: Use sharp-cornered cards; always apply a border-radius.
+- **Don't**: Over-saturate backgrounds; stick to white or #f6f9fc and let brand assets provide color pop.
+```

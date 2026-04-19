@@ -2,7 +2,7 @@
  * Project scaffolding helpers for the website capture pipeline.
  *
  * Handles .env file loading and HyperFrames project scaffold generation
- * (index.html, meta.json, CLAUDE.md).
+ * (index.html, meta.json, AGENTS.md, CLAUDE.md).
  */
 
 import { existsSync, writeFileSync, readFileSync } from "node:fs";
@@ -44,10 +44,10 @@ export function loadEnvFile(startDir: string): void {
 }
 
 /**
- * Generate the project scaffold files: index.html, meta.json, and CLAUDE.md.
+ * Generate the project scaffold files: index.html, meta.json, AGENTS.md, CLAUDE.md.
  *
  * Only creates files that don't already exist (index.html, meta.json).
- * Always generates CLAUDE.md via agentPromptGenerator.
+ * Always (re)generates AGENTS.md + CLAUDE.md via agentPromptGenerator.
  */
 export async function generateProjectScaffold(
   outputDir: string,
@@ -60,6 +60,7 @@ export async function generateProjectScaffold(
   catalogedAssets: CatalogedAsset[],
   progress: (stage: string, detail?: string) => void,
   warnings: string[],
+  detectedLibraries?: string[],
 ): Promise<void> {
   // Capture output is a DATA folder, not a video project.
   // The agent builds index.html + compositions/ during step 6.
@@ -77,7 +78,7 @@ export async function generateProjectScaffold(
     );
   }
 
-  // Generate CLAUDE.md + .cursorrules (AI agent instructions — always, regardless of API keys)
+  // Generate AGENTS.md + CLAUDE.md (AI agent instructions — always, regardless of API keys)
   try {
     const { generateAgentPrompt } = await import("./agentPromptGenerator.js");
     generateAgentPrompt(
@@ -89,9 +90,10 @@ export async function generateProjectScaffold(
       hasLotties,
       hasShaders,
       catalogedAssets,
+      detectedLibraries,
     );
-    progress("agent", "CLAUDE.md generated");
+    progress("agent", "AGENTS.md + CLAUDE.md generated");
   } catch (err) {
-    warnings.push(`CLAUDE.md generation failed: ${err}`);
+    warnings.push(`AGENTS.md/CLAUDE.md generation failed: ${err}`);
   }
 }
