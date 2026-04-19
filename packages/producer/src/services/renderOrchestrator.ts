@@ -77,6 +77,8 @@ import {
   TRANSITIONS,
   crossfade,
   convertTransfer,
+  injectHdrBoxes,
+  DEFAULT_HDR10_MASTERING,
   type TransitionFn,
   type ElementStackingInfo,
   type HfTransitionMeta,
@@ -2098,6 +2100,22 @@ export async function executeRenderJob(
       assertNotAborted();
       if (!faststartResult.success) {
         throw new Error(`Faststart failed: ${faststartResult.error}`);
+      }
+    }
+
+    // FFmpeg's mp4 muxer rebuilds the container during mux/faststart and
+    // drops the mdcv/clli boxes we injected into videoOnlyPath. Re-inject
+    // them into the final outputPath so YouTube and HDR TVs recognize the
+    // file as HDR10. Frame-level HEVC SEI metadata always survives stream
+    // copy, but the container-level boxes do not.
+    if (preset.hdr && preset.codec === "h265" && outputPath.endsWith(".mp4")) {
+      try {
+        injectHdrBoxes(outputPath, DEFAULT_HDR10_MASTERING);
+        log.debug(`Injected HDR10 mdcv/clli boxes into ${outputPath}`);
+      } catch (err) {
+        log.warn(
+          `HDR mdcv/clli injection failed for ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 
