@@ -392,6 +392,9 @@ export function applyRenderModeHints(
  * Shared between the normal-frame compositing path (compositeToBuffer)
  * and the transition dual-scene compositing loop to avoid duplicating
  * the frame lookup, fallback, decode, transform, and blit logic.
+ *
+ * Exported for unit testing — owns the time→frame math, last-frame freeze,
+ * border-radius detection, and affine-vs-region branch.
  */
 type HdrDecodeCacheEntry = { hdrRgb: Buffer; srcW: number; srcH: number };
 type HdrDecodeCache = Map<string, HdrDecodeCacheEntry>;

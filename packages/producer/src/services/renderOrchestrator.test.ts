@@ -1,12 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { EngineConfig } from "@hyperframes/engine";
+import { deflateSync } from "node:zlib";
+import type { ElementStackingInfo, EngineConfig } from "@hyperframes/engine";
 import type { CompiledComposition } from "./htmlCompiler.js";
 
 import {
   applyRenderModeHints,
+  blitHdrVideoLayer,
   extractStandaloneEntryFromIndex,
   writeCompiledArtifacts,
 } from "./renderOrchestrator.js";
@@ -242,5 +244,223 @@ describe("applyRenderModeHints", () => {
     applyRenderModeHints(cfg, compiled, log);
 
     expect(log.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("blitHdrVideoLayer", () => {
+  // Inline 16-bit PNG helpers (mirrors makePng16 / makeChunk in
+  // packages/engine alphaBlit.test.ts). We tag each frame's first pixel R
+  // channel with its 1-based index so we can identify which frame the blit
+  // selected by reading canvas.readUInt16LE(0).
+  const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      table[n] = c;
+    }
+    return table;
+  })();
+  function crc32(buf: Buffer): number {
+    let c = 0xffffffff;
+    for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]!) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  function uint32BE(n: number): Buffer {
+    const b = Buffer.alloc(4);
+    b.writeUInt32BE(n >>> 0, 0);
+    return b;
+  }
+  function makeChunk(type: string, data: Buffer): Buffer {
+    const typeBuf = Buffer.from(type, "ascii");
+    const crc = crc32(Buffer.concat([typeBuf, data]));
+    return Buffer.concat([uint32BE(data.length), typeBuf, data, uint32BE(crc)]);
+  }
+  /** Produces a width×height PNG with bit depth 16, color type 2 (RGB). */
+  function makePng16(width: number, height: number, fillR: number): Buffer {
+    const ihdr = Buffer.concat([uint32BE(width), uint32BE(height), Buffer.from([16, 2, 0, 0, 0])]);
+    const rowBytes = width * 6;
+    const raw = Buffer.alloc((rowBytes + 1) * height);
+    for (let y = 0; y < height; y++) {
+      raw[y * (rowBytes + 1)] = 0;
+      for (let x = 0; x < width; x++) {
+        const off = y * (rowBytes + 1) + 1 + x * 6;
+        raw.writeUInt16BE(fillR, off);
+        raw.writeUInt16BE(0, off + 2);
+        raw.writeUInt16BE(0, off + 4);
+      }
+    }
+    return Buffer.concat([
+      PNG_SIG,
+      makeChunk("IHDR", ihdr),
+      makeChunk("IDAT", deflateSync(raw)),
+      makeChunk("IEND", Buffer.alloc(0)),
+    ]);
+  }
+
+  function writeFrameSet(dir: string, count: number): void {
+    for (let i = 1; i <= count; i++) {
+      const png = makePng16(8, 8, i);
+      writeFileSync(join(dir, `frame_${String(i).padStart(4, "0")}.png`), png);
+    }
+  }
+
+  function makeElement(overrides: Partial<ElementStackingInfo> = {}): ElementStackingInfo {
+    return {
+      id: "v1",
+      zIndex: 0,
+      x: 0,
+      y: 0,
+      width: 8,
+      height: 8,
+      layoutWidth: 8,
+      layoutHeight: 8,
+      opacity: 1,
+      visible: true,
+      isHdr: true,
+      transform: "none",
+      borderRadius: [0, 0, 0, 0],
+      ...overrides,
+    };
+  }
+
+  let workDir: string;
+  beforeEach(() => {
+    workDir = mkdtempSync(join(tmpdir(), "hdr-blit-"));
+    writeFrameSet(workDir, 5);
+  });
+  afterEach(() => {
+    rmSync(workDir, { recursive: true, force: true });
+  });
+
+  it("returns without modifying canvas when element is not in frame-dir map", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    blitHdrVideoLayer(canvas, el, 0, 30, new Map(), new Map(), 8, 8);
+    expect(canvas.every((b) => b === 0)).toBe(true);
+  });
+
+  it("returns without modifying canvas when computed frame index is < 1", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    blitHdrVideoLayer(canvas, el, -0.5, 30, new Map([["v1", workDir]]), new Map([["v1", 0]]), 8, 8);
+    expect(canvas.every((b) => b === 0)).toBe(true);
+  });
+
+  it("blits frame 1 at time = startTime", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    blitHdrVideoLayer(canvas, el, 0, 30, new Map([["v1", workDir]]), new Map([["v1", 0]]), 8, 8);
+    expect(canvas.readUInt16LE(0)).toBe(1);
+  });
+
+  it("computes frame index as round((time - startTime) * fps) + 1", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    blitHdrVideoLayer(
+      canvas,
+      el,
+      2 / 30,
+      30,
+      new Map([["v1", workDir]]),
+      new Map([["v1", 0]]),
+      8,
+      8,
+    );
+    expect(canvas.readUInt16LE(0)).toBe(3);
+  });
+
+  it("freezes on the last available frame when time outlives the clip", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    blitHdrVideoLayer(
+      canvas,
+      el,
+      10, // 10s @ 30fps would request frame 301; we have 5 → clamp to 5
+      30,
+      new Map([["v1", workDir]]),
+      new Map([["v1", 0]]),
+      8,
+      8,
+    );
+    expect(canvas.readUInt16LE(0)).toBe(5);
+  });
+
+  it("respects startTime offset", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    blitHdrVideoLayer(
+      canvas,
+      el,
+      4 / 30, // time
+      30,
+      new Map([["v1", workDir]]),
+      new Map([["v1", 2 / 30]]), // startTime → effective video frame index = 4-2+1 = 3
+      8,
+      8,
+    );
+    expect(canvas.readUInt16LE(0)).toBe(3);
+  });
+
+  it("uses region blit (placement at el.x,el.y) when transform is 'none'", () => {
+    const canvas = Buffer.alloc(16 * 16 * 6);
+    const el = makeElement({ x: 4, y: 0, width: 8, height: 8 });
+    blitHdrVideoLayer(canvas, el, 0, 30, new Map([["v1", workDir]]), new Map([["v1", 0]]), 16, 16);
+    // (0,0) untouched, (4,0) is frame-1 R channel
+    expect(canvas.readUInt16LE(0)).toBe(0);
+    expect(canvas.readUInt16LE((0 * 16 + 4) * 6)).toBe(1);
+  });
+
+  it("uses affine blit when transform parses to a matrix", () => {
+    const canvas = Buffer.alloc(16 * 16 * 6);
+    // matrix(a,b,c,d,e,f) — translate(4,0)
+    const el = makeElement({
+      x: 0,
+      y: 0,
+      transform: "matrix(1, 0, 0, 1, 4, 0)",
+    });
+    blitHdrVideoLayer(canvas, el, 0, 30, new Map([["v1", workDir]]), new Map([["v1", 0]]), 16, 16);
+    expect(canvas.readUInt16LE(0)).toBe(0);
+    expect(canvas.readUInt16LE((0 * 16 + 4) * 6)).toBe(1);
+  });
+
+  it("does not throw when target frame file does not exist", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    rmSync(join(workDir, "frame_0001.png"));
+    expect(() =>
+      blitHdrVideoLayer(canvas, el, 0, 30, new Map([["v1", workDir]]), new Map([["v1", 0]]), 8, 8),
+    ).not.toThrow();
+    expect(canvas.every((b) => b === 0)).toBe(true);
+  });
+
+  it("logs decode errors via the supplied logger and does not throw", () => {
+    const canvas = Buffer.alloc(8 * 8 * 6);
+    const el = makeElement();
+    // Replace frame_0001.png with garbage so decodePngToRgb48le throws.
+    writeFileSync(join(workDir, "frame_0001.png"), Buffer.from("not a png"));
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+    expect(() =>
+      blitHdrVideoLayer(
+        canvas,
+        el,
+        0,
+        30,
+        new Map([["v1", workDir]]),
+        new Map([["v1", 0]]),
+        8,
+        8,
+        log,
+      ),
+    ).not.toThrow();
+    expect(log.warn).toHaveBeenCalledOnce();
+    const call = log.warn.mock.calls[0]!;
+    expect(call[0]).toContain("HDR blit failed for v1");
   });
 });
