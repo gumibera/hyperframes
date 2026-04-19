@@ -181,12 +181,34 @@ export async function captureScreenshotWithAlpha(
  * Only use on sessions that are exclusively dedicated to transparent capture
  * (e.g., the HDR two-pass DOM layer session) — the background will stay
  * transparent for the lifetime of the session.
+ *
+ * NOTE on the injected stylesheet: `Emulation.setDefaultBackgroundColorOverride`
+ * only replaces the *default* page background. Compositions almost always set
+ * `body { background: ... }` and `#root { background: ... }`, which paint over
+ * the override and ruin alpha capture for layered HDR compositing — the
+ * composition root's full-frame background paints across the entire viewport
+ * and wipes out HDR content captured beneath it.
+ *
+ * We force `html`, `body`, and any element marked as a composition root
+ * (`[data-composition-id]`) to transparent. In HDR layered compositing the HDR
+ * video itself is the backdrop, so DOM layers must only contribute their
+ * foreground UI pixels — never a page-spanning solid backdrop.
  */
+export const TRANSPARENT_BG_STYLE_ID = "__hf_transparent_bg__";
+
 export async function initTransparentBackground(page: Page): Promise<void> {
   const client = await getCdpSession(page);
   await client.send("Emulation.setDefaultBackgroundColorOverride", {
     color: { r: 0, g: 0, b: 0, a: 0 },
   });
+  await page.evaluate((styleId: string) => {
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent =
+      "html,body,[data-composition-id]{background:transparent !important;background-color:transparent !important;background-image:none !important;}";
+    document.head.appendChild(style);
+  }, TRANSPARENT_BG_STYLE_ID);
 }
 
 /**
@@ -207,6 +229,132 @@ export async function captureAlphaPng(page: Page, width: number, height: number)
     clip: { x: 0, y: 0, width, height, scale: 1 },
   });
   return Buffer.from(result.data, "base64");
+}
+
+/**
+ * Stylesheet ID used by applyDomLayerMask / removeDomLayerMask. Exposed so
+ * tests can assert presence/absence of the mask between captures.
+ */
+export const DOM_LAYER_MASK_STYLE_ID = "__hf_dom_layer_mask__";
+
+/**
+ * Mask the DOM so a single layer screenshot captures ONLY the layer's pixels.
+ *
+ * The HDR layered compositor walks z-ordered layers and blits each one over a
+ * shared canvas. DOM layers are full-page screenshots — a naive screenshot
+ * captures every painted pixel on the page, which means root background +
+ * static overlays + sibling-scene content all overwrite previously composited
+ * HDR content beneath. The mask narrows each screenshot to the elements that
+ * actually belong to this layer.
+ *
+ * Strategy:
+ *
+ * 1. Inject a stylesheet that hides every body descendant
+ *    (`body * { visibility: hidden !important }`) and re-shows the layer's
+ *    elements (and their descendants and their injected `__render_frame_*`
+ *    siblings) via `visibility: visible !important`. CSS `visibility: visible`
+ *    on a descendant overrides an ancestor's `visibility: hidden`, so deep
+ *    layer elements remain visible even though intermediate parents are
+ *    hidden by the mass-hide rule.
+ * 2. Inline-hide each `extraHideId` (and its `__render_frame_*` sibling) with
+ *    `visibility: hidden !important`. Inline `!important` beats stylesheet
+ *    `!important`, so this overrides the show rule for elements that fall
+ *    under a show selector but should NOT paint — typically other-layer
+ *    elements that are descendants of a container layer (for example HDR
+ *    videos and other-layer SDR videos are descendants of `#root` when we
+ *    capture the root DOM layer).
+ *
+ * Only `visibility` is set on extraHideIds — never `opacity`. CSS opacity is
+ * multiplicative through the descendant chain and a descendant cannot escape
+ * an ancestor's `opacity: 0`. If `#root` is in `extraHideIds` and we set
+ * `opacity: 0` on it, every descendant — including `#vid-5-b` and its
+ * `__render_frame_vid-5-b__` IMG — becomes invisible even with
+ * `visibility: visible !important`. `visibility` does NOT have this problem:
+ * a descendant with `visibility: visible` overrides an ancestor's
+ * `visibility: hidden`.
+ *
+ * Layout is preserved (visibility doesn't trigger reflow), so border-radius
+ * clipping, overflow:hidden, and absolute positioning continue to apply to
+ * the visible layer elements. Opacity is also preserved — an ancestor at
+ * `opacity: 0` (e.g. an inactive scene during a transition) still
+ * propagates to its descendants, which is the desired behavior during
+ * cross-scene blends.
+ *
+ * Idempotent across calls: an existing mask stylesheet is removed before a
+ * new one is installed, so consecutive `applyDomLayerMask` invocations leave
+ * exactly one stylesheet attached.
+ */
+export async function applyDomLayerMask(
+  page: Page,
+  showIds: string[],
+  extraHideIds: string[],
+): Promise<void> {
+  await page.evaluate(
+    (args: { show: string[]; hide: string[]; styleId: string }) => {
+      const existing = document.getElementById(args.styleId);
+      if (existing) existing.remove();
+
+      const showSelectors: string[] = [];
+      for (const id of args.show) {
+        const escaped = CSS.escape(id);
+        showSelectors.push(`#${escaped}`, `#${escaped} *`);
+        const renderEscaped = CSS.escape(`__render_frame_${id}__`);
+        showSelectors.push(`#${renderEscaped}`, `#${renderEscaped} *`);
+      }
+
+      const massHideRule = "body *{visibility:hidden !important;}";
+      const showRule =
+        showSelectors.length === 0
+          ? ""
+          : `${showSelectors.join(",")}{visibility:visible !important;}`;
+
+      const style = document.createElement("style");
+      style.id = args.styleId;
+      style.textContent = `${massHideRule}\n${showRule}`;
+      document.head.appendChild(style);
+
+      for (const id of args.hide) {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.setProperty("visibility", "hidden", "important");
+        }
+        const img = document.getElementById(`__render_frame_${id}__`);
+        if (img) {
+          img.style.setProperty("visibility", "hidden", "important");
+        }
+      }
+    },
+    { show: showIds, hide: extraHideIds, styleId: DOM_LAYER_MASK_STYLE_ID },
+  );
+}
+
+/**
+ * Tear down the mask installed by applyDomLayerMask.
+ *
+ * Removes the mask stylesheet and clears the inline `visibility`/`opacity`
+ * properties set on `extraHideIds` (and their `__render_frame_*` siblings).
+ * Inline values are removed rather than restored — `injectVideoFramesBatch`
+ * and `syncVideoFrameVisibility` re-apply the correct inline values for
+ * native videos and injected imgs at the start of every frame, so subsequent
+ * captures get a clean slate.
+ */
+export async function removeDomLayerMask(page: Page, extraHideIds: string[]): Promise<void> {
+  await page.evaluate(
+    (args: { hide: string[]; styleId: string }) => {
+      const style = document.getElementById(args.styleId);
+      if (style) style.remove();
+      for (const id of args.hide) {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.removeProperty("visibility");
+          el.style.removeProperty("opacity");
+        }
+        const img = document.getElementById(`__render_frame_${id}__`);
+        if (img) img.style.removeProperty("visibility");
+      }
+    },
+    { hide: extraHideIds, styleId: DOM_LAYER_MASK_STYLE_ID },
+  );
 }
 
 export async function injectVideoFramesBatch(

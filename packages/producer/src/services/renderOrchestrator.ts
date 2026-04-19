@@ -63,12 +63,12 @@ import {
   extractVideoMetadata,
   initTransparentBackground,
   captureAlphaPng,
+  applyDomLayerMask,
+  removeDomLayerMask,
   decodePng,
   decodePngToRgb48le,
   blitRgba8OverRgb48le,
   blitRgb48leRegion,
-  hideVideoElements,
-  showVideoElements,
   queryElementStacking,
   groupIntoLayers,
   blitRgb48leAffine,
@@ -1083,8 +1083,9 @@ export async function executeRenderJob(
 
       // Launch headless Chrome for DOM capture.
       // Pass the video frame injector so SDR videos are rendered correctly in Chrome.
-      // HDR videos get injected too but are hidden via hideVideoElements before the
-      // DOM screenshot — only the native FFmpeg-extracted HLG frames are used for HDR.
+      // HDR videos get injected too but are masked out via applyDomLayerMask
+      // before each DOM screenshot — only the native FFmpeg-extracted HLG
+      // frames are used for HDR pixels.
       if (!fileServer) throw new Error("fileServer must be initialized before HDR compositing");
       const domSession = await createCaptureSession(
         fileServer.url,
@@ -1263,11 +1264,33 @@ export async function executeRenderJob(
         // @param fullStacking - Complete stacking info for ALL elements (used for hideIds)
         // @param elementFilter - When set, only composite elements whose IDs are in this set.
         //                        When undefined, all elements are included (non-transition frame).
+        // @param debugFrameIndex - Frame index used to label diagnostic dumps. -1 disables
+        //                        per-layer dumps even when KEEP_TEMP=1 (for warmup calls).
+        const debugDumpEnabled = process.env.KEEP_TEMP === "1";
+        const debugDumpDir = debugDumpEnabled ? join(framesDir, "debug-composite") : null;
+        if (debugDumpDir && !existsSync(debugDumpDir)) {
+          mkdirSync(debugDumpDir, { recursive: true });
+        }
+        function countNonZeroAlpha(rgba: Uint8Array): number {
+          let n = 0;
+          for (let p = 3; p < rgba.length; p += 4) {
+            if (rgba[p] !== 0) n++;
+          }
+          return n;
+        }
+        function countNonZeroRgb48(buf: Uint8Array): number {
+          let n = 0;
+          for (let p = 0; p < buf.length; p += 6) {
+            if (buf[p] !== 0 || buf[p + 1] !== 0 || buf[p + 2] !== 0) n++;
+          }
+          return n;
+        }
         async function compositeToBuffer(
           canvas: Buffer,
           time: number,
           fullStacking: ElementStackingInfo[],
           elementFilter?: Set<string>,
+          debugFrameIndex: number = -1,
         ): Promise<void> {
           // Filter stacking info when rendering a single scene
           const filteredStacking = elementFilter
@@ -1277,9 +1300,35 @@ export async function executeRenderJob(
           // Group filtered elements into z-ordered layers
           const layers = groupIntoLayers(filteredStacking);
 
+          const shouldLog = debugDumpEnabled && debugFrameIndex >= 0;
+          if (shouldLog) {
+            log.info("[diag] compositeToBuffer plan", {
+              frame: debugFrameIndex,
+              time: time.toFixed(3),
+              filterSize: elementFilter?.size,
+              fullStackingCount: fullStacking.length,
+              filteredCount: filteredStacking.length,
+              layerCount: layers.length,
+              layers: layers.map((l) =>
+                l.type === "hdr"
+                  ? {
+                      type: "hdr",
+                      id: l.element.id,
+                      z: l.element.zIndex,
+                      visible: l.element.visible,
+                      opacity: l.element.opacity,
+                      bounds: `${Math.round(l.element.x)},${Math.round(l.element.y)} ${Math.round(l.element.width)}x${Math.round(l.element.height)}`,
+                    }
+                  : { type: "dom", ids: l.elementIds },
+              ),
+            });
+          }
+
           // Composite layers bottom-to-top
-          for (const layer of layers) {
+          for (let layerIdx = 0; layerIdx < layers.length; layerIdx++) {
+            const layer = layers[layerIdx]!;
             if (layer.type === "hdr") {
+              const before = shouldLog ? countNonZeroRgb48(canvas) : 0;
               blitHdrVideoLayer(
                 canvas,
                 layer.element,
@@ -1293,19 +1342,53 @@ export async function executeRenderJob(
                 videoTransfers.get(layer.element.id),
                 effectiveHdr?.transfer,
               );
+              if (shouldLog) {
+                const after = countNonZeroRgb48(canvas);
+                const frameDir = hdrFrameDirs.get(layer.element.id);
+                const startTime = hdrLayerStartTimes.get(layer.element.id) ?? 0;
+                const localTime = time - startTime;
+                const frameNum = Math.floor(localTime * job.config.fps) + 1;
+                const expectedFrame = frameDir
+                  ? join(frameDir, `frame_${String(frameNum).padStart(4, "0")}.png`)
+                  : null;
+                log.info("[diag] hdr layer blit", {
+                  frame: debugFrameIndex,
+                  layerIdx,
+                  id: layer.element.id,
+                  pixelsAdded: after - before,
+                  totalNonZero: after,
+                  startTime,
+                  localTime: localTime.toFixed(3),
+                  hdrFrameNum: frameNum,
+                  expectedFrame,
+                  expectedFrameExists: expectedFrame ? existsSync(expectedFrame) : false,
+                });
+              }
             } else {
               // DOM layer: capture only elements in this layer.
+              //
               // Each layer gets a fresh seek + inject cycle to guarantee correct
               // visibility state — avoids fragile interactions between the frame
-              // injector, hideVideoElements, showVideoElements, and GSAP re-seek.
+              // injector, applyDomLayerMask, removeDomLayerMask, and GSAP re-seek.
               //
-              // Use fullStacking (not filtered) for hideIds so elements from OTHER
-              // scenes are also hidden from the screenshot.
+              // The mask:
+              //   - mass-hides every body descendant via stylesheet
+              //   - re-shows the layer's elements (and their descendants and
+              //     their injected `__render_frame_*` siblings) so deep-nested
+              //     content stays visible even though intermediate ancestors
+              //     are hidden
+              //   - inline-hides every other data-start element so they don't
+              //     paint when they happen to be descendants of a layer element
+              //     (most importantly: HDR videos and other-layer SDR videos
+              //     that live inside `#root` when capturing the root DOM layer)
+              //
+              // Without the mask, every DOM screenshot captures the full page
+              // (root background, sibling scenes' static content, the painted
+              // border/box-shadow of cards, etc.) and the resulting opaque
+              // pixels overwrite previously composited HDR content beneath.
               const allElementIds = fullStacking.map((e) => e.id);
               const layerIds = new Set(layer.elementIds);
-              const hideIds = allElementIds.filter(
-                (id) => !layerIds.has(id) || nativeHdrVideoIds.has(id),
-              );
+              const hideIds = allElementIds.filter((id) => !layerIds.has(id));
 
               // 1. Seek GSAP to restore all animated properties from clean state
               await domSession.page.evaluate((t: number) => {
@@ -1317,14 +1400,14 @@ export async function executeRenderJob(
                 await beforeCaptureHook(domSession.page, time);
               }
 
-              // 3. Hide non-layer elements (AFTER inject so visibility is correct)
-              await hideVideoElements(domSession.page, hideIds);
+              // 3. Install the mask (mass-hide stylesheet + inline-hide non-layer ids)
+              await applyDomLayerMask(domSession.page, layer.elementIds, hideIds);
 
               // 4. Screenshot
               const domPng = await captureAlphaPng(domSession.page, width, height);
 
-              // 5. Restore everything
-              await showVideoElements(domSession.page, hideIds);
+              // 5. Tear down the mask
+              await removeDomLayerMask(domSession.page, hideIds);
 
               try {
                 const { data: domRgba } = decodePng(domPng);
@@ -1334,7 +1417,26 @@ export async function executeRenderJob(
                     "Invariant violation: effectiveHdr is undefined inside HDR layer branch",
                   );
                 }
+                const before = shouldLog ? countNonZeroRgb48(canvas) : 0;
+                const alphaPixels = shouldLog ? countNonZeroAlpha(domRgba) : 0;
                 blitRgba8OverRgb48le(domRgba, canvas, width, height, effectiveHdr.transfer);
+                if (shouldLog && debugDumpDir) {
+                  const after = countNonZeroRgb48(canvas);
+                  const dumpName = `frame_${String(debugFrameIndex).padStart(4, "0")}_layer_${String(layerIdx).padStart(2, "0")}_dom.png`;
+                  const dumpPath = join(debugDumpDir, dumpName);
+                  writeFileSync(dumpPath, domPng);
+                  log.info("[diag] dom layer blit", {
+                    frame: debugFrameIndex,
+                    layerIdx,
+                    layerIds: layer.elementIds,
+                    hideCount: hideIds.length,
+                    pngBytes: domPng.length,
+                    alphaPixels,
+                    pixelsAdded: after - before,
+                    totalNonZero: after,
+                    dumpPath,
+                  });
+                }
               } catch (err) {
                 log.warn("DOM layer decode/blit failed; skipping overlay", {
                   layerIds: layer.elementIds,
@@ -1342,6 +1444,16 @@ export async function executeRenderJob(
                 });
               }
             }
+          }
+
+          if (shouldLog && debugDumpDir) {
+            const finalNonZero = countNonZeroRgb48(canvas);
+            log.info("[diag] compositeToBuffer end", {
+              frame: debugFrameIndex,
+              finalNonZeroPixels: finalNonZero,
+              totalPixels: width * height,
+              coverage: ((finalNonZero / (width * height)) * 100).toFixed(1) + "%",
+            });
           }
         }
 
@@ -1438,13 +1550,19 @@ export async function executeRenderJob(
                 );
               }
 
-              // Single DOM screenshot: hide everything except this scene's DOM elements
+              // Single DOM screenshot: mask the page so only this scene's DOM
+              // elements paint. Same masking strategy as the per-layer DOM
+              // branch — see applyDomLayerMask for details. Native HDR videos
+              // are always inline-hidden so their fallback poster/black frame
+              // doesn't bleed into the DOM overlay (HDR pixels are blitted
+              // separately by blitHdrVideoLayer above).
+              const showIds = Array.from(sceneIds);
               const hideIds = stackingInfo
                 .map((e) => e.id)
                 .filter((id) => !sceneIds.has(id) || nativeHdrVideoIds.has(id));
-              await hideVideoElements(domSession.page, hideIds);
+              await applyDomLayerMask(domSession.page, showIds, hideIds);
               const domPng = await captureAlphaPng(domSession.page, width, height);
-              await showVideoElements(domSession.page, hideIds);
+              await removeDomLayerMask(domSession.page, hideIds);
 
               try {
                 const { data: domRgba } = decodePng(domPng);
@@ -1482,33 +1600,43 @@ export async function executeRenderJob(
           } else {
             // ── Normal frame: full layer composite (no transition) ─────────
             normalCanvas.fill(0);
-            await compositeToBuffer(normalCanvas, time, stackingInfo);
+            await compositeToBuffer(normalCanvas, time, stackingInfo, undefined, i);
+            if (debugDumpEnabled && debugDumpDir && i % 30 === 0) {
+              const previewPath = join(
+                debugDumpDir,
+                `frame_${String(i).padStart(4, "0")}_final_rgb48le.bin`,
+              );
+              writeFileSync(previewPath, normalCanvas);
+            }
             hdrEncoder.writeFrame(normalCanvas);
           }
 
           // Clean up HDR frame directories for videos that have ended.
           // Frees disk space during long renders with many HDR videos.
-          for (const [videoId, endTime] of hdrVideoEndTimes) {
-            if (time > endTime && !cleanedUpVideos.has(videoId)) {
-              // Also check no active transition references this video's scene
-              const stillNeeded =
-                activeTransition &&
-                (sceneElements[activeTransition.fromScene]?.includes(videoId) ||
-                  sceneElements[activeTransition.toScene]?.includes(videoId));
-              if (!stillNeeded) {
-                const frameDir = hdrFrameDirs.get(videoId);
-                if (frameDir) {
-                  try {
-                    rmSync(frameDir, { recursive: true, force: true });
-                  } catch (err) {
-                    log.warn("Failed to clean up HDR frame directory", {
-                      videoId,
-                      frameDir,
-                      error: err instanceof Error ? err.message : String(err),
-                    });
+          // Skip when KEEP_TEMP=1 so we can inspect intermediate state.
+          if (process.env.KEEP_TEMP !== "1") {
+            for (const [videoId, endTime] of hdrVideoEndTimes) {
+              if (time > endTime && !cleanedUpVideos.has(videoId)) {
+                // Also check no active transition references this video's scene
+                const stillNeeded =
+                  activeTransition &&
+                  (sceneElements[activeTransition.fromScene]?.includes(videoId) ||
+                    sceneElements[activeTransition.toScene]?.includes(videoId));
+                if (!stillNeeded) {
+                  const frameDir = hdrFrameDirs.get(videoId);
+                  if (frameDir) {
+                    try {
+                      rmSync(frameDir, { recursive: true, force: true });
+                    } catch (err) {
+                      log.warn("Failed to clean up HDR frame directory", {
+                        videoId,
+                        frameDir,
+                        error: err instanceof Error ? err.message : String(err),
+                      });
+                    }
                   }
+                  cleanedUpVideos.add(videoId);
                 }
-                cleanedUpVideos.add(videoId);
               }
             }
           }
@@ -1888,6 +2016,8 @@ export async function executeRenderJob(
         const debugOutput = join(workDir, `output${videoExt}`);
         copyFileSync(outputPath, debugOutput);
       }
+    } else if (process.env.KEEP_TEMP === "1") {
+      log.info("KEEP_TEMP=1 — leaving workDir on disk for inspection", { workDir });
     } else {
       await safeCleanup(
         "remove workDir",

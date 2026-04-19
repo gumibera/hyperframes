@@ -80,6 +80,9 @@ export {
   cdpSessionCache,
   initTransparentBackground,
   captureAlphaPng,
+  applyDomLayerMask,
+  removeDomLayerMask,
+  DOM_LAYER_MASK_STYLE_ID,
   type BeginFrameResult,
 } from "./services/screenshotService.js";
 
