@@ -28,6 +28,14 @@ bun run --filter @hyperframes/engine test        # Engine unit tests (vitest)
 bun run --filter @hyperframes/core test:hyperframe-runtime-ci  # Runtime contract tests
 ```
 
+For HDR-specific changes (BT.2020 PQ encode, sRGB→BT.2020 overlay
+conversion, HDR10 metadata, mixed SDR/HDR compositing) the engine unit
+tests above cover the building blocks, but end-to-end HDR pipeline
+verification is handled by a separate manual smoke script that is **not**
+in CI. See
+[`packages/producer/tests/hdr-regression/README.md`](packages/producer/tests/hdr-regression/README.md)
+for fixtures, the `hdr-smoke` runner, and the current coverage gaps.
+
 ### Linting & Formatting
 
 ```bash
