@@ -331,12 +331,16 @@ export async function applyDomLayerMask(
 /**
  * Tear down the mask installed by applyDomLayerMask.
  *
- * Removes the mask stylesheet and clears the inline `visibility`/`opacity`
- * properties set on `extraHideIds` (and their `__render_frame_*` siblings).
- * Inline values are removed rather than restored — `injectVideoFramesBatch`
- * and `syncVideoFrameVisibility` re-apply the correct inline values for
- * native videos and injected imgs at the start of every frame, so subsequent
- * captures get a clean slate.
+ * Removes the mask stylesheet and clears the inline `visibility` properties
+ * set on `extraHideIds` (and their `__render_frame_*` siblings).
+ *
+ * IMPORTANT: We do NOT strip inline `opacity` here. applyDomLayerMask only
+ * ever sets `visibility` (never `opacity`), so any inline opacity present on
+ * a wrapper was put there by user animation code (typically GSAP) and must
+ * survive across per-layer captures. GSAP's seek with suppress-events does
+ * not re-apply tweens when the timeline is already at the target time, so if
+ * we strip opacity here and then seek to the same time for the next layer,
+ * GSAP won't put it back and the wrapper will render fully opaque.
  */
 export async function removeDomLayerMask(page: Page, extraHideIds: string[]): Promise<void> {
   await page.evaluate(
@@ -347,7 +351,6 @@ export async function removeDomLayerMask(page: Page, extraHideIds: string[]): Pr
         const el = document.getElementById(id);
         if (el) {
           el.style.removeProperty("visibility");
-          el.style.removeProperty("opacity");
         }
         const img = document.getElementById(`__render_frame_${id}__`);
         if (img) img.style.removeProperty("visibility");
@@ -372,7 +375,6 @@ export async function injectVideoFramesBatch(
         let img = video.nextElementSibling as HTMLImageElement | null;
         const isNewImage = !img || !img.classList.contains("__render_frame__");
         const computedStyle = window.getComputedStyle(video);
-        const computedOpacity = parseFloat(computedStyle.opacity) || 1;
         const sourceIsStatic = !computedStyle.position || computedStyle.position === "static";
 
         if (isNewImage) {
@@ -408,6 +410,13 @@ export async function injectVideoFramesBatch(
         img.style.zIndex = computedStyle.zIndex;
 
         for (const property of visualProperties) {
+          // Skip opacity — the <video> is forced to opacity:0 !important below
+          // (and by syncVideoFrameVisibility) to hide it during capture, so its
+          // computed opacity is not the user's intent. The injected <img> is a
+          // sibling of the <video> inside the same wrapper, so it inherits the
+          // wrapper's opacity (where GSAP applies animated values) just like
+          // the <video> would have.
+          if (property === "opacity") continue;
           if (
             sourceIsStatic &&
             (property === "top" ||
@@ -431,8 +440,8 @@ export async function injectVideoFramesBatch(
             .catch(() => undefined)
             .then(() => undefined),
         );
-        img.style.opacity = String(computedOpacity);
         img.style.visibility = "visible";
+        img.style.removeProperty("opacity");
         video.style.setProperty("visibility", "hidden", "important");
         video.style.setProperty("opacity", "0", "important");
         video.style.setProperty("pointer-events", "none", "important");
