@@ -224,33 +224,71 @@ export function decodePngToRgb48le(buf: Buffer): { width: number; height: number
 }
 
 // ── sRGB → HDR color conversion ───────────────────────────────────────────────
+//
+// Pipeline per pixel:
+//   sRGB 8-bit  →  linear BT.709 (sRGB EOTF, 256-entry LUT)
+//                →  linear BT.2020 (3×3 primary matrix)
+//                →  HDR signal 16-bit (HLG/PQ OETF, 4096-entry LUT)
+//
+// ## Why both transfer AND primaries
+//
+// HLG and PQ HDR video is encoded in the BT.2020 color volume, which has
+// substantially wider primaries than sRGB/BT.709. Skipping the primary
+// conversion and treating sRGB R/G/B values as if they were already BT.2020
+// makes saturated colors *look more saturated than the source intended* —
+// e.g. sRGB pure blue (0, 0, 255) lands on BT.2020 blue, which is far more
+// vivid than what the designer specified.
+//
+// For grayscale content (R = G = B) the matrix is the identity (each row of
+// the BT.709→BT.2020 matrix sums to 1.0), so neutral text/UI is unaffected.
+// For chromatic content (icons, progress bars, accent colors) the conversion
+// is essential for color-accurate compositing.
+//
+// ## Conventions
+//
+// "Linear" means **scene-referred light in [0, 1] relative to SDR reference
+// white** (not absolute nits). The HLG branch applies the OETF directly — no
+// OOTF (no scene→display 1.2 gamma). DOM overlays are composited ON TOP of
+// HLG video pixels which already live in HLG signal space, so we need the
+// overlay to live in the same space; applying the OOTF here would
+// double-apply it.
+//
+// For PQ, SDR white is placed at 203 nits per ITU-R BT.2408 ("SDR white"
+// reference level) and normalized against the 10,000-nit PQ peak. This lets
+// SDR text/UI sit at the conventional SDR-white brightness within a PQ frame
+// rather than at peak brightness.
 
-/**
- * Build a 256-entry LUT: sRGB 8-bit value → HDR 16-bit signal value.
- *
- * Pipeline per channel: sRGB EOTF (decode gamma) → linear → HDR OETF → 16-bit.
- *
- * ## Convention
- *
- * "Linear" here means **scene light in [0, 1] relative to SDR reference white**
- * (not absolute nits). The HLG branch applies the OETF directly — no OOTF (no
- * gamma 1.2 scene→display conversion). This is the right choice for DOM
- * overlays that will be composited ON TOP of HLG video pixels (which are
- * already in HLG signal space); we need the overlay to sit in the same space
- * as what it’s blending onto. Applying the OOTF here would double-apply it
- * when the HDR video already carries scene-light semantics.
- *
- * For PQ, SDR white is placed at 203 nits per ITU-R BT.2408 ("SDR white"
- * reference level) and normalized against 10,000-nit peak. This lets SDR
- * content (text, UI) sit at the conventional SDR-white brightness within a
- * PQ frame rather than at peak brightness.
- *
- * Note: converts the transfer function but not the color primaries (bt709 →
- * bt2020). For neutral/near-neutral content (text, UI) the gamut difference
- * is negligible.
- */
-function buildSrgbToHdrLut(transfer: "hlg" | "pq"): Uint16Array {
-  const lut = new Uint16Array(256);
+// BT.709 → BT.2020 primary conversion matrix (linear light).
+// Source: ITU-R BT.2087-0, Annex 2. Each row sums to 1.0 so neutrals
+// (R = G = B) are invariant — only chromatic content gets remapped.
+const M709_TO_2020 = [
+  [0.6274039, 0.3292832, 0.0433128],
+  [0.0690973, 0.9195403, 0.0113624],
+  [0.0163914, 0.088013, 0.8955953],
+] as const;
+
+/** sRGB 8-bit signal → linear scene light in [0, 1]. Exact (256 entries). */
+const SRGB_TO_LINEAR: Float32Array = (() => {
+  const lut = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const v = i / 255;
+    lut[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }
+  return lut;
+})();
+
+// Linear-light → HDR signal LUTs.
+//
+// We use a 4096-entry table indexed by `Math.round(linear * 4095)`. This
+// trades a tiny amount of precision in the highlights for a 16× smaller
+// memory footprint vs. a 65536-entry LUT. The OETF is steepest near zero
+// (where dense sampling matters most), and at the dark end 1 / 4095 ≈ 0.024%
+// of full-scale — far below visible threshold for compositing 8-bit overlays.
+const HDR_LUT_SIZE = 4096;
+const HDR_LUT_MAX = HDR_LUT_SIZE - 1;
+
+function buildLinearToHdrLut(transfer: "hlg" | "pq"): Uint16Array {
+  const lut = new Uint16Array(HDR_LUT_SIZE);
 
   // HLG OETF constants (Rec. 2100)
   const hlgA = 0.17883277;
@@ -266,34 +304,71 @@ function buildSrgbToHdrLut(transfer: "hlg" | "pq"): Uint16Array {
   const pqMaxNits = 10000.0;
   const sdrNits = 203.0;
 
-  for (let i = 0; i < 256; i++) {
-    // sRGB EOTF: signal → linear (range 0–1, relative to SDR white)
-    const v = i / 255;
-    const linear = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-
+  for (let i = 0; i < HDR_LUT_SIZE; i++) {
+    const linear = i / HDR_LUT_MAX;
     let signal: number;
     if (transfer === "hlg") {
       signal =
         linear <= 1 / 12 ? Math.sqrt(3 * linear) : hlgA * Math.log(12 * linear - hlgB) + hlgC;
     } else {
-      // PQ OETF: linear light (in SDR nits) → PQ signal
+      // PQ: scale linear (relative to SDR white) into absolute PQ light
+      // before applying the OETF, so SDR white lands at 203 nits.
       const Lp = Math.max(0, (linear * sdrNits) / pqMaxNits);
       const Lm1 = Math.pow(Lp, pqM1);
       signal = Math.pow((pqC1 + pqC2 * Lm1) / (1.0 + pqC3 * Lm1), pqM2);
     }
-
     lut[i] = Math.min(65535, Math.round(signal * 65535));
   }
 
   return lut;
 }
 
-const SRGB_TO_HLG = buildSrgbToHdrLut("hlg");
-const SRGB_TO_PQ = buildSrgbToHdrLut("pq");
+const LINEAR_TO_HLG = buildLinearToHdrLut("hlg");
+const LINEAR_TO_PQ = buildLinearToHdrLut("pq");
 
-/** Select the correct sRGB→HDR LUT for the given transfer function. */
-export function getSrgbToHdrLut(transfer: "hlg" | "pq"): Uint16Array {
-  return transfer === "pq" ? SRGB_TO_PQ : SRGB_TO_HLG;
+function selectLinearToHdrLut(transfer: "hlg" | "pq"): Uint16Array {
+  return transfer === "pq" ? LINEAR_TO_PQ : LINEAR_TO_HLG;
+}
+
+/**
+ * Convert one sRGB 8-bit pixel to an HDR 16-bit pixel via the full pipeline:
+ * sRGB EOTF → BT.709→BT.2020 primary matrix → HDR OETF.
+ *
+ * Writes the result into `out` at offset 0/1/2.
+ */
+function srgbToHdr16(
+  r8: number,
+  g8: number,
+  b8: number,
+  hdrLut: Uint16Array,
+  out: { r: number; g: number; b: number },
+): void {
+  const lr = SRGB_TO_LINEAR[r8] ?? 0;
+  const lg = SRGB_TO_LINEAR[g8] ?? 0;
+  const lb = SRGB_TO_LINEAR[b8] ?? 0;
+
+  // Matrix indices match the ITU-R BT.2087-0 layout above.
+  const m0 = M709_TO_2020[0]!;
+  const m1 = M709_TO_2020[1]!;
+  const m2 = M709_TO_2020[2]!;
+
+  let r2 = m0[0]! * lr + m0[1]! * lg + m0[2]! * lb;
+  let g2 = m1[0]! * lr + m1[1]! * lg + m1[2]! * lb;
+  let b2 = m2[0]! * lr + m2[1]! * lg + m2[2]! * lb;
+
+  // For in-gamut sRGB inputs (which is everything we get from an 8-bit
+  // canvas), each row sums to 1.0 with non-negative coefficients, so outputs
+  // are guaranteed in [0, 1]. The clamps guard against fp drift only.
+  if (r2 < 0) r2 = 0;
+  else if (r2 > 1) r2 = 1;
+  if (g2 < 0) g2 = 0;
+  else if (g2 > 1) g2 = 1;
+  if (b2 < 0) b2 = 0;
+  else if (b2 > 1) b2 = 1;
+
+  out.r = hdrLut[Math.round(r2 * HDR_LUT_MAX)] ?? 0;
+  out.g = hdrLut[Math.round(g2 * HDR_LUT_MAX)] ?? 0;
+  out.b = hdrLut[Math.round(b2 * HDR_LUT_MAX)] ?? 0;
 }
 
 // ── Alpha compositing ─────────────────────────────────────────────────────────
@@ -302,15 +377,22 @@ export function getSrgbToHdrLut(transfer: "hlg" | "pq"): Uint16Array {
  * Alpha-composite a DOM RGBA overlay (8-bit sRGB) onto an HDR canvas
  * (rgb48le) in-place.
  *
- * DOM pixels are converted from sRGB to the target HDR signal space (HLG or PQ)
- * before blending so the composited output is uniformly encoded. Without this
- * conversion, sRGB content appears orange/washed in HDR playback.
+ * DOM pixels are converted from sRGB to the target HDR signal space (HLG or
+ * PQ) via a full sRGB EOTF → BT.709→BT.2020 primary matrix → HDR OETF
+ * pipeline, then alpha-blended against the existing HDR canvas in HDR signal
+ * space. Without the primary conversion, saturated sRGB colors (UI accents,
+ * icons) over-saturate when interpreted as BT.2020.
+ *
+ * Alpha blending is intentionally performed in HDR signal space (not linear
+ * light) to match the existing GPU compositing path. Since text/UI overlays
+ * are usually fully opaque, this only affects soft edges where the difference
+ * is imperceptible.
  *
  * @param domRgba   Raw RGBA pixel data from decodePng() — width*height*4 bytes
  * @param canvas    HDR canvas in rgb48le format — width*height*6 bytes, mutated in-place
  * @param width     Canvas width in pixels
  * @param height    Canvas height in pixels
- * @param transfer  HDR transfer function — selects the correct sRGB→HDR LUT
+ * @param transfer  HDR transfer function — selects PQ or HLG OETF
  */
 export function blitRgba8OverRgb48le(
   domRgba: Uint8Array,
@@ -320,20 +402,25 @@ export function blitRgba8OverRgb48le(
   transfer: "hlg" | "pq" = "hlg",
 ): void {
   const pixelCount = width * height;
-  const lut = getSrgbToHdrLut(transfer);
+  const hdrLut = selectLinearToHdrLut(transfer);
+  const out = { r: 0, g: 0, b: 0 };
 
   for (let i = 0; i < pixelCount; i++) {
     const da = domRgba[i * 4 + 3] ?? 0;
+    if (da === 0) continue;
 
-    if (da === 0) {
-      continue;
-    } else if (da === 255) {
-      const r16 = lut[domRgba[i * 4 + 0] ?? 0] ?? 0;
-      const g16 = lut[domRgba[i * 4 + 1] ?? 0] ?? 0;
-      const b16 = lut[domRgba[i * 4 + 2] ?? 0] ?? 0;
-      canvas.writeUInt16LE(r16, i * 6);
-      canvas.writeUInt16LE(g16, i * 6 + 2);
-      canvas.writeUInt16LE(b16, i * 6 + 4);
+    srgbToHdr16(
+      domRgba[i * 4 + 0] ?? 0,
+      domRgba[i * 4 + 1] ?? 0,
+      domRgba[i * 4 + 2] ?? 0,
+      hdrLut,
+      out,
+    );
+
+    if (da === 255) {
+      canvas.writeUInt16LE(out.r, i * 6);
+      canvas.writeUInt16LE(out.g, i * 6 + 2);
+      canvas.writeUInt16LE(out.b, i * 6 + 4);
     } else {
       const alpha = da / 255;
       const invAlpha = 1 - alpha;
@@ -342,13 +429,9 @@ export function blitRgba8OverRgb48le(
       const hdrG = (canvas[i * 6 + 2] ?? 0) | ((canvas[i * 6 + 3] ?? 0) << 8);
       const hdrB = (canvas[i * 6 + 4] ?? 0) | ((canvas[i * 6 + 5] ?? 0) << 8);
 
-      const domR = lut[domRgba[i * 4 + 0] ?? 0] ?? 0;
-      const domG = lut[domRgba[i * 4 + 1] ?? 0] ?? 0;
-      const domB = lut[domRgba[i * 4 + 2] ?? 0] ?? 0;
-
-      canvas.writeUInt16LE(Math.round(domR * alpha + hdrR * invAlpha), i * 6);
-      canvas.writeUInt16LE(Math.round(domG * alpha + hdrG * invAlpha), i * 6 + 2);
-      canvas.writeUInt16LE(Math.round(domB * alpha + hdrB * invAlpha), i * 6 + 4);
+      canvas.writeUInt16LE(Math.round(out.r * alpha + hdrR * invAlpha), i * 6);
+      canvas.writeUInt16LE(Math.round(out.g * alpha + hdrG * invAlpha), i * 6 + 2);
+      canvas.writeUInt16LE(Math.round(out.b * alpha + hdrB * invAlpha), i * 6 + 4);
     }
   }
 }

@@ -167,7 +167,6 @@ export {
   blitRgb48leRegion,
   blitRgb48leAffine,
   parseTransformMatrix,
-  getSrgbToHdrLut,
   roundedRectAlpha,
 } from "./utils/alphaBlit.js";
 
