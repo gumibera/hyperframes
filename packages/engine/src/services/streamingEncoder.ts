@@ -17,7 +17,8 @@ import { existsSync, mkdirSync, statSync } from "fs";
 import { dirname } from "path";
 
 import { type GpuEncoder, getCachedGpuEncoder, getGpuEncoderName } from "../utils/gpuEncoder.js";
-import { getHdrEncoderColorParams } from "../utils/hdr.js";
+import { DEFAULT_HDR10_MASTERING, getHdrEncoderColorParams } from "../utils/hdr.js";
+import { injectHdrBoxes } from "../utils/mp4HdrBoxes.js";
 import { type EncoderOptions } from "./chunkEncoder.types.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
 
@@ -411,8 +412,30 @@ export async function spawnStreamingEncoder(
           success: false,
           durationMs,
           fileSize: 0,
-          error: `FFmpeg exited with code ${exitCode}`,
+          error: `FFmpeg exited with code ${exitCode}: ${stderr.slice(-2000)}`,
         };
+      }
+
+      // Post-encode: inject mdcv/clli MP4 container boxes for HDR10 outputs.
+      // x265 emits these as in-band SEI messages, but FFmpeg's mov muxer
+      // doesn't propagate them to the container. YouTube, Apple AirPlay, and
+      // most HDR TVs need the container-level boxes to recognize the file as
+      // HDR — without them they tone-map as SDR BT.2020. See mp4HdrBoxes.ts.
+      // Only relevant for h265 + hdr (the only path that emits the SEI in
+      // the first place); a no-op otherwise.
+      if (options.hdr && options.codec === "h265" && existsSync(outputPath)) {
+        try {
+          injectHdrBoxes(outputPath, DEFAULT_HDR10_MASTERING);
+        } catch (err) {
+          // Best-effort: a malformed MP4 from FFmpeg shouldn't fail the
+          // whole encode, but we want to know about it in logs. The file
+          // is still playable; only HDR recognition on strict ingests is
+          // affected.
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[streamingEncoder] HDR box injection failed for ${outputPath}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       }
 
       const fileSize = existsSync(outputPath) ? statSync(outputPath).size : 0;
