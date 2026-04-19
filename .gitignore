@@ -84,3 +84,6 @@ captures/
 *-ad/
 *-tour/
 *-brand/
+
+# Studio scene thumbnails (generated cache)
+.thumbnails/
