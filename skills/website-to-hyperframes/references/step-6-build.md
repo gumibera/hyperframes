@@ -70,12 +70,13 @@ Use `gsap.from()` — animate FROM offscreen/invisible TO the CSS position. The 
 
 Every visible element must have continuous motion. A still image on a still background is a JPEG with a progress bar.
 
-| Element type           | Mid-scene activity                               |
-| ---------------------- | ------------------------------------------------ |
-| Image / screenshot     | Slow zoom (scale 1→1.03), slow pan, or Ken Burns |
-| Stat / number          | Counter animates from 0 to target                |
-| Logo grid              | Subtle shimmer sweep, or gentle scale pulse      |
-| Any persistent element | Subtle float (y ±4-6px, sine.inOut, yoyo)        |
+| Element type                           | Mid-scene activity                                                                                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Image / screenshot                     | Slow zoom (scale 1→1.03), slow pan, or Ken Burns                                                                                             |
+| Stat / number                          | Counter animates from 0 to target                                                                                                            |
+| Logo grid                              | Subtle shimmer sweep, or gentle scale pulse                                                                                                  |
+| Any persistent element                 | Subtle float (y ±4-6px, sine.inOut, yoyo)                                                                                                    |
+| Logo / CTA (with music or dramatic VO) | Audio-reactive scale/glow — bass pulses the logo (3–4%), treble glows the CTA. See technique #11 in `techniques.md` for the sampling pattern |
 
 ### 6. Add exit / transition
 

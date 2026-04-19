@@ -14,7 +14,7 @@ npx hyperframes validate
 
 ## Visual Verification (snapshot)
 
-After lint and validate pass, capture snapshot frames to SEE your own output:
+After lint and validate pass, capture snapshot frames to SEE your own output. **Always use `hyperframes snapshot`** — do not roll your own ffmpeg/headless Chrome script; the default naming (`frame-XX-at-Ys.png`) is expected by later tooling.
 
 ```bash
 npx hyperframes snapshot <project-dir> --at <beat-midpoints>
@@ -32,7 +32,7 @@ Calculate the midpoint of each beat from your STORYBOARD.md timings. For a 4-bea
 npx hyperframes snapshot <project-dir> --at 2.9,10.4,18.7,23.9
 ```
 
-This renders one frame per beat at the moment when content is most visible. Use timestamps where the most content is on screen — usually 60-70% into each beat, after entrances finish but before exits start.
+This renders one frame per beat at the moment when content is most visible. Use timestamps where the most content is on screen — usually 60-70% into each beat, after entrances finish but before exits start. Output lands in `<project-dir>/snapshots/` with filenames like `frame-00-at-2.9s.png`.
 
 **View every snapshot image carefully.** Don't glance and move on. For each frame, check:
 
@@ -70,3 +70,17 @@ npx hyperframes preview
 ```
 
 Open the studio in a browser. Scrub through every beat.
+
+## Render
+
+Once preview looks correct, render to MP4. **Always pass `--output renders/<project-name>.mp4`** so the final file has a predictable name — do not rely on the timestamped default (`<project>_YYYY-MM-DD_HH-MM-SS.mp4`), which makes files hard to reference from docs/handoffs/CI.
+
+```bash
+npx hyperframes render --output renders/<project-name>.mp4
+```
+
+Example: `npx hyperframes render --output renders/stripe-launch.mp4`
+
+For social-media vertical output, add `--format` or `--viewport 1080x1920` (depending on CLI flag support); check `npx hyperframes render --help`.
+
+If the final MP4 exceeds ~15 MB for a 30-second video, consider `--quality medium` or `--crf 23` to compress — but verify the quality trade-off on a snapshot pass before accepting.

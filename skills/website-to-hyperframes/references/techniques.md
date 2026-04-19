@@ -338,6 +338,44 @@ The fastest point of both curves meets at the cut — the viewer perceives smoot
 
 ---
 
+## 11. Audio-Reactive Animation
+
+Drive any GSAP-tweenable property from the playing audio. Bass pulses a logo on kick drums. Treble glows a CTA on cymbals. Amplitude breathes a background during quiet phrases. The result: motion that feels locked to the track in a way pre-authored tweens never can.
+
+**When to use:** Any video with music or dramatic narration — brand reels, product launches, hype edits. Skip for calm/tutorial pacing.
+
+**How it works:** Pre-extract audio frequency bands into a JSON file, then sample per-frame via `tl.call()`:
+
+```js
+// audio-data.json: { fps: 30, totalFrames: 900, frames: [{ bands: [0.82, 0.45, 0.31, ...] }, ...] }
+for (var f = 0; f < AUDIO_DATA.totalFrames; f++) {
+  tl.call(
+    (function (frame) {
+      return function () {
+        var bass = frame.bands[0]; // 0–1
+        var treble = frame.bands[13];
+        gsap.set(".logo", { scale: 1 + bass * 0.04 }); // 3–4% pulse on bass
+        gsap.set(".cta", { filter: `drop-shadow(0 0 ${treble * 24}px #00C3FF)` });
+      };
+    })(AUDIO_DATA.frames[f]),
+    [],
+    f / AUDIO_DATA.fps,
+  );
+}
+```
+
+Per-frame sampling is required — a single tween will not react. Use the extract script:
+
+```bash
+python3 skills/hyperframes/scripts/extract-audio-data.py narration.wav --fps 30 --bands 16 -o audio-data.json
+```
+
+Keep text/logo intensity subtle (≤5% scale, ≤30% glow) — audio-reactive motion on tiny elements reads as jitter. Bigger backgrounds can push to 10–30%.
+
+**Never do:** equalizer bars, spectrum analyzers, waveform displays, strobing, rainbow color cycling. The audio provides _timing and intensity_; the visual vocabulary still comes from the brand. See `skills/hyperframes/references/audio-reactive.md` for the full API and anti-patterns.
+
+---
+
 ## When to Use What
 
 | Video energy                   | Techniques to combine                                           |
