@@ -90,6 +90,21 @@ export function init(config: HyperShaderConfig): GsapTimeline {
   const root = document.querySelector<HTMLElement>("[data-composition-id]");
   const compId = config.compositionId || root?.getAttribute("data-composition-id") || "main";
 
+  // The Hyperframes engine injects a virtual-time shim (window.__HF_VIRTUAL_TIME__)
+  // during render mode and composites every transition itself from the
+  // window.__hf.transitions metadata above. Doing GL work or html2canvas captures
+  // here would (a) waste cycles and (b) leave .scene elements stuck at opacity:0
+  // because captureScene resolves asynchronously, after the engine has already
+  // sampled the DOM. In that mode we only need to keep each scene's effective
+  // opacity correct so queryElementStacking() reports the right visibility.
+  const isEngineRenderMode =
+    typeof window !== "undefined" &&
+    Boolean((window as unknown as { __HF_VIRTUAL_TIME__?: unknown }).__HF_VIRTUAL_TIME__);
+
+  if (isEngineRenderMode) {
+    return initEngineMode(config, scenes, transitions, compId, root);
+  }
+
   const state: TransState = {
     active: false,
     prog: null,
@@ -258,4 +273,48 @@ function registerTimeline(
     w.__timelines = w.__timelines || {};
     w.__timelines[compId] = tl;
   }
+}
+
+// Engine-mode initialization: skip every GL/canvas/html2canvas branch and only
+// schedule deterministic opacity flips so the producer can read each scene's
+// effective opacity at any seek time. tl.set() (zero-duration tweens) is used
+// instead of tl.call() because tl.call only fires in the direction of motion —
+// the engine's warmup loop seeks forward through transition start times and
+// then the main render loop seeks back to t=0, which would leave callback-set
+// state stuck. tl.set tweens revert correctly on backward seeks.
+function initEngineMode(
+  config: HyperShaderConfig,
+  scenes: string[],
+  transitions: TransitionConfig[],
+  compId: string,
+  root: HTMLElement | null,
+): GsapTimeline {
+  const tl: GsapTimeline = config.timeline || gsap.timeline({ paused: true });
+
+  // Match the user-facing branch: when the user supplies a timeline, we
+  // anchor a no-op duration tween at 0 so the timeline length covers the
+  // composition. Without it a brand-new injected timeline would be empty.
+  if (config.timeline) {
+    const duration = Number(root?.getAttribute("data-duration") || "40");
+    tl.to({ t: 0 }, { t: 1, duration, ease: "none" }, 0);
+  }
+
+  for (let i = 0; i < transitions.length; i++) {
+    const t = transitions[i];
+    const fromId = scenes[i];
+    const toId = scenes[i + 1];
+    if (!fromId || !toId) continue;
+
+    const dur = t.duration ?? 0.7;
+    const T = t.time;
+
+    // During the transition both scenes need to be visible so the engine
+    // can composite each side; afterwards the outgoing scene must drop out
+    // so it stops contributing to the normal-frame layer composite.
+    tl.set(`#${toId}`, { opacity: 1 }, T);
+    tl.set(`#${fromId}`, { opacity: 0 }, T + dur);
+  }
+
+  registerTimeline(compId, tl, config.timeline);
+  return tl;
 }
