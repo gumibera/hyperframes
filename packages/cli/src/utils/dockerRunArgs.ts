@@ -25,6 +25,8 @@ export interface DockerRenderOptions {
   workers: number;
   gpu: boolean;
   hdr: boolean;
+  crf?: number;
+  videoBitrate?: string;
   quiet: boolean;
 }
 
@@ -54,6 +56,8 @@ export function buildDockerRunArgs(input: DockerRunArgsInput): string[] {
     options.format,
     "--workers",
     String(options.workers),
+    ...(options.crf != null ? ["--crf", String(options.crf)] : []),
+    ...(options.videoBitrate ? ["--video-bitrate", options.videoBitrate] : []),
     ...(options.quiet ? ["--quiet"] : []),
     ...(options.gpu ? ["--gpu"] : []),
     ...(options.hdr ? ["--hdr"] : []),

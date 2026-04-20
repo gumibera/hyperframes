@@ -8,6 +8,8 @@ const BASE: DockerRenderOptions = {
   workers: 4,
   gpu: false,
   hdr: false,
+  crf: undefined,
+  videoBitrate: undefined,
   quiet: false,
 };
 
@@ -51,7 +53,7 @@ describe("buildDockerRunArgs", () => {
     expect(
       buildDockerRunArgs({
         ...FIXED_INPUT,
-        options: { ...BASE, gpu: true, hdr: true, quiet: true },
+        options: { ...BASE, gpu: true, hdr: true, crf: 18, videoBitrate: undefined, quiet: true },
       }),
     ).toMatchInlineSnapshot(`
       [
@@ -78,6 +80,8 @@ describe("buildDockerRunArgs", () => {
         "mp4",
         "--workers",
         "4",
+        "--crf",
+        "18",
         "--quiet",
         "--gpu",
         "--hdr",
@@ -127,6 +131,8 @@ describe("buildDockerRunArgs", () => {
         workers: 8,
         gpu: true,
         hdr: true,
+        crf: 16,
+        videoBitrate: undefined,
         quiet: true,
       },
     });
@@ -137,8 +143,20 @@ describe("buildDockerRunArgs", () => {
     expect(args).toContain("high");
     expect(args).toContain("webm");
     expect(args).toContain("8");
+    expect(args).toContain("--crf");
+    expect(args).toContain("16");
     expect(args).toContain("--quiet");
     expect(args).toContain("--gpu");
     expect(args).toContain("--hdr");
+  });
+
+  it("forwards --video-bitrate to the container when set", () => {
+    const args = buildDockerRunArgs({
+      ...FIXED_INPUT,
+      options: { ...BASE, videoBitrate: "10M" },
+    });
+    expect(args).toContain("--video-bitrate");
+    expect(args).toContain("10M");
+    expect(args).not.toContain("--crf");
   });
 });
