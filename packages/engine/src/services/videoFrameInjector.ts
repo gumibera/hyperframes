@@ -248,16 +248,18 @@ export interface ElementStackingInfo {
 
 /**
  * Query Chrome for ALL timed elements' stacking context.
- * Returns z-index, bounds, opacity, and whether each element is a native HDR video.
+ * Returns z-index, bounds, opacity, and whether each element is a native HDR source.
  *
  * Queries every element with `data-start` (not just videos) so the layer compositor
- * can determine z-ordering between DOM content and HDR video elements.
+ * can determine z-ordering between DOM content and HDR video/image elements.
+ *
+ * @param nativeHdrIds Combined set of HDR-tagged element IDs (videos AND images).
  */
 export async function queryElementStacking(
   page: Page,
-  nativeHdrVideoIds: Set<string>,
+  nativeHdrIds: Set<string>,
 ): Promise<ElementStackingInfo[]> {
-  const hdrIds = Array.from(nativeHdrVideoIds);
+  const hdrIds = Array.from(nativeHdrIds);
   return page.evaluate((hdrIdList: string[]): ElementStackingInfo[] => {
     const hdrSet = new Set(hdrIdList);
     const elements = document.querySelectorAll("[data-start]");
