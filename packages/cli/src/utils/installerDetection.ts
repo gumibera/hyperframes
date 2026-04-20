@@ -7,7 +7,7 @@
  */
 
 import { realpathSync } from "node:fs";
-import { basename, dirname, sep } from "node:path";
+import { posix } from "node:path";
 
 export type InstallerKind = "npm" | "bun" | "pnpm" | "brew" | "skip";
 
@@ -35,12 +35,17 @@ function resolveEntry(): string | null {
   }
 }
 
+function normalizePath(path: string): string {
+  return path.replaceAll("\\", "/");
+}
+
 /** True when running from a monorepo workspace link (pnpm/bun/yarn `dev:link`). */
 function isWorkspaceLink(realEntry: string): boolean {
+  const normalized = normalizePath(realEntry);
   // Resolved path lands inside the repo, typically .../packages/cli/...
   // A real global install never contains `/packages/` because npm publish
   // collapses the package into a flat tarball.
-  return realEntry.includes(`${sep}packages${sep}cli${sep}`);
+  return normalized.includes("/packages/cli/");
 }
 
 /**
@@ -49,11 +54,12 @@ function isWorkspaceLink(realEntry: string): boolean {
  * version on the next invocation anyway.
  */
 function isEphemeralExec(realEntry: string): boolean {
+  const normalized = normalizePath(realEntry);
   // npm's npx caches into `<prefix>/_npx/<hash>/`; bun uses `bunx-<uid>-…`.
   return (
-    realEntry.includes(`${sep}_npx${sep}`) ||
-    realEntry.includes(`${sep}.npm${sep}_npx${sep}`) ||
-    basename(dirname(realEntry)).startsWith("bunx-")
+    normalized.includes("/_npx/") ||
+    normalized.includes("/.npm/_npx/") ||
+    posix.basename(posix.dirname(normalized)).startsWith("bunx-")
   );
 }
 
@@ -63,7 +69,7 @@ function isEphemeralExec(realEntry: string): boolean {
  * (or `/usr/local/Cellar/` on Intel). Either path wins the match.
  */
 function isHomebrewInstall(realEntry: string): boolean {
-  return realEntry.includes(`${sep}Cellar${sep}hyperframes${sep}`);
+  return normalizePath(realEntry).includes("/Cellar/hyperframes/");
 }
 
 /**
@@ -79,6 +85,8 @@ export function detectInstaller(): InstallerInfo {
       reason: "Could not resolve process entry path",
     };
   }
+
+  const normalizedEntry = normalizePath(realEntry);
 
   if (isWorkspaceLink(realEntry)) {
     return {
@@ -109,7 +117,7 @@ export function detectInstaller(): InstallerInfo {
 
   // bun's global install prefix is `~/.bun/install/global/node_modules/` and
   // the bin shim lives at `~/.bun/bin/`. Both paths contain `.bun`.
-  if (realEntry.includes(`${sep}.bun${sep}`)) {
+  if (normalizedEntry.includes("/.bun/")) {
     return {
       kind: "bun",
       installCommand: (version) => `bun add -g hyperframes@${version}`,
@@ -120,7 +128,7 @@ export function detectInstaller(): InstallerInfo {
   // pnpm's global prefix is typically `~/Library/pnpm/global/5/node_modules/`
   // on macOS or `~/.local/share/pnpm/global/…` on Linux. `pnpm` wins when the
   // path contains `/pnpm/global/` regardless of platform.
-  if (realEntry.includes(`${sep}pnpm${sep}global${sep}`)) {
+  if (normalizedEntry.includes("/pnpm/global/")) {
     return {
       kind: "pnpm",
       installCommand: (version) => `pnpm add -g hyperframes@${version}`,
@@ -131,7 +139,10 @@ export function detectInstaller(): InstallerInfo {
   // npm's default global prefix is `<prefix>/lib/node_modules/hyperframes/…`
   // where `<prefix>` is `/usr/local` (macOS Intel), `/opt/homebrew` (Apple
   // Silicon, non-brew-formula npm), or a user-configured directory.
-  if (realEntry.includes(`${sep}lib${sep}node_modules${sep}hyperframes${sep}`)) {
+  if (
+    normalizedEntry.includes("/lib/node_modules/hyperframes/") ||
+    normalizedEntry.includes("/npm/node_modules/hyperframes/")
+  ) {
     return {
       kind: "npm",
       installCommand: (version) => `npm install -g hyperframes@${version}`,

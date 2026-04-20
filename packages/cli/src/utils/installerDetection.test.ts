@@ -100,6 +100,14 @@ describe("detectInstaller", () => {
     expect(info.installCommand("0.4.4")).toBe("npm install -g hyperframes@0.4.4");
   });
 
+  it("detects npm global install on Windows", async () => {
+    const info = await detectWith(
+      "C:\\Users\\me\\AppData\\Roaming\\npm\\node_modules\\hyperframes\\dist\\cli.js",
+    );
+    expect(info.kind).toBe("npm");
+    expect(info.installCommand("0.4.4")).toBe("npm install -g hyperframes@0.4.4");
+  });
+
   it("returns skip when the entry cannot be resolved", async () => {
     const info = await detectWith(null);
     // realpathSync throws → reason is "could not resolve" OR the path itself
