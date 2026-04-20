@@ -979,7 +979,9 @@ export async function executeRenderJob(
       }
     }
     if (effectiveHdr && outputFormat !== "mp4") {
-      log.info(`[Render] HDR source detected but format is ${outputFormat} — using SDR`);
+      log.warn(
+        `[Render] HDR source detected but format is ${outputFormat} — falling back to SDR. Use --format mp4 for HDR10 output.`,
+      );
       effectiveHdr = undefined;
     }
     if (effectiveHdr) {

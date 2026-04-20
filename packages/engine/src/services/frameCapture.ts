@@ -87,6 +87,19 @@ export async function createCaptureSession(
   const { browser, captureMode } = await acquireBrowser(chromeArgs, config);
 
   const page = await browser.newPage();
+  // Polyfill esbuild's keepNames helper inside the page. Tools like tsx/Bun
+  // transform this engine's source on the fly and wrap every named function
+  // with `__name(fn, "name")`. When `page.evaluate()` serializes a callback
+  // and ships it to the browser, those `__name(...)` calls would crash with
+  // `__name is not defined` because the helper only exists in Node. Defining
+  // a no-op shim once per page makes the engine work uniformly whether it is
+  // imported from compiled dist (no helper) or from source via tsx.
+  await page.evaluateOnNewDocument(() => {
+    const w = window as unknown as { __name?: <T>(fn: T, _name: string) => T };
+    if (typeof w.__name !== "function") {
+      w.__name = <T>(fn: T, _name: string): T => fn;
+    }
+  });
   const browserVersion = await browser.version();
   const expectedMajor = config?.expectedChromiumMajor;
   if (Number.isFinite(expectedMajor)) {

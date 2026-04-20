@@ -25,6 +25,7 @@ import { trackRenderComplete, trackRenderError } from "../telemetry/events.js";
 import { bytesToMb } from "../telemetry/system.js";
 import { VERSION } from "../version.js";
 import { isDevMode } from "../utils/env.js";
+import { buildDockerRunArgs } from "../utils/dockerRunArgs.js";
 import type { RenderJob } from "@hyperframes/producer";
 
 const VALID_FPS = new Set([24, 30, 60]);
@@ -406,33 +407,21 @@ async function renderDocker(
 
   const outputDir = dirname(outputPath);
   const outputFilename = basename(outputPath);
-  const dockerArgs = [
-    "run",
-    "--rm",
-    "--platform",
-    "linux/amd64",
-    "--shm-size=2g",
-    // GPU encoding requires host GPU passthrough
-    ...(options.gpu ? ["--gpus", "all"] : []),
-    "-v",
-    `${resolve(projectDir)}:/project:ro`,
-    "-v",
-    `${resolve(outputDir)}:/output`,
+  const dockerArgs = buildDockerRunArgs({
     imageTag,
-    "/project",
-    "--output",
-    `/output/${outputFilename}`,
-    "--fps",
-    String(options.fps),
-    "--quality",
-    options.quality,
-    "--format",
-    options.format,
-    "--workers",
-    String(options.workers),
-    ...(options.quiet ? ["--quiet"] : []),
-    ...(options.gpu ? ["--gpu"] : []),
-  ];
+    projectDir: resolve(projectDir),
+    outputDir: resolve(outputDir),
+    outputFilename,
+    options: {
+      fps: options.fps,
+      quality: options.quality,
+      format: options.format,
+      workers: options.workers,
+      gpu: options.gpu,
+      hdr: options.hdr,
+      quiet: options.quiet,
+    },
+  });
 
   if (!options.quiet) {
     console.log(c.dim("  Running render in Docker container..."));

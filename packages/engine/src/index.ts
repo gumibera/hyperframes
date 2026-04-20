@@ -209,8 +209,10 @@ export {
   detectTransfer,
   getHdrEncoderColorParams,
   analyzeCompositionHdr,
+  DEFAULT_HDR10_MASTERING,
   type HdrTransfer,
   type HdrEncoderColorParams,
   type CompositionHdrInfo,
+  type HdrMasteringMetadata,
 } from "./utils/hdr.js";
 export type { VideoColorSpace } from "./utils/ffprobe.js";

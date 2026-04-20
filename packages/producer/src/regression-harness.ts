@@ -33,6 +33,8 @@ type TestMetadata = {
     fps: 24 | 30 | 60;
     format?: "mp4" | "webm"; // Optional: defaults to "mp4"
     workers?: number; // Optional: auto-calculates if omitted
+    /** Enable HDR color-space probing + HDR10 encode pipeline. */
+    hdr?: boolean;
   };
 };
 
@@ -153,6 +155,9 @@ function validateMetadata(meta: unknown): TestMetadata {
     if (typeof rc.workers !== "number" || rc.workers < 1) {
       throw new Error("meta.json: 'renderConfig.workers' must be >= 1 (or omit to auto-calculate)");
     }
+  }
+  if (rc.hdr !== undefined && typeof rc.hdr !== "boolean") {
+    throw new Error("meta.json: 'renderConfig.hdr' must be a boolean (or omit for false)");
   }
 
   return m as TestMetadata;
@@ -645,6 +650,7 @@ async function runTestSuite(
       workers: suite.meta.renderConfig.workers,
       useGpu: false,
       debug: false,
+      hdr: suite.meta.renderConfig.hdr ?? false,
     });
 
     await executeRenderJob(job, tempSrcDir, renderedOutputPath);

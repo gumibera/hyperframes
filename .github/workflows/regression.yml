@@ -35,9 +35,11 @@ jobs:
       matrix:
         include:
           - shard: fast
-            args: "--sequential --exclude-tags slow,render-compat"
+            args: "--sequential --exclude-tags slow,render-compat,hdr"
           - shard: render-compat
             args: "--sequential gsap-letters-render-compat css-spinner-render-compat raf-ball-render-compat iframe-render-compat"
+          - shard: hdr
+            args: "--sequential hdr-pq"
           - shard: styles-a
             args: "style-1-prod style-2-prod style-3-prod"
           - shard: styles-b

@@ -466,7 +466,7 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     | `--format` | mp4, webm, mov | mp4 | Output format (WebM/MOV render with transparency) |
     | `--fps` | 24, 30, 60 | 30 | Frames per second |
     | `--quality` | draft, standard, high | standard | Encoding quality preset (drives CRF/bitrate) |
-    | `--hdr` | — | off | HDR output (H.265 10-bit, BT.2020 HLG/PQ). MP4 only |
+    | `--hdr` | — | off | Detect HDR sources and output HDR10 (H.265 10-bit, BT.2020 PQ/HLG). MP4 only. SDR-only compositions are unaffected. See [HDR Rendering](/guides/hdr) |
     | `--workers` | 1-8 | 4 | Parallel render workers |
     | `--gpu` | — | off | GPU encoding (NVENC, VideoToolbox, VAAPI) |
     | `--docker` | — | off | Use Docker for [deterministic rendering](/concepts/determinism) |
