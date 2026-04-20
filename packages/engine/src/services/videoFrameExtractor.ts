@@ -97,6 +97,48 @@ export function parseVideoElements(html: string): VideoElement[] {
   return videos;
 }
 
+export interface ImageElement {
+  id: string;
+  src: string;
+  start: number;
+  end: number;
+}
+
+export function parseImageElements(html: string): ImageElement[] {
+  const images: ImageElement[] = [];
+  const { document } = parseHTML(html);
+
+  const imgEls = document.querySelectorAll("img[src]");
+  let autoIdCounter = 0;
+  for (const el of imgEls) {
+    const src = el.getAttribute("src");
+    if (!src) continue;
+
+    const id = el.getAttribute("id") || `hf-img-${autoIdCounter++}`;
+    if (!el.getAttribute("id")) {
+      el.setAttribute("id", id);
+    }
+
+    const startAttr = el.getAttribute("data-start");
+    const endAttr = el.getAttribute("data-end");
+    const durationAttr = el.getAttribute("data-duration");
+
+    const start = startAttr ? parseFloat(startAttr) : 0;
+    let end = 0;
+    if (endAttr) {
+      end = parseFloat(endAttr);
+    } else if (durationAttr) {
+      end = start + parseFloat(durationAttr);
+    } else {
+      end = Infinity;
+    }
+
+    images.push({ id, src, start, end });
+  }
+
+  return images;
+}
+
 export async function extractVideoFramesRange(
   videoPath: string,
   videoId: string,

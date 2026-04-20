@@ -111,12 +111,14 @@ export {
 // ── Media processing ───────────────────────────────────────────────────────────
 export {
   parseVideoElements,
+  parseImageElements,
   extractVideoFramesRange,
   extractAllVideoFrames,
   getFrameAtTime,
   createFrameLookupTable,
   FrameLookupTable,
   type VideoElement,
+  type ImageElement,
   type ExtractedFrames,
   type ExtractionOptions,
   type ExtractionResult,
