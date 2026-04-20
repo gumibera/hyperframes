@@ -117,6 +117,8 @@ export {
   createFrameLookupTable,
   FrameLookupTable,
   type VideoElement,
+  parseImageElements,
+  type ImageElement,
   type ExtractedFrames,
   type ExtractionOptions,
   type ExtractionResult,
@@ -168,7 +170,6 @@ export {
   blitRgb48leRegion,
   blitRgb48leAffine,
   parseTransformMatrix,
-  getSrgbToHdrLut,
   roundedRectAlpha,
 } from "./utils/alphaBlit.js";
 
@@ -209,8 +210,11 @@ export {
   detectTransfer,
   getHdrEncoderColorParams,
   analyzeCompositionHdr,
+  DEFAULT_HDR10_MASTERING,
   type HdrTransfer,
   type HdrEncoderColorParams,
   type CompositionHdrInfo,
+  type HdrMasteringMetadata,
 } from "./utils/hdr.js";
+export { injectHdrBoxes } from "./utils/mp4HdrBoxes.js";
 export type { VideoColorSpace } from "./utils/ffprobe.js";

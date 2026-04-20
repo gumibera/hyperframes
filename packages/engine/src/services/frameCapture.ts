@@ -220,6 +220,22 @@ export async function initializeSession(session: CaptureSession): Promise<void> 
     }
   });
 
+  // Install a no-op `__name` shim on every document before any script runs.
+  //
+  // tsx/bun's esbuild bundling has `keepNames` enabled, which wraps every
+  // `function` declaration (including ones nested inside `page.evaluate`
+  // callbacks) with a call to `__name(fn, "name")` to preserve
+  // `Function.prototype.name`. That helper is injected in the bundled host
+  // code but is NOT serialized into the function body Puppeteer ships to
+  // the browser — so any evaluate callback with nested `function`
+  // declarations crashes with `ReferenceError: __name is not defined`.
+  //
+  // We pass a *string* (not a function) because esbuild does not transform
+  // string contents, and `evaluateOnNewDocument` runs before the page's
+  // own scripts so the shim is in place for every subsequent
+  // `page.evaluate()`.
+  await page.evaluateOnNewDocument("globalThis.__name = function (fn) { return fn; };");
+
   // Navigate to the file server
   const url = `${serverUrl}/index.html`;
   if (session.captureMode === "screenshot") {

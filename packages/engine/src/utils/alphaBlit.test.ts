@@ -495,18 +495,30 @@ describe("blitRgba8OverRgb48le", () => {
     expect(canvas.readUInt16LE(4)).toBe(50000);
   });
 
-  it("fully opaque DOM: sRGB→HLG converted values overwrite canvas", () => {
+  it("fully opaque DOM: sRGB→BT.2020+HLG converted values overwrite canvas", () => {
     const canvas = makeHdrFrame(1, 1, 10000, 20000, 30000);
-    const dom = makeDomRgba(1, 1, 255, 128, 0, 255); // R=255, G=128, B=0, full opaque
+    const dom = makeDomRgba(1, 1, 255, 128, 0, 255); // sRGB orange
     blitRgba8OverRgb48le(dom, canvas, 1, 1);
 
-    // sRGB 255 → HLG 65535 (white maps to white)
-    // sRGB 128 → HLG ~46484 (mid-gray maps higher due to HLG OETF)
-    // sRGB 0 → HLG 0
-    expect(canvas.readUInt16LE(0)).toBe(65535);
-    expect(canvas.readUInt16LE(2)).toBeGreaterThan(40000); // HLG mid-gray > sRGB mid-gray
-    expect(canvas.readUInt16LE(2)).toBeLessThan(50000);
-    expect(canvas.readUInt16LE(4)).toBe(0);
+    // sRGB orange (255, 128, 0) → linear (1.0, 0.216, 0)
+    //   → BT.2020 linear (0.699, 0.268, 0.035)
+    //   → HLG signal ≈ (61220, 49285, 21360)
+    // Without the primary conversion you'd get (65535, 49285ish, 0) — the
+    // ~21000 in B is what proves the matrix is being applied.
+    const r = canvas.readUInt16LE(0);
+    const g = canvas.readUInt16LE(2);
+    const b = canvas.readUInt16LE(4);
+
+    expect(r).toBeGreaterThan(58000); // ~61220, no longer pinned at 65535
+    expect(r).toBeLessThan(64000);
+    expect(g).toBeGreaterThan(46000); // ~49285
+    expect(g).toBeLessThan(53000);
+    expect(b).toBeGreaterThan(18000); // ~21360 — was 0 before primary conversion
+    expect(b).toBeLessThan(25000);
+
+    // Channel ordering still reflects "orange" intent.
+    expect(r).toBeGreaterThan(g);
+    expect(g).toBeGreaterThan(b);
   });
 
   it("sRGB→HLG: black stays black, white stays white", () => {
@@ -808,11 +820,11 @@ describe("decodePng + blitRgba8OverRgb48le integration", () => {
     }
   });
 
-  it("fully opaque PNG overlay overwrites all canvas pixels (sRGB→HLG)", () => {
+  it("fully opaque PNG overlay overwrites all canvas pixels (sRGB→BT.2020+HLG)", () => {
     const width = 2;
     const height = 2;
 
-    // Build a fully opaque blue PNG (sRGB blue = 0,0,255)
+    // Fully opaque pure-blue sRGB PNG
     const pixels = Array(width * height)
       .fill(null)
       .flatMap(() => [0, 0, 255, 255]);
@@ -822,12 +834,119 @@ describe("decodePng + blitRgba8OverRgb48le integration", () => {
     const canvas = makeHdrFrame(width, height, 50000, 40000, 30000);
     blitRgba8OverRgb48le(domRgba, canvas, width, height);
 
-    // sRGB blue (0,0,255) → HLG (0, 0, 65535) — black/white map identically
+    // sRGB blue (0,0,255) → linear (0,0,1) → BT.2020 linear (~0.043, ~0.011, ~0.896)
+    // → HLG signal. After primary conversion the BT.2020 blue primary is
+    // *much wider* than sRGB blue, so the encoded blue is no longer pinned at
+    // 65535 — and R/G pick up small signals from the matrix mixing.
     for (let i = 0; i < width * height; i++) {
-      expect(canvas.readUInt16LE(i * 6 + 0)).toBe(0);
-      expect(canvas.readUInt16LE(i * 6 + 2)).toBe(0);
-      expect(canvas.readUInt16LE(i * 6 + 4)).toBe(65535);
+      const r = canvas.readUInt16LE(i * 6 + 0);
+      const g = canvas.readUInt16LE(i * 6 + 2);
+      const b = canvas.readUInt16LE(i * 6 + 4);
+
+      // B should still be the dominant channel and bright (close to but
+      // distinctly below full HLG white).
+      expect(b).toBeGreaterThan(60000);
+      expect(b).toBeLessThan(65535);
+
+      // R and G should pick up small HLG signals from primary mixing.
+      // (HLG's sqrt response makes even tiny linear values produce
+      // measurable signal — e.g. linear ~0.04 → signal ~23000.)
+      expect(r).toBeGreaterThan(15000);
+      expect(r).toBeLessThan(30000);
+      expect(g).toBeGreaterThan(8000);
+      expect(g).toBeLessThan(20000);
+
+      // B should still dominate.
+      expect(b).toBeGreaterThan(r);
+      expect(b).toBeGreaterThan(g);
     }
+  });
+});
+
+// ── BT.709 → BT.2020 primary conversion ──────────────────────────────────────
+
+describe("blitRgba8OverRgb48le BT.709→BT.2020 primaries", () => {
+  it("grayscale (R=G=B) is invariant under primary conversion", () => {
+    // Each row of the BT.709→BT.2020 matrix sums to 1.0, so neutral inputs
+    // map to neutral outputs — text and UI in pure gray must stay pure gray.
+    const canvas = makeHdrFrame(1, 1, 0, 0, 0);
+    const dom = makeDomRgba(1, 1, 200, 200, 200, 255);
+    blitRgba8OverRgb48le(dom, canvas, 1, 1);
+
+    const r = canvas.readUInt16LE(0);
+    const g = canvas.readUInt16LE(2);
+    const b = canvas.readUInt16LE(4);
+
+    // Allow a 1-LSB tolerance for LUT rounding noise.
+    expect(Math.abs(r - g)).toBeLessThanOrEqual(1);
+    expect(Math.abs(g - b)).toBeLessThanOrEqual(1);
+    expect(Math.abs(r - b)).toBeLessThanOrEqual(1);
+  });
+
+  it("pure sRGB red (255, 0, 0) leaks measurable G and B (proves matrix is applied)", () => {
+    // sRGB red (255, 0, 0) → linear (1, 0, 0)
+    //   → BT.2020 linear (0.627, 0.069, 0.016)
+    //   → HLG signal ≈ (59910, 29840, 14530)
+    // Without the matrix this would be (65535, 0, 0). The non-zero G and B
+    // are the regression pin.
+    const canvas = makeHdrFrame(1, 1, 0, 0, 0);
+    const dom = makeDomRgba(1, 1, 255, 0, 0, 255);
+    blitRgba8OverRgb48le(dom, canvas, 1, 1);
+
+    const r = canvas.readUInt16LE(0);
+    const g = canvas.readUInt16LE(2);
+    const b = canvas.readUInt16LE(4);
+
+    // R is desaturated relative to BT.2020 red primary (no longer 65535).
+    expect(r).toBeGreaterThan(57000); // ~59910
+    expect(r).toBeLessThan(62000);
+
+    // G and B must be strictly positive — this is the regression pin.
+    // Without primary conversion these would both be exactly 0.
+    expect(g).toBeGreaterThan(25000); // ~29840
+    expect(g).toBeLessThan(35000);
+    expect(b).toBeGreaterThan(11000); // ~14530
+    expect(b).toBeLessThan(18000);
+
+    // R remains the dominant channel.
+    expect(r).toBeGreaterThan(g);
+    expect(r).toBeGreaterThan(b);
+  });
+
+  it("pure sRGB green (0, 255, 0) leaks measurable R and B", () => {
+    // sRGB green (0, 255, 0) → linear (0, 1, 0)
+    //   → BT.2020 linear (0.329, 0.920, 0.088)
+    //   → HLG signal ≈ (51925, 64530, 33650)
+    const canvas = makeHdrFrame(1, 1, 0, 0, 0);
+    const dom = makeDomRgba(1, 1, 0, 255, 0, 255);
+    blitRgba8OverRgb48le(dom, canvas, 1, 1);
+
+    const r = canvas.readUInt16LE(0);
+    const g = canvas.readUInt16LE(2);
+    const b = canvas.readUInt16LE(4);
+
+    expect(r).toBeGreaterThan(48000); // ~51925, matrix mixes G into R
+    expect(r).toBeLessThan(56000);
+    expect(g).toBeGreaterThan(62000); // ~64530, green stays bright but no longer pinned
+    expect(b).toBeGreaterThan(30000); // ~33650, matrix mixes G into B
+    expect(b).toBeLessThan(38000);
+    expect(g).toBeGreaterThan(r); // green still dominant
+    expect(g).toBeGreaterThan(b);
+  });
+
+  it("PQ also performs the BT.709→BT.2020 conversion", () => {
+    // Same regression-pin as the HLG red test but on the PQ path, so we
+    // catch a regression that only removes the matrix from one transfer.
+    const canvas = makeHdrFrame(1, 1, 0, 0, 0);
+    const dom = makeDomRgba(1, 1, 255, 0, 0, 255);
+    blitRgba8OverRgb48le(dom, canvas, 1, 1, "pq");
+
+    const g = canvas.readUInt16LE(2);
+    const b = canvas.readUInt16LE(4);
+
+    // Without primary conversion both would be 0 in PQ as well.
+    expect(g).toBeGreaterThan(0);
+    expect(b).toBeGreaterThan(0);
   });
 });
 

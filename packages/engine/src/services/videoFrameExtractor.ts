@@ -24,6 +24,13 @@ export interface VideoElement {
   hasAudio: boolean;
 }
 
+export interface ImageElement {
+  id: string;
+  src: string;
+  start: number;
+  end: number;
+}
+
 export interface ExtractedFrames {
   videoId: string;
   srcPath: string;
@@ -95,6 +102,29 @@ export function parseVideoElements(html: string): VideoElement[] {
   }
 
   return videos;
+}
+
+export function parseImageElements(html: string): ImageElement[] {
+  const images: ImageElement[] = [];
+  const { document } = parseHTML(html);
+
+  const imgEls = document.querySelectorAll("img[src]");
+  let autoIdCounter = 0;
+  for (const el of imgEls) {
+    const src = el.getAttribute("src");
+    if (!src) continue;
+    const id = el.getAttribute("id") || `hf-img-${autoIdCounter++}`;
+    const start = parseFloat(el.getAttribute("data-start") ?? "0");
+    const duration = parseFloat(el.getAttribute("data-duration") ?? "0");
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    images.push({
+      id,
+      src,
+      start: Number.isFinite(start) ? start : 0,
+      end: (Number.isFinite(start) ? start : 0) + duration,
+    });
+  }
+  return images;
 }
 
 export async function extractVideoFramesRange(
@@ -261,6 +291,11 @@ export async function extractAllVideoFrames(
   signal?: AbortSignal,
   config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
   compiledDir?: string,
+  /** Skip SDR→HDR conversion. Set true when the HDR compositing path handles
+   *  color conversion in the blit step (sRGB→HLG/PQ LUT). Without this, the
+   *  colorspace filter produces bt2020 pixels that Chrome misinterprets as sRGB,
+   *  making SDR content invisible in HDR renders. */
+  skipSdrConversion?: boolean,
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
   const extracted: ExtractedFrames[] = [];
@@ -304,7 +339,7 @@ export async function extractAllVideoFrames(
   );
 
   const hasAnyHdr = videoColorSpaces.some(isHdrColorSpaceUtil);
-  if (hasAnyHdr) {
+  if (hasAnyHdr && !skipSdrConversion) {
     const convertDir = join(options.outputDir, "_hdr_normalized");
     mkdirSync(convertDir, { recursive: true });
 

@@ -259,6 +259,16 @@ export async function queryElementStacking(
 ): Promise<ElementStackingInfo[]> {
   const hdrIds = Array.from(nativeHdrVideoIds);
   return page.evaluate((hdrIdList: string[]): ElementStackingInfo[] => {
+    // NOTE: esbuild (used by tsx and bun) wraps every nested `function`
+    // declaration in this callback with a `__name(fn, "name")` helper to
+    // preserve `Function.prototype.name`. The helper has to be installed in
+    // the browser context before this callback runs — see
+    // `initializeSession` in frameCapture.ts, which calls
+    // `page.evaluateOnNewDocument` with a string (esbuild does not transform
+    // string contents) to define `globalThis.__name` as a no-op identity.
+    // Trying to define the shim *inside* this callback fails because esbuild
+    // also wraps the shim's own assignment with a `__name(...)` call,
+    // creating a use-before-define cycle.
     const hdrSet = new Set(hdrIdList);
     const elements = document.querySelectorAll("[data-start]");
     const results: ElementStackingInfo[] = [];
