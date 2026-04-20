@@ -52,7 +52,14 @@ function extractGsapWindows(script: string): GsapWindow[] {
   let index = 0;
   while ((match = methodPattern.exec(script)) !== null && index < parsed.animations.length) {
     const raw = match[0];
-    const meta = parseGsapWindowMeta(match[1] ?? "", match[2] ?? "");
+    const args = match[2] ?? "";
+    // Skip calls whose first argument is not a quoted selector (e.g. object
+    // targets like `tl.to({ _: 0 }, …)` used to anchor timeline duration).
+    // `parseGsapScript` ignores those, so we must too — otherwise the regex
+    // match index drifts ahead of `parsed.animations[index]` and every
+    // subsequent window picks up the wrong animation's selector/position.
+    if (!/^\s*["']/.test(args)) continue;
+    const meta = parseGsapWindowMeta(match[1] ?? "", args);
     const animation = parsed.animations[index];
     index += 1;
     if (!animation) continue;
