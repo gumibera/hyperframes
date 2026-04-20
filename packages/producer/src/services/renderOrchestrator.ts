@@ -1295,9 +1295,19 @@ export async function executeRenderJob(
           hdrVideoStartTimes.set(v.id, v.start);
         }
       }
+      const hdrImageStartTimes = new Map<string, number>();
+      for (const img of composition.images) {
+        if (nativeHdrImageIds.has(img.id)) {
+          hdrImageStartTimes.set(img.id, img.start);
+        }
+      }
 
-      // Collect unique start times to minimize seek operations
-      const uniqueStartTimes = [...new Set(hdrVideoStartTimes.values())].sort((a, b) => a - b);
+      // Collect unique start times to minimize seek operations. Merge HDR
+      // video AND image start times so an HDR image with `data-start > 0`
+      // also gets a stacking-query pass at its appearance moment.
+      const uniqueStartTimes = [
+        ...new Set([...hdrVideoStartTimes.values(), ...hdrImageStartTimes.values()]),
+      ].sort((a, b) => a - b);
       for (const seekTime of uniqueStartTimes) {
         await domSession.page.evaluate((t: number) => {
           if (window.__hf && typeof window.__hf.seek === "function") window.__hf.seek(t);
