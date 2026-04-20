@@ -375,6 +375,17 @@ export async function injectVideoFramesBatch(
         let img = video.nextElementSibling as HTMLImageElement | null;
         const isNewImage = !img || !img.classList.contains("__render_frame__");
         const computedStyle = window.getComputedStyle(video);
+        // GSAP seeks re-apply tween values during an active tween, but do not
+        // re-apply tweens that have already completed. After an opacity fade-in
+        // finishes, GSAP's last set value is overwritten on subsequent frames
+        // by the `opacity: 0 !important` we apply at the bottom of this
+        // function to hide the native <video>. That leaves `computedOpacity`
+        // stuck at 0 even though the user's intent is opacity 1 (the tween's
+        // end state). The `|| 1` fallback treats computedOpacity === 0 as a
+        // hidden-native-video artifact and recovers opacity 1, matching the
+        // final on-screen state for the vast majority of compositions.
+        // For active tweens in the [0,1] exclusive range this is a no-op.
+        const computedOpacity = parseFloat(computedStyle.opacity) || 1;
         const sourceIsStatic = !computedStyle.position || computedStyle.position === "static";
 
         if (isNewImage) {
@@ -410,12 +421,13 @@ export async function injectVideoFramesBatch(
         img.style.zIndex = computedStyle.zIndex;
 
         for (const property of visualProperties) {
-          // Skip opacity — the <video> is forced to opacity:0 !important below
-          // (and by syncVideoFrameVisibility) to hide it during capture, so its
-          // computed opacity is not the user's intent. The injected <img> is a
-          // sibling of the <video> inside the same wrapper, so it inherits the
-          // wrapper's opacity (where GSAP applies animated values) just like
-          // the <video> would have.
+          // Opacity is handled explicitly via `computedOpacity` below — copying
+          // via the generic loop would race against the opacity:0 hide applied
+          // to the <video> at the end of this function. GSAP may animate
+          // opacity either on a wrapper (the <img> inherits via the stacking
+          // context) or directly on the <video> (we must copy it to the <img>
+          // since they are siblings). Reading computedStyle.opacity before
+          // hiding the <video> handles both cases correctly.
           if (property === "opacity") continue;
           if (
             sourceIsStatic &&
@@ -440,8 +452,8 @@ export async function injectVideoFramesBatch(
             .catch(() => undefined)
             .then(() => undefined),
         );
+        img.style.opacity = String(computedOpacity);
         img.style.visibility = "visible";
-        img.style.removeProperty("opacity");
         video.style.setProperty("visibility", "hidden", "important");
         video.style.setProperty("opacity", "0", "important");
         video.style.setProperty("pointer-events", "none", "important");
