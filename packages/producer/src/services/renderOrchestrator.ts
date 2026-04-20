@@ -62,6 +62,7 @@ import {
   isHdrColorSpace,
   runFfmpeg,
   extractVideoMetadata,
+  type VideoColorSpace,
   initTransparentBackground,
   captureAlphaPng,
   applyDomLayerMask,
@@ -923,6 +924,34 @@ export async function executeRenderJob(
       );
     }
 
+    // Probe images for HDR color spaces (16-bit PNGs tagged BT.2020 PQ/HLG).
+    // Mirrors the video probe loop above so image-only compositions can
+    // trigger HDR output without any video sources present.
+    const nativeHdrImageIds = new Set<string>();
+    const imageTransfers = new Map<string, HdrTransfer>();
+    const imageColorSpaces: (VideoColorSpace | null)[] = [];
+    if (job.config.hdr && composition.images.length > 0) {
+      const probed = await Promise.all(
+        composition.images.map(async (img) => {
+          let imgPath = img.src;
+          if (!imgPath.startsWith("/")) {
+            const fromCompiled = existsSync(join(compiledDir, imgPath))
+              ? join(compiledDir, imgPath)
+              : join(projectDir, imgPath);
+            imgPath = fromCompiled;
+          }
+          if (!existsSync(imgPath)) return null;
+          const meta = await extractVideoMetadata(imgPath);
+          if (isHdrColorSpace(meta.colorSpace)) {
+            nativeHdrImageIds.add(img.id);
+            imageTransfers.set(img.id, detectTransfer(meta.colorSpace));
+          }
+          return meta.colorSpace;
+        }),
+      );
+      imageColorSpaces.push(...probed);
+    }
+
     if (composition.videos.length > 0) {
       extractionResult = await extractAllVideoFrames(
         composition.videos,
@@ -964,22 +993,21 @@ export async function executeRenderJob(
     }
 
     // ── HDR auto-detection ──────────────────────────────────────────────
-    // When --hdr is set, analyze extracted video metadata AND probed images
-    // for HDR color spaces. If found, output uses H.265 10-bit with the
+    // When --hdr is set, analyze probed video AND image color spaces.
+    // If any HDR sources are found, output uses H.265 10-bit with the
     // dominant transfer (PQ if any PQ source is present, otherwise HLG).
+    // Image-only compositions can trigger HDR output without any video.
     let effectiveHdr: { transfer: HdrTransfer } | undefined;
-    if (job.config.hdr && frameLookup) {
-      const colorSpaces = (extractionResult?.extracted ?? []).map((ext) => ext.metadata.colorSpace);
-      const info = analyzeCompositionHdr(colorSpaces);
-      if (info.hasHdr && info.dominantTransfer) {
-        effectiveHdr = { transfer: info.dominantTransfer };
-      }
-    }
-    // Also detect HDR from probed images (no extraction result for images)
-    if (job.config.hdr && !effectiveHdr && nativeHdrVideoIds.size > 0) {
-      const firstTransfer = videoTransfers.values().next().value;
-      if (firstTransfer) {
-        effectiveHdr = { transfer: firstTransfer };
+    if (job.config.hdr) {
+      const videoColorSpaces = (extractionResult?.extracted ?? []).map(
+        (ext) => ext.metadata.colorSpace,
+      );
+      const allColorSpaces = [...videoColorSpaces, ...imageColorSpaces];
+      if (allColorSpaces.length > 0) {
+        const info = analyzeCompositionHdr(allColorSpaces);
+        if (info.hasHdr && info.dominantTransfer) {
+          effectiveHdr = { transfer: info.dominantTransfer };
+        }
       }
     }
     if (effectiveHdr && outputFormat !== "mp4") {
