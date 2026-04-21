@@ -95,7 +95,7 @@ jobs:
           - shard: render-compat
             args: "--sequential gsap-letters-render-compat css-spinner-render-compat raf-ball-render-compat iframe-render-compat"
           - shard: hdr
-            args: "--sequential hdr-pq hdr-image-only"
+            args: "--sequential hdr-regression hdr-hlg-regression"
           - shard: styles-a
             args: "style-1-prod style-2-prod style-3-prod"
           - shard: styles-b

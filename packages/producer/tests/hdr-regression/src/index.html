@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>HDR PQ Regression Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions@0.4.11/dist/index.global.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+      }
+
+      #main {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #000;
+      }
+
+      .hdr-video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .label {
+        position: absolute;
+        padding: 14px 22px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 36px;
+        font-weight: 700;
+        color: #ffffff;
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 8px;
+        letter-spacing: 0.04em;
+        z-index: 100;
+      }
+
+      .label-tl {
+        top: 48px;
+        left: 64px;
+      }
+
+      .label-center {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      /* Window B: opacity-tweenable wrapper around the HDR video */
+      #window-b-wrapper {
+        position: absolute;
+        inset: 0;
+        opacity: 1;
+      }
+
+      /* Window D: background → HDR → blue overlay sandwich */
+      #window-d-bg {
+        position: absolute;
+        inset: 0;
+        background: #cc6600;
+        z-index: 1;
+      }
+
+      #wd-video {
+        z-index: 5;
+      }
+
+      #window-d-overlay {
+        position: absolute;
+        top: 64px;
+        right: 64px;
+        bottom: 64px;
+        left: 64px;
+        background: rgba(0, 80, 200, 0.35);
+        border: 4px solid rgba(0, 120, 255, 0.6);
+        z-index: 10;
+      }
+
+      /* Window E: side-by-side positioning wrappers (untimed, empty when child videos are hidden) */
+      #window-e-left {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 50%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      #window-e-right {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50%;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      /* Window F: transform + border-radius applied directly to the HDR video (no wrapper) */
+      #window-f-bg {
+        position: absolute;
+        inset: 0;
+        background: #111;
+        z-index: 1;
+      }
+
+      #wf-video {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 1280px;
+        height: 720px;
+        margin-top: -360px;
+        margin-left: -640px;
+        border-radius: 24px;
+        overflow: hidden;
+        object-fit: cover;
+        display: block;
+        transform-origin: 50% 50%;
+        z-index: 5;
+      }
+
+      /* Window G: object-fit: contain letterbox */
+      #window-g-bg {
+        position: absolute;
+        inset: 0;
+        background: #0a0a0a;
+        z-index: 1;
+      }
+
+      #wg-video {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 960px;
+        height: 1080px;
+        margin-top: -540px;
+        margin-left: -480px;
+        background: #000;
+        object-fit: contain;
+        display: block;
+        z-index: 5;
+      }
+
+      /* Window H: shader scenes (no data-start; opacity is driven by the shader-transitions library) */
+      #window-h-scene-a,
+      #window-h-scene-b {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      #window-h-scene-a {
+        opacity: 1;
+      }
+
+      #window-h-scene-b {
+        opacity: 0;
+      }
+
+      #window-h-scene-b img.hdr-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="main"
+      data-composition-id="hdr-regression"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- Window A · Static baseline · 0.0–2.0s -->
+      <video
+        id="wa-video"
+        class="clip hdr-video"
+        data-start="0"
+        data-duration="2"
+        data-track-index="0"
+        src="hdr-clip.mp4"
+        muted
+        playsinline
+      ></video>
+      <div class="label label-tl clip" data-start="0" data-duration="2">
+        A · Baseline HDR + DOM overlay
+      </div>
+
+      <!-- Window B · Wrapper opacity fade · 2.0–4.5s -->
+      <div id="window-b-wrapper">
+        <video
+          id="wb-video"
+          class="clip hdr-video"
+          data-start="2"
+          data-duration="2.5"
+          data-track-index="0"
+          src="hdr-clip.mp4"
+          muted
+          playsinline
+        ></video>
+      </div>
+      <div class="label label-tl clip" data-start="2" data-duration="2.5">
+        B · Wrapper opacity fade
+      </div>
+
+      <!-- Window C · Direct-on-element opacity · 4.5–7.0s (known fail) -->
+      <video
+        id="wc-video"
+        class="clip hdr-video"
+        data-start="4.5"
+        data-duration="2.5"
+        data-track-index="0"
+        src="hdr-clip.mp4"
+        muted
+        playsinline
+      ></video>
+      <div class="label label-tl clip" data-start="4.5" data-duration="2.5">
+        C · Direct &lt;video&gt; opacity (known fail)
+      </div>
+
+      <!-- Window D · Z-order sandwich (DOM → HDR → DOM) · 7.0–9.5s -->
+      <div id="window-d-bg" class="clip" data-start="7" data-duration="2.5"></div>
+      <video
+        id="wd-video"
+        class="clip hdr-video"
+        data-start="7"
+        data-duration="2.5"
+        data-track-index="0"
+        src="hdr-clip.mp4"
+        muted
+        playsinline
+      ></video>
+      <div id="window-d-overlay" class="clip" data-start="7" data-duration="2.5"></div>
+      <div class="label label-tl clip" data-start="7" data-duration="2.5">
+        D · DOM → HDR → DOM stack
+      </div>
+
+      <!-- Window E · Two HDR sources side-by-side · 9.5–12.0s -->
+      <div id="window-e-left">
+        <video
+          id="we-video-left"
+          class="clip hdr-video"
+          data-start="9.5"
+          data-duration="2.5"
+          data-track-index="0"
+          src="hdr-clip.mp4"
+          muted
+          playsinline
+        ></video>
+      </div>
+      <div id="window-e-right">
+        <video
+          id="we-video-right"
+          class="clip hdr-video"
+          data-start="9.5"
+          data-duration="2.5"
+          data-track-index="1"
+          src="hdr-clip.mp4"
+          muted
+          playsinline
+        ></video>
+      </div>
+      <div class="label label-center clip" data-start="9.5" data-duration="2.5">
+        E · Two HDR videos
+      </div>
+
+      <!-- Window F · Transform + border-radius (on the video itself) · 12.0–14.5s (known fail) -->
+      <div id="window-f-bg" class="clip" data-start="12" data-duration="2.5"></div>
+      <video
+        id="wf-video"
+        class="clip"
+        data-start="12"
+        data-duration="2.5"
+        data-track-index="0"
+        src="hdr-clip.mp4"
+        muted
+        playsinline
+      ></video>
+      <div class="label label-tl clip" data-start="12" data-duration="2.5">
+        F · Rotate + scale + radius (known fail)
+      </div>
+
+      <!-- Window G · object-fit: contain · 14.5–17.0s -->
+      <div id="window-g-bg" class="clip" data-start="14.5" data-duration="2.5"></div>
+      <video
+        id="wg-video"
+        class="clip"
+        data-start="14.5"
+        data-duration="2.5"
+        data-track-index="0"
+        src="hdr-clip.mp4"
+        muted
+        playsinline
+      ></video>
+      <div class="label label-tl clip" data-start="14.5" data-duration="2.5">
+        G · object-fit: contain (letterbox)
+      </div>
+
+      <!-- Window H · Shader transition (HDR video → HDR image) · 17.0–20.0s -->
+      <div id="window-h-scene-a" class="scene">
+        <video
+          id="wh-video"
+          class="clip hdr-video"
+          data-start="17"
+          data-duration="3"
+          data-track-index="0"
+          src="hdr-clip.mp4"
+          muted
+          playsinline
+        ></video>
+        <div class="label label-tl clip" data-start="17" data-duration="3">
+          H · Scene A (HDR video)
+        </div>
+      </div>
+      <div id="window-h-scene-b" class="scene">
+        <img
+          id="wh-image"
+          class="clip hdr-image"
+          src="hdr-photo-pq.png"
+          alt="HDR PQ photo"
+          data-start="17"
+          data-duration="3"
+        />
+        <div class="label label-tl clip" data-start="17" data-duration="3">
+          H · Scene B (HDR image)
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      // Window B · wrapper opacity 1 → 0.15 → 1 inside the 2.5s window
+      tl.to("#window-b-wrapper", { opacity: 0.15, duration: 1.0, ease: "power2.inOut" }, 2.25);
+      tl.to("#window-b-wrapper", { opacity: 1.0, duration: 1.0, ease: "power2.inOut" }, 3.25);
+
+      // Window C · same shape, but tween opacity directly on the video element
+      tl.to("#wc-video", { opacity: 0.15, duration: 1.0, ease: "power2.inOut" }, 4.75);
+      tl.to("#wc-video", { opacity: 1.0, duration: 1.0, ease: "power2.inOut" }, 5.75);
+
+      // Window F · rotate + scale on the video itself
+      tl.set("#wf-video", { rotation: 0, scale: 1 }, 0);
+      tl.to(
+        "#wf-video",
+        { rotation: 15, scale: 0.8, duration: 2.0, ease: "power2.out" },
+        12.0,
+      );
+
+      // Window H · shader-transitions library: cross-warp-morph between Scene A and Scene B
+      HyperShader.init({
+        bgColor: "#000000",
+        scenes: ["window-h-scene-a", "window-h-scene-b"],
+        transitions: [{ time: 18.5, shader: "cross-warp-morph", duration: 0.7 }],
+        timeline: tl,
+      });
+
+      window.__timelines["hdr-regression"] = tl;
+    </script>
+  </body>
+</html>

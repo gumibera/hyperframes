@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate the deterministic 16-bit BT.2020 PQ PNG fixture used by the
-hdr-image-only regression test.
+hdr-regression test (window H scene B).
 
 Why a custom script (instead of ffmpeg)?
   ffmpeg writes 16-bit RGB PNGs but does not embed a cICP chunk, so
@@ -10,7 +10,7 @@ Why a custom script (instead of ffmpeg)?
   matrix=GBR, range=full) right after IHDR.
 
 Output:
-  packages/producer/tests/hdr-image-only/src/hdr-photo.png
+  packages/producer/tests/hdr-regression/src/hdr-photo-pq.png
 """
 
 import os
@@ -21,7 +21,7 @@ import zlib
 WIDTH = 256
 HEIGHT = 144
 OUT_PATH = os.path.normpath(
-    os.path.join(os.path.dirname(__file__), "..", "src", "hdr-photo.png")
+    os.path.join(os.path.dirname(__file__), "..", "src", "hdr-photo-pq.png")
 )
 
 

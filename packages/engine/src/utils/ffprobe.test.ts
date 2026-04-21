@@ -55,7 +55,7 @@ describe("extractVideoMetadata", () => {
   it("reads HDR PNG cICP metadata when ffprobe color fields are absent", async () => {
     const fixturePath = resolve(
       __dirname,
-      "../../../producer/tests/hdr-image-only/src/hdr-photo.png",
+      "../../../producer/tests/hdr-regression/src/hdr-photo-pq.png",
     );
 
     const metadata = await extractVideoMetadata(fixturePath);
@@ -102,7 +102,7 @@ describe("extractPngMetadataFromBuffer", () => {
 
   it("continues to parse the checked-in HDR PNG fixture", () => {
     const fixture = readFileSync(
-      resolve(__dirname, "../../../producer/tests/hdr-image-only/src/hdr-photo.png"),
+      resolve(__dirname, "../../../producer/tests/hdr-regression/src/hdr-photo-pq.png"),
     );
     expect(extractPngMetadataFromBuffer(fixture)?.colorSpace?.colorTransfer).toBe("smpte2084");
   });
