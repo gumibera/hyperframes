@@ -20,6 +20,9 @@ import {
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { DriftEntry } from "../../scripts/lib/sync.ts";
+import { reportAndExit, walkFiles } from "../../scripts/lib/sync.ts";
+
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const repoSkillsDir = resolve(__dirname, "..", "..", "skills");
 const outDir = resolve(__dirname, "skills");
@@ -60,34 +63,11 @@ function reportExtras() {
   }
 }
 
-function assemble() {
-  rmSync(outDir, { recursive: true, force: true });
-  mkdirSync(outDir, { recursive: true });
-  for (const name of SKILLS) {
-    const src = join(repoSkillsDir, name);
-    assertSkillDir(src);
-    cpSync(src, join(outDir, name), { recursive: true });
-    console.log(`  ${name}`);
-  }
-}
-
-function walkFiles(root: string): string[] {
-  const out: string[] = [];
-  const entries = readdirSync(root, { withFileTypes: true });
-  for (const e of entries) {
-    const abs = join(root, e.name);
-    if (e.isDirectory()) {
-      for (const rel of walkFiles(abs)) out.push(join(e.name, rel));
-    } else if (e.isFile()) {
-      out.push(e.name);
-    }
-  }
-  return out;
-}
-
-function detectDrift(): string[] {
-  // Build the expected file map from source skills; the committed output is
-  // the "actual". A drifted path is any that differs, is missing, or extra.
+/**
+ * Returns the expected file map (relative path → bytes) and the actual file
+ * map from the built output. Used by both apply and check modes.
+ */
+function buildFileMaps(): { expected: Map<string, Buffer>; actual: Map<string, Buffer> } {
   const expected = new Map<string, Buffer>();
   for (const name of SKILLS) {
     const src = join(repoSkillsDir, name);
@@ -96,44 +76,47 @@ function detectDrift(): string[] {
       expected.set(join(name, rel), readFileSync(join(src, rel)));
     }
   }
-
   const actual = new Map<string, Buffer>();
   if (existsSync(outDir)) {
     for (const rel of walkFiles(outDir)) {
       actual.set(rel, readFileSync(join(outDir, rel)));
     }
   }
+  return { expected, actual };
+}
 
-  const drifted: string[] = [];
+function diff(expected: Map<string, Buffer>, actual: Map<string, Buffer>): DriftEntry[] {
+  const drifted: DriftEntry[] = [];
   for (const [path, content] of expected) {
     const have = actual.get(path);
-    if (!have) {
-      drifted.push(`missing: ${path}`);
-    } else if (!have.equals(content)) {
-      drifted.push(`changed: ${path}`);
-    }
+    if (!have) drifted.push({ kind: "missing", path });
+    else if (!have.equals(content)) drifted.push({ kind: "changed", path });
   }
   for (const path of actual.keys()) {
-    if (!expected.has(path)) drifted.push(`extra:   ${path}`);
+    if (!expected.has(path)) drifted.push({ kind: "extra", path });
   }
-  return drifted.sort();
+  return drifted.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 if (checkMode) {
-  const drifted = detectDrift();
+  const { expected, actual } = buildFileMaps();
+  const drifted = diff(expected, actual);
   reportExtras();
-  if (drifted.length === 0) {
-    console.log("\n✓ Codex plugin skills/ is up to date.");
-  } else {
-    console.error("\n✗ Codex plugin skills/ is out of sync with repo skills/:\n");
-    for (const line of drifted.slice(0, 30)) console.error(`  ${line}`);
-    if (drifted.length > 30) console.error(`  … and ${drifted.length - 30} more`);
-    console.error("\nRun `bun run --cwd packages/codex-plugin build` and commit the result.");
-    process.exit(1);
-  }
+  reportAndExit(drifted, {
+    checkMode: true,
+    label: "Codex plugin skills/",
+    fixCommand: "bun run --cwd packages/codex-plugin build",
+  });
 } else {
   console.log(`Assembling Codex plugin skills/ from ${repoSkillsDir}\n`);
-  assemble();
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+  for (const name of SKILLS) {
+    const src = join(repoSkillsDir, name);
+    assertSkillDir(src);
+    cpSync(src, join(outDir, name), { recursive: true });
+    console.log(`  ${name}`);
+  }
   reportExtras();
   console.log(`\n✓ Wrote ${SKILLS.length} skills to ${outDir}`);
 }
