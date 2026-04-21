@@ -60,10 +60,6 @@ packages/producer/src/services/fontData.generated.ts
 # Test artifacts
 my-video/
 examples/
-# The Codex plugin's skills/ copy mirrors /skills verbatim, including any
-# `examples/` subdirs that the rule above would otherwise hide from git add.
-!packages/codex-plugin/skills/**/examples/
-!packages/codex-plugin/skills/**/examples/**
 packages/studio/data/
 .desloppify/
 .worktrees/

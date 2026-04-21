@@ -60,13 +60,6 @@
         "@google/genai": "^1.50.0",
       },
     },
-    "packages/codex-plugin": {
-      "name": "@hyperframes/codex-plugin",
-      "version": "0.1.0",
-      "devDependencies": {
-        "tsx": "^4.19.2",
-      },
-    },
     "packages/core": {
       "name": "@hyperframes/core",
       "version": "0.4.11",
@@ -444,8 +437,6 @@
     "@hono/node-server": ["@hono/node-server@1.19.11", "", { "peerDependencies": { "hono": "4.12.8" } }, "sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g=="],
 
     "@hyperframes/cli": ["@hyperframes/cli@workspace:packages/cli"],
-
-    "@hyperframes/codex-plugin": ["@hyperframes/codex-plugin@workspace:packages/codex-plugin"],
 
     "@hyperframes/core": ["@hyperframes/core@workspace:packages/core"],
 

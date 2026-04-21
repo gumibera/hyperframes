@@ -17,17 +17,14 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { DriftEntry } from "./lib/sync.ts";
-import { reportAndExit } from "./lib/sync.ts";
-
 const ROOT = join(import.meta.dirname, "..");
 const SOURCE_DIR = join(ROOT, "packages/core/schemas");
 const TARGET_DIR = join(ROOT, "docs/schema");
 const MIRRORED = ["registry.json", "registry-item.json"];
 
 function main() {
-  const checkMode = process.argv.includes("--check");
-  const drifted: DriftEntry[] = [];
+  const checkOnly = process.argv.includes("--check");
+  let drift = 0;
 
   for (const name of MIRRORED) {
     const source = readFileSync(join(SOURCE_DIR, name), "utf-8");
@@ -40,19 +37,24 @@ function main() {
       }
     })();
 
-    if (target === source) continue;
-
-    drifted.push({ kind: target === null ? "missing" : "changed", path: name });
-    if (!checkMode) {
-      writeFileSync(targetPath, source);
+    if (target === source) {
+      console.log(`  ✓ ${name} in sync`);
+      continue;
     }
+
+    drift++;
+    if (checkOnly) {
+      console.error(`  ✗ ${name} out of sync (run \`bun run sync-schemas\` to fix)`);
+      continue;
+    }
+    writeFileSync(targetPath, source);
+    console.log(`  → ${name} updated`);
   }
 
-  reportAndExit(drifted, {
-    checkMode,
-    label: "docs/schema/",
-    fixCommand: "bun run sync-schemas",
-  });
+  if (checkOnly && drift > 0) {
+    console.error(`\n${drift} schema${drift === 1 ? "" : "s"} drifted from source.`);
+    process.exit(1);
+  }
 }
 
 main();
