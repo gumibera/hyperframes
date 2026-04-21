@@ -2,6 +2,21 @@ import { createControls, SPEED_PRESETS, type ControlsCallbacks } from "./control
 import { shouldInjectRuntime } from "./shouldInjectRuntime.js";
 import { PLAYER_STYLES } from "./styles.js";
 
+let sharedSheet: CSSStyleSheet | null = null;
+
+function getSharedSheet(): CSSStyleSheet | null {
+  if (sharedSheet) return sharedSheet;
+  if (typeof CSSStyleSheet === "undefined") return null;
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(PLAYER_STYLES);
+    sharedSheet = sheet;
+    return sheet;
+  } catch {
+    return null;
+  }
+}
+
 const DEFAULT_FPS = 30;
 const RUNTIME_CDN_URL =
   "https://cdn.jsdelivr.net/npm/@hyperframes/core/dist/hyperframe.runtime.iife.js";
@@ -85,9 +100,14 @@ class HyperframesPlayer extends HTMLElement {
     super();
     this.shadow = this.attachShadow({ mode: "open" });
 
-    const style = document.createElement("style");
-    style.textContent = PLAYER_STYLES;
-    this.shadow.appendChild(style);
+    const sheet = getSharedSheet();
+    if (sheet) {
+      this.shadow.adoptedStyleSheets = [sheet];
+    } else {
+      const style = document.createElement("style");
+      style.textContent = PLAYER_STYLES;
+      this.shadow.appendChild(style);
+    }
 
     this.container = document.createElement("div");
     this.container.className = "hfp-container";
