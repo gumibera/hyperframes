@@ -127,6 +127,106 @@ describe("createRuntimePlayer", () => {
     });
   });
 
+  // Regression: nested compositions register sibling timelines alongside
+  // the master (e.g. `scene1-logo-intro` + `scene2-4-canvas` next to the
+  // master's own inline timeline). Before this, pausing the master would
+  // leave siblings free-running, so scene animations kept advancing and the
+  // composition would visibly drift past the paused time even though the
+  // player UI was frozen.
+  describe("timeline registry propagation", () => {
+    it("pauses every sibling timeline, not just the master", () => {
+      const master = createMockTimeline({ time: 5 });
+      const scene1 = createMockTimeline();
+      const scene2 = createMockTimeline();
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer({
+        ...deps,
+        getTimelineRegistry: () => ({ main: master, scene1, scene2 }),
+      });
+      player.pause();
+      expect(master.pause).toHaveBeenCalledTimes(1);
+      expect(scene1.pause).toHaveBeenCalledTimes(1);
+      expect(scene2.pause).toHaveBeenCalledTimes(1);
+    });
+
+    it("plays every sibling timeline when the master plays", () => {
+      const master = createMockTimeline({ time: 0, duration: 10 });
+      const scene1 = createMockTimeline();
+      const scene2 = createMockTimeline();
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer({
+        ...deps,
+        getTimelineRegistry: () => ({ main: master, scene1, scene2 }),
+      });
+      player.play();
+      expect(master.play).toHaveBeenCalledTimes(1);
+      expect(scene1.play).toHaveBeenCalledTimes(1);
+      expect(scene2.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("propagates playbackRate to siblings on play", () => {
+      const master = createMockTimeline({ time: 0, duration: 10 });
+      const scene1 = createMockTimeline();
+      const deps = createMockDeps(master);
+      deps.getPlaybackRate.mockReturnValue(2);
+      const player = createRuntimePlayer({
+        ...deps,
+        getTimelineRegistry: () => ({ main: master, scene1 }),
+      });
+      player.play();
+      expect(scene1.timeScale).toHaveBeenCalledWith(2);
+    });
+
+    it("does not call pause/play on the master twice through the registry", () => {
+      const master = createMockTimeline({ time: 5 });
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer({
+        ...deps,
+        // The master is identity-equal to one of the registry entries.
+        getTimelineRegistry: () => ({ main: master }),
+      });
+      player.pause();
+      expect(master.pause).toHaveBeenCalledTimes(1);
+    });
+
+    it("swallows errors from a broken sibling without breaking pause", () => {
+      const master = createMockTimeline({ time: 5 });
+      const broken = createMockTimeline();
+      (broken.pause as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
+        throw new Error("boom");
+      });
+      const ok = createMockTimeline();
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer({
+        ...deps,
+        getTimelineRegistry: () => ({ main: master, broken, ok }),
+      });
+      expect(() => player.pause()).not.toThrow();
+      expect(master.pause).toHaveBeenCalled();
+      expect(ok.pause).toHaveBeenCalled();
+    });
+
+    it("is a no-op when no registry is supplied (back-compat)", () => {
+      const master = createMockTimeline({ time: 5 });
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer(deps);
+      expect(() => player.pause()).not.toThrow();
+      expect(master.pause).toHaveBeenCalled();
+    });
+
+    it("tolerates undefined entries in the registry", () => {
+      const master = createMockTimeline({ time: 5 });
+      const scene = createMockTimeline();
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer({
+        ...deps,
+        getTimelineRegistry: () => ({ main: master, gone: undefined, scene }),
+      });
+      expect(() => player.pause()).not.toThrow();
+      expect(scene.pause).toHaveBeenCalled();
+    });
+  });
+
   describe("seek", () => {
     it("does nothing without a timeline", () => {
       const deps = createMockDeps(null);

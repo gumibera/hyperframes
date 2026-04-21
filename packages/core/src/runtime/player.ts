@@ -17,7 +17,32 @@ type PlayerDeps = {
   onRenderFrameSeek: (timeSeconds: number) => void;
   onShowNativeVideos: () => void;
   getSafeDuration?: () => number;
+  /**
+   * Optional registry of sibling timelines (typically `window.__timelines`).
+   * Provided so that play/pause propagate to sub-scene timelines registered
+   * alongside the master — e.g. a nested-composition master with per-scene
+   * timelines like `scene1-logo-intro`, `scene2-4-canvas`. Without this,
+   * pausing the master would leave scene timelines free-running and
+   * animations would continue to advance visually past the paused time.
+   */
+  getTimelineRegistry?: () => Record<string, RuntimeTimelineLike | undefined>;
 };
+
+function forEachSiblingTimeline(
+  registry: Record<string, RuntimeTimelineLike | undefined> | undefined | null,
+  master: RuntimeTimelineLike,
+  fn: (tl: RuntimeTimelineLike) => void,
+): void {
+  if (!registry) return;
+  for (const tl of Object.values(registry)) {
+    if (!tl || tl === master) continue;
+    try {
+      fn(tl);
+    } catch {
+      // ignore sibling failures — one broken timeline shouldn't poison play/pause
+    }
+  }
+}
 
 function seekTimelineDeterministically(
   timeline: RuntimeTimelineLike,
@@ -59,6 +84,10 @@ export function createRuntimePlayer(deps: PlayerDeps): RuntimePlayer {
         timeline.timeScale(deps.getPlaybackRate());
       }
       timeline.play();
+      forEachSiblingTimeline(deps.getTimelineRegistry?.(), timeline, (tl) => {
+        if (typeof tl.timeScale === "function") tl.timeScale(deps.getPlaybackRate());
+        tl.play();
+      });
       deps.onDeterministicPlay();
       deps.setIsPlaying(true);
       deps.onShowNativeVideos();
@@ -68,6 +97,9 @@ export function createRuntimePlayer(deps: PlayerDeps): RuntimePlayer {
       const timeline = deps.getTimeline();
       if (!timeline) return;
       timeline.pause();
+      forEachSiblingTimeline(deps.getTimelineRegistry?.(), timeline, (tl) => {
+        tl.pause();
+      });
       const time = Math.max(0, Number(timeline.time()) || 0);
       deps.onDeterministicSeek(time);
       deps.onDeterministicPause();
