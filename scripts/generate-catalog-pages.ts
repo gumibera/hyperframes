@@ -89,12 +89,19 @@ function generateItemMdx(kind: ItemKind, manifest: RegistryItem): string {
   const tags = manifest.tags ?? [];
   const tagBadges = tags.map((t) => `\`${t}\``).join(" ");
   const installCmd = `npx hyperframes add ${manifest.name}`;
+  const previewSrc =
+    kind === "block"
+      ? `/registry/${typeDir(kind)}/${manifest.name}/${manifest.name}.html`
+      : `/registry/${typeDir(kind)}/${manifest.name}/demo.html`;
+  const previewPoster = `https://static.heygen.ai/hyperframes-oss/docs/images/catalog/${typeDir(kind)}/${manifest.name}.png`;
 
   const lines: string[] = [
     "---",
     `title: "${manifest.title.replace(/"/g, '\\"')}"`,
     `description: "${manifest.description.replace(/"/g, '\\"')}"`,
     "---",
+    "",
+    'import { HyperframesPreview } from "../../snippets/HyperframesPreview.jsx";',
     "",
     `# ${manifest.title}`,
     "",
@@ -106,12 +113,7 @@ function generateItemMdx(kind: ItemKind, manifest: RegistryItem): string {
     lines.push(tagBadges, "");
   }
 
-  // Preview video with poster — muted loop, no autoPlay (matches examples page).
-  const previewPath = `/images/catalog/${typeDir(kind)}/${manifest.name}`;
-  lines.push(
-    `<video className="w-full aspect-video rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800" src="${previewPath}.mp4" poster="${previewPath}.png" autoPlay muted loop playsInline />`,
-    "",
-  );
+  lines.push(`<HyperframesPreview src="${previewSrc}" poster="${previewPoster}" />`, "");
 
   // Install command
   lines.push(

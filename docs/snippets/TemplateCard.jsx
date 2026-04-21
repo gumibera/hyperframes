@@ -1,40 +1,21 @@
-export function TemplateCard({ id, title, description, href, portrait }) {
-  const [hovering, setHovering] = React.useState(false);
+import { HyperframesPreview } from "./HyperframesPreview.jsx";
 
-  const imgSrc = `https://static.heygen.ai/hyperframes-oss/docs/images/templates/${id}.png`;
-  const videoSrc = `https://static.heygen.ai/hyperframes-oss/docs/images/templates/${id}.mp4`;
+export function TemplateCard({ id, title, description, href, portrait }) {
+  const poster = `https://static.heygen.ai/hyperframes-oss/docs/images/templates/${id}.png`;
+  const src = `/registry/examples/${id}/index.html`;
 
   return (
     <a
       href={href}
       className="not-prose group block rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden transition-shadow hover:shadow-lg no-underline"
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
     >
-      <div
-        className="relative overflow-hidden bg-gray-100 dark:bg-gray-800"
-        style={{ aspectRatio: portrait ? "9/16" : "16/9" }}
-      >
-        <img
-          src={imgSrc}
-          alt={`${title} example`}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            opacity: hovering ? 0 : 1,
-            transition: "opacity 0.2s ease",
-          }}
-        />
-        {hovering && (
-          <video
-            src={videoSrc}
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-      </div>
+      <HyperframesPreview
+        src={src}
+        poster={poster}
+        aspectRatio={portrait ? "9 / 16" : "16 / 9"}
+        className="rounded-none"
+        playerClassName="object-cover"
+      />
       <div className="p-4">
         <h3 className="text-base font-semibold text-gray-900 dark:text-white m-0">
           {title}
@@ -47,11 +28,11 @@ export function TemplateCard({ id, title, description, href, portrait }) {
   );
 }
 
-export function TemplateGrid({ children }) {
+export function TemplateGrid({ children, columns = 2 }) {
   return (
     <div
       className="not-prose grid gap-4"
-      style={{ gridTemplateColumns: "repeat(2, 1fr)" }}
+      style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
     >
       {children}
     </div>
