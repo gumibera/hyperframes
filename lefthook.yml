@@ -15,7 +15,10 @@ pre-commit:
     codex-plugin-sync:
       # Rebuild the Codex plugin's skills/ copy whenever a source skill changes.
       # Auto-stages the rebuilt output so the committed plugin never drifts.
+      # Exclude the built copy itself — staging edits there would trigger an
+      # infinite rebuild cycle (the hook overwriting the user's own change).
       glob: "skills/**/*"
+      exclude: "packages/codex-plugin/skills/**"
       run: bun run build:codex-plugin && git add packages/codex-plugin/skills
 
 commit-msg:
