@@ -17,7 +17,7 @@ The skills invoke the `hyperframes` CLI via `npx hyperframes`, which needs:
 - **Node.js >= 22**
 - **FFmpeg** on `PATH`
 
-See [hyperframes.dev/quickstart](https://hyperframes.dev/quickstart) for full setup.
+See [hyperframes.heygen.com/quickstart](https://hyperframes.heygen.com/quickstart) for full setup.
 
 ## What's inside
 
