@@ -9,7 +9,6 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
-import { pathToFileURL } from "node:url";
 import { createProjectWatcher, type ProjectWatcher } from "./fileWatcher.js";
 import { VERSION as version } from "../version.js";
 import {
@@ -46,20 +45,9 @@ function resolveRuntimePath(): string {
   return builtPath;
 }
 
-async function loadRuntimeSourceFallback(): Promise<string | null> {
+export async function loadRuntimeSourceFallback(): Promise<string | null> {
   try {
-    const sourceModulePath = resolve(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "core",
-      "src",
-      "inline-scripts",
-      "hyperframe.ts",
-    );
-    if (!existsSync(sourceModulePath)) return null;
-    const mod = await import(pathToFileURL(sourceModulePath).href);
+    const mod = await import("@hyperframes/core");
     if (typeof mod.loadHyperframeRuntimeSource === "function") {
       return mod.loadHyperframeRuntimeSource();
     }

@@ -294,6 +294,29 @@ export function resolveIframe(el: Element | null): HTMLIFrameElement | null {
   return el.shadowRoot?.querySelector("iframe") ?? el.querySelector("iframe") ?? null;
 }
 
+export function mergeTimelineElementsPreservingDowngrades(
+  currentElements: TimelineElement[],
+  nextElements: TimelineElement[],
+  currentDuration: number,
+  nextDuration: number,
+): TimelineElement[] {
+  const safeCurrentDuration = Number.isFinite(currentDuration) ? currentDuration : 0;
+  const safeNextDuration = Number.isFinite(nextDuration) ? nextDuration : 0;
+
+  if (
+    currentElements.length === 0 ||
+    nextElements.length >= currentElements.length ||
+    safeNextDuration > safeCurrentDuration
+  ) {
+    return nextElements;
+  }
+
+  const nextIds = new Set(nextElements.map((element) => element.id));
+  const preserved = currentElements.filter((element) => !nextIds.has(element.id));
+  if (preserved.length === 0) return nextElements;
+  return [...nextElements, ...preserved];
+}
+
 export function useTimelinePlayer() {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const rafRef = useRef<number>(0);
@@ -307,11 +330,21 @@ export function useTimelinePlayer() {
     usePlayerStore.getState();
 
   const syncTimelineElements = useCallback(
-    (elements: TimelineElement[]) => {
-      setElements(elements);
+    (elements: TimelineElement[], nextDuration?: number) => {
+      const state = usePlayerStore.getState();
+      const mergedElements = mergeTimelineElementsPreservingDowngrades(
+        state.elements,
+        elements,
+        state.duration,
+        nextDuration ?? state.duration,
+      );
+      setElements(mergedElements);
+      if (Number.isFinite(nextDuration) && (nextDuration ?? 0) > 0) {
+        setDuration(nextDuration ?? 0);
+      }
       setTimelineReady(true);
     },
-    [setElements, setTimelineReady],
+    [setElements, setTimelineReady, setDuration],
   );
 
   const getAdapter = useCallback((): PlaybackAdapter | null => {
@@ -528,15 +561,11 @@ export function useTimelinePlayer() {
               }))
               .filter((element) => element.duration > 0)
           : els;
-      setElements(clampedEls);
-      if (newDuration > 0) {
-        setDuration(newDuration);
-      }
       if (clampedEls.length > 0) {
-        setTimelineReady(true);
+        syncTimelineElements(clampedEls, newDuration > 0 ? newDuration : undefined);
       }
     },
-    [setElements, setTimelineReady, setDuration],
+    [syncTimelineElements],
   );
 
   /**
