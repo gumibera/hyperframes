@@ -61,6 +61,50 @@ function wrapTimeline(tl: TimelineLike): PlaybackAdapter {
   };
 }
 
+function resolveMediaElement(el: Element): HTMLMediaElement | HTMLImageElement | null {
+  if (el instanceof HTMLMediaElement || el instanceof HTMLImageElement) return el;
+  const candidate = el.querySelector("video, audio, img");
+  return candidate instanceof HTMLMediaElement || candidate instanceof HTMLImageElement
+    ? candidate
+    : null;
+}
+
+function applyMediaMetadataFromElement(entry: TimelineElement, el: Element): void {
+  const mediaStartAttr = el.getAttribute("data-playback-start")
+    ? "playback-start"
+    : el.getAttribute("data-media-start")
+      ? "media-start"
+      : undefined;
+  const mediaStartValue =
+    el.getAttribute("data-playback-start") ?? el.getAttribute("data-media-start");
+  if (mediaStartValue != null) {
+    const playbackStart = parseFloat(mediaStartValue);
+    if (Number.isFinite(playbackStart)) entry.playbackStart = playbackStart;
+  }
+  if (mediaStartAttr) entry.playbackStartAttr = mediaStartAttr;
+
+  const mediaEl = resolveMediaElement(el);
+  if (!mediaEl) return;
+
+  entry.tag = mediaEl.tagName.toLowerCase();
+  const src = mediaEl.getAttribute("src");
+  if (src) entry.src = src;
+
+  if (!(mediaEl instanceof HTMLMediaElement)) return;
+
+  const sourceDurationAttr =
+    el.getAttribute("data-source-duration") ?? mediaEl.getAttribute("data-source-duration");
+  const sourceDuration = sourceDurationAttr ? parseFloat(sourceDurationAttr) : mediaEl.duration;
+  if (Number.isFinite(sourceDuration) && sourceDuration > 0) {
+    entry.sourceDuration = sourceDuration;
+  }
+
+  const playbackRate = mediaEl.defaultPlaybackRate;
+  if (Number.isFinite(playbackRate) && playbackRate > 0) {
+    entry.playbackRate = playbackRate;
+  }
+}
+
 /**
  * Parse [data-start] elements from a Document into TimelineElement[].
  * Shared helper — used by onIframeLoad fallback, handleMessage, and enrichMissingCompositions.
@@ -78,37 +122,46 @@ function parseTimelineFromDOM(doc: Document, rootDuration: number): TimelineElem
     if (startStr == null) return;
     const start = parseFloat(startStr);
     if (isNaN(start)) return;
+    if (Number.isFinite(rootDuration) && rootDuration > 0 && start >= rootDuration) return;
 
     const tagLower = el.tagName.toLowerCase();
     let dur = 0;
     const durStr = el.getAttribute("data-duration");
     if (durStr != null) dur = parseFloat(durStr);
     if (isNaN(dur) || dur <= 0) dur = Math.max(0, rootDuration - start);
+    if (Number.isFinite(rootDuration) && rootDuration > 0) {
+      dur = Math.min(dur, Math.max(0, rootDuration - start));
+    }
+    if (!Number.isFinite(dur) || dur <= 0) return;
 
     const trackStr = el.getAttribute("data-track-index");
     const track = trackStr != null ? parseInt(trackStr, 10) : trackCounter++;
+    const compId = el.getAttribute("data-composition-id");
     const entry: TimelineElement = {
-      id: el.id || el.className?.split(" ")[0] || tagLower,
+      id: el.id || compId || el.className?.split(" ")[0] || tagLower,
       tag: tagLower,
       start,
       duration: dur,
       track: isNaN(track) ? 0 : track,
+      selector: getTimelineElementSelector(el),
+      sourceFile: getTimelineElementSourceFile(el),
     };
 
-    // Media elements
-    if (tagLower === "video" || tagLower === "audio" || tagLower === "img") {
-      const src = el.getAttribute("src");
+    const mediaEl = resolveMediaElement(el);
+    if (mediaEl) {
+      if (mediaEl.tagName === "IMG") {
+        entry.tag = "img";
+      }
+      const src = mediaEl.getAttribute("src");
       if (src) entry.src = src;
-      const ms = el.getAttribute("data-media-start");
-      if (ms) entry.playbackStart = parseFloat(ms);
-      const vol = el.getAttribute("data-volume");
+      const vol = el.getAttribute("data-volume") ?? mediaEl.getAttribute("data-volume");
       if (vol) entry.volume = parseFloat(vol);
+      applyMediaMetadataFromElement(entry, el);
     }
 
     // Sub-compositions
     const compSrc =
       el.getAttribute("data-composition-src") || el.getAttribute("data-composition-file");
-    const compId = el.getAttribute("data-composition-id");
     if (compSrc) {
       entry.compositionSrc = compSrc;
     } else if (compId && compId !== rootComp?.getAttribute("data-composition-id")) {
@@ -124,6 +177,35 @@ function parseTimelineFromDOM(doc: Document, rootDuration: number): TimelineElem
   });
 
   return els;
+}
+
+function getTimelineElementSelector(el: Element): string | undefined {
+  if (el instanceof HTMLElement && el.id) return `#${el.id}`;
+  const compId = el.getAttribute("data-composition-id");
+  if (compId) return `[data-composition-id="${compId}"]`;
+  if (el instanceof HTMLElement) {
+    const firstClass = el.className.split(/\s+/).find(Boolean);
+    if (firstClass) return `.${firstClass}`;
+  }
+  return undefined;
+}
+
+function getTimelineElementSourceFile(el: Element): string | undefined {
+  const ownerRoot = el.parentElement?.closest("[data-composition-id]");
+  return (
+    ownerRoot?.getAttribute("data-composition-file") ??
+    ownerRoot?.getAttribute("data-composition-src") ??
+    undefined
+  );
+}
+
+function findTimelineDomNode(doc: Document, id: string): Element | null {
+  return (
+    doc.getElementById(id) ??
+    doc.querySelector(`[data-composition-id="${id}"]`) ??
+    doc.querySelector(`.${id}`) ??
+    null
+  );
 }
 
 function normalizePreviewViewport(doc: Document, win: Window): void {
@@ -223,6 +305,14 @@ export function useTimelinePlayer() {
   // All reads use getState() (point-in-time), all writes use the stable setters.
   const { setIsPlaying, setCurrentTime, setDuration, setTimelineReady, setElements } =
     usePlayerStore.getState();
+
+  const syncTimelineElements = useCallback(
+    (elements: TimelineElement[]) => {
+      setElements(elements);
+      setTimelineReady(true);
+    },
+    [setElements, setTimelineReady],
+  );
 
   const getAdapter = useCallback((): PlaybackAdapter | null => {
     try {
@@ -364,6 +454,7 @@ export function useTimelinePlayer() {
         (clip) => !clip.parentCompositionId || !clipCompositionIds.has(clip.parentCompositionId),
       );
       const els: TimelineElement[] = filtered.map((clip) => {
+        let hostEl: Element | null = null;
         const entry: TimelineElement = {
           id: clip.id || clip.label || clip.tagName || "element",
           tag: clip.tagName || clip.kind,
@@ -371,6 +462,19 @@ export function useTimelinePlayer() {
           duration: clip.duration,
           track: clip.track,
         };
+        try {
+          const iframeDoc = iframeRef.current?.contentDocument;
+          if (iframeDoc && entry.id) {
+            hostEl = findTimelineDomNode(iframeDoc, entry.id);
+          }
+        } catch {
+          /* cross-origin */
+        }
+        if (hostEl) {
+          entry.selector = getTimelineElementSelector(hostEl);
+          entry.sourceFile = getTimelineElementSourceFile(hostEl);
+          applyMediaMetadataFromElement(entry, hostEl);
+        }
         if (clip.assetUrl) entry.src = clip.assetUrl;
         if (clip.kind === "composition" && clip.compositionId) {
           // The bundler renames data-composition-src to data-composition-file
@@ -382,7 +486,7 @@ export function useTimelinePlayer() {
             try {
               const iframeDoc = iframeRef.current?.contentDocument;
               hostEl =
-                iframeDoc?.querySelector(`[data-composition-id="${clip.compositionId}"]`) ?? null;
+                iframeDoc?.querySelector(`[data-composition-id="${clip.compositionId}"]`) ?? hostEl;
               resolvedSrc =
                 hostEl?.getAttribute("data-composition-src") ??
                 hostEl?.getAttribute("data-composition-file") ??
@@ -401,30 +505,36 @@ export function useTimelinePlayer() {
               entry.tag = "video";
             }
           }
+          if (hostEl) {
+            entry.selector = getTimelineElementSelector(hostEl);
+            entry.sourceFile = getTimelineElementSourceFile(hostEl);
+          }
         }
         return entry;
       });
-      // Don't downgrade: if we already have more elements with a longer duration,
-      // skip updates that would show fewer clips (transient runtime state).
-      const currentElements = usePlayerStore.getState().elements;
-      const currentDuration = usePlayerStore.getState().duration;
       const rawDuration = data.durationInFrames / 30;
       // Clamp non-finite or absurdly large durations — the runtime can emit
       // Infinity when it detects a loop-inflated GSAP timeline without an
       // explicit data-duration on the root composition.
       const newDuration = Number.isFinite(rawDuration) && rawDuration < 7200 ? rawDuration : 0;
-      if (currentElements.length > els.length && newDuration <= currentDuration) {
-        return; // skip transient downgrade
+      const effectiveDuration = newDuration > 0 ? newDuration : usePlayerStore.getState().duration;
+      const clampedEls =
+        effectiveDuration > 0
+          ? els
+              .filter((element) => element.start < effectiveDuration)
+              .map((element) => ({
+                ...element,
+                duration: Math.min(element.duration, effectiveDuration - element.start),
+              }))
+              .filter((element) => element.duration > 0)
+          : els;
+      setElements(clampedEls);
+      if (newDuration > 0) {
+        setDuration(newDuration);
       }
-      setElements(els);
-      // Ensure duration covers the furthest clip end so fit-zoom shows everything
-      if (els.length > 0) {
-        const maxEnd = Math.max(...els.map((e) => e.start + e.duration));
-        const effectiveDur = Math.max(newDuration, maxEnd);
-        if (Number.isFinite(effectiveDur) && effectiveDur > currentDuration)
-          setDuration(effectiveDur);
+      if (clampedEls.length > 0) {
+        setTimelineReady(true);
       }
-      if (els.length > 0) setTimelineReady(true);
     },
     [setElements, setTimelineReady, setDuration],
   );
@@ -504,6 +614,12 @@ export function useTimelinePlayer() {
         }
         if (!Number.isFinite(dur) || dur <= 0) return;
         if (!Number.isFinite(start)) start = 0;
+        const rootDuration = usePlayerStore.getState().duration;
+        if (Number.isFinite(rootDuration) && rootDuration > 0) {
+          if (start >= rootDuration) return;
+          dur = Math.min(dur, Math.max(0, rootDuration - start));
+          if (dur <= 0) return;
+        }
 
         const trackStr = el.getAttribute("data-track-index");
         const track = trackStr != null ? parseInt(trackStr, 10) : 0;
@@ -515,6 +631,8 @@ export function useTimelinePlayer() {
           start,
           duration: dur,
           track: isNaN(track) ? 0 : track,
+          selector: getTimelineElementSelector(el),
+          sourceFile: getTimelineElementSourceFile(el),
         };
         if (compSrc) {
           entry.compositionSrc = compSrc;
@@ -551,13 +669,12 @@ export function useTimelinePlayer() {
         // Dedup: ensure no missing element duplicates an existing one
         const finalIds = new Set(updatedEls.map((e) => e.id));
         const dedupedMissing = missing.filter((m) => !finalIds.has(m.id));
-        setElements([...updatedEls, ...dedupedMissing]);
-        setTimelineReady(true);
+        syncTimelineElements([...updatedEls, ...dedupedMissing]);
       }
     } catch (err) {
       console.warn("[useTimelinePlayer] enrichMissingCompositions failed", err);
     }
-  }, [setElements, setTimelineReady]);
+  }, [syncTimelineElements]);
 
   const onIframeLoad = useCallback(() => {
     unmutePreviewMedia(iframeRef.current);
@@ -613,8 +730,7 @@ export function useTimelinePlayer() {
             // Fallback: parse data-start elements directly from DOM (raw HTML without runtime)
             const els = parseTimelineFromDOM(doc, adapter.getDuration());
             if (els.length > 0) {
-              setElements(els);
-              setTimelineReady(true);
+              syncTimelineElements(els);
             }
           }
 
@@ -636,7 +752,7 @@ export function useTimelinePlayer() {
                 : undefined;
               // Always show the root composition as a single clip — guarantees
               // the timeline is never empty when a valid composition is loaded.
-              setElements([
+              syncTimelineElements([
                 {
                   id: rootId,
                   tag: (rootComp as HTMLElement).tagName?.toLowerCase() || "div",
@@ -646,7 +762,6 @@ export function useTimelinePlayer() {
                   compositionSrc,
                 },
               ]);
-              setTimelineReady(true);
             }
           }
           // The runtime will also postMessage the full timeline after all compositions load.
@@ -672,6 +787,7 @@ export function useTimelinePlayer() {
     setIsPlaying,
     processTimelineMessage,
     enrichMissingCompositions,
+    syncTimelineElements,
   ]);
 
   /** Save the current playback time so the next onIframeLoad restores it. */
@@ -745,12 +861,12 @@ export function useTimelinePlayer() {
         processTimelineMessageRef.current(data);
         // Fill in composition hosts the manifest missed (element-reference starts)
         enrichMissingCompositionsRef.current();
-        // Update duration only if the new value is longer (don't downgrade during generation)
         if (data.durationInFrames > 0 && Number.isFinite(data.durationInFrames)) {
           const fps = 30;
           const dur = data.durationInFrames / fps;
-          const currentDur = usePlayerStore.getState().duration;
-          if (dur > currentDur) usePlayerStore.getState().setDuration(dur);
+          if (dur > 0 && dur < 7200) {
+            usePlayerStore.getState().setDuration(dur);
+          }
         }
         // If manifest produced 0 elements after filtering, try DOM fallback
         if (usePlayerStore.getState().elements.length === 0) {
@@ -760,8 +876,7 @@ export function useTimelinePlayer() {
             if (doc && adapter) {
               const els = parseTimelineFromDOM(doc, adapter.getDuration());
               if (els.length > 0) {
-                setElements(els);
-                setTimelineReady(true);
+                syncTimelineElements(els);
               }
             }
           } catch (err) {

@@ -59,6 +59,7 @@ export const NLELayout = memo(function NLELayout({
     togglePlay,
     seek,
     onIframeLoad: baseOnIframeLoad,
+    refreshPlayer,
     saveSeekPosition,
   } = useTimelinePlayer();
 
@@ -72,12 +73,13 @@ export const NLELayout = memo(function NLELayout({
     usePlayerStore.getState().reset();
   }
 
-  // Preserve seek position when refreshKey changes (iframe will remount via key prop).
+  // Refresh the existing iframe in place when source files change.
   const prevRefreshKeyRef = useRef(refreshKey);
-  if (refreshKey !== prevRefreshKeyRef.current) {
+  useEffect(() => {
+    if (refreshKey === prevRefreshKeyRef.current) return;
     prevRefreshKeyRef.current = refreshKey;
-    saveSeekPosition();
-  }
+    refreshPlayer();
+  }, [refreshKey, refreshPlayer]);
 
   // Wrap onIframeLoad to also notify parent of iframe ref
   const onIframeLoad = useCallback(() => {
@@ -351,12 +353,14 @@ export const NLELayout = memo(function NLELayout({
         <>
           {/* Resize divider */}
           <div
-            className="h-1 flex-shrink-0 bg-neutral-800 hover:bg-studio-accent cursor-row-resize transition-colors active:bg-studio-accent/80 z-10"
+            className="group h-2 flex-shrink-0 cursor-row-resize flex items-center justify-center z-10"
             style={{ touchAction: "none" }}
             onPointerDown={handleDividerPointerDown}
             onPointerMove={handleDividerPointerMove}
             onPointerUp={handleDividerPointerUp}
-          />
+          >
+            <div className="h-px w-full bg-white/10 transition-colors group-hover:bg-white/16 group-active:bg-white/22" />
+          </div>
 
           {/* Timeline section — fixed height, resizable */}
           <div className="flex flex-col flex-shrink-0" style={{ height: timelineH }}>

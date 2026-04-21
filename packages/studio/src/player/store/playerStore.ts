@@ -6,8 +6,15 @@ export interface TimelineElement {
   start: number;
   duration: number;
   track: number;
+  /** Best-effort selector used when patching source HTML back from timeline edits */
+  selector?: string;
+  /** Source composition file that owns this element, when known */
+  sourceFile?: string;
   src?: string;
   playbackStart?: number;
+  playbackStartAttr?: "media-start" | "playback-start";
+  playbackRate?: number;
+  sourceDuration?: number;
   volume?: number;
   /** Path from data-composition-src — identifies sub-composition elements */
   compositionSrc?: string;
@@ -37,7 +44,7 @@ interface PlayerState {
   setSelectedElementId: (id: string | null) => void;
   updateElement: (
     elementId: string,
-    updates: Partial<Pick<TimelineElement, "start" | "duration" | "track">>,
+    updates: Partial<Pick<TimelineElement, "start" | "duration" | "track" | "playbackStart">>,
   ) => void;
   setZoomMode: (mode: ZoomMode) => void;
   setPixelsPerSecond: (pps: number) => void;
