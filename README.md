@@ -33,6 +33,12 @@ npx skills add heygen-com/hyperframes
 
 This teaches your agent (Claude Code, Cursor, Gemini CLI, Codex) how to write correct compositions and GSAP animations. In Claude Code, the skills register as slash commands — invoke `/hyperframes` to author compositions, `/hyperframes-cli` for CLI commands, and `/gsap` for animation help.
 
+For Codex specifically, the same skills are also packaged as an [OpenAI Codex plugin](./packages/codex-plugin/):
+
+```bash
+codex plugin marketplace add heygen-com/hyperframes --sparse packages/codex-plugin
+```
+
 #### Try it: example prompts
 
 Copy any of these into your agent to get started. The `/hyperframes` prefix loads the skill context explicitly so you get correct output the first time.

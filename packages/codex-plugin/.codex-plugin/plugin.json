@@ -1,0 +1,42 @@
+{
+  "name": "hyperframes",
+  "version": "0.1.0",
+  "description": "Write HTML, render video. Compositions, GSAP animations, captions, voiceovers, audio-reactive visuals, and website-to-video capture for HyperFrames.",
+  "author": {
+    "name": "HeyGen",
+    "url": "https://github.com/heygen-com"
+  },
+  "homepage": "https://hyperframes.dev",
+  "repository": "https://github.com/heygen-com/hyperframes",
+  "license": "Apache-2.0",
+  "keywords": [
+    "hyperframes",
+    "video",
+    "html",
+    "gsap",
+    "animation",
+    "composition",
+    "rendering",
+    "captions",
+    "tts",
+    "audio-reactive"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "HyperFrames",
+    "shortDescription": "Write HTML, render video",
+    "longDescription": "Build videos from HTML with HyperFrames. Author compositions with HTML + CSS + GSAP, use the CLI for init/preview/render/transcribe/tts, install reusable registry blocks and components, follow the GSAP animation reference, and turn any website into a video with the 7-step capture-to-video pipeline.",
+    "developerName": "HeyGen",
+    "category": "Design",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://hyperframes.dev",
+    "defaultPrompt": [
+      "Turn this website into a 20-second product promo",
+      "Create an animated title card with kinetic type",
+      "Add synced captions to this voiceover"
+    ],
+    "brandColor": "#0a0a0a",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png"
+  }
+}

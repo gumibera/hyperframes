@@ -21,7 +21,7 @@
     },
     "packages/cli": {
       "name": "@hyperframes/cli",
-      "version": "0.4.5",
+      "version": "0.4.11",
       "bin": {
         "hyperframes": "./dist/cli.js",
       },
@@ -60,9 +60,16 @@
         "@google/genai": "^1.50.0",
       },
     },
+    "packages/codex-plugin": {
+      "name": "@hyperframes/codex-plugin",
+      "version": "0.1.0",
+      "devDependencies": {
+        "tsx": "^4.19.2",
+      },
+    },
     "packages/core": {
       "name": "@hyperframes/core",
-      "version": "0.4.5",
+      "version": "0.4.11",
       "dependencies": {
         "@chenglou/pretext": "^0.0.5",
       },
@@ -88,7 +95,7 @@
     },
     "packages/engine": {
       "name": "@hyperframes/engine",
-      "version": "0.4.5",
+      "version": "0.4.11",
       "dependencies": {
         "@hono/node-server": "^1.13.0",
         "@hyperframes/core": "workspace:^",
@@ -106,7 +113,7 @@
     },
     "packages/player": {
       "name": "@hyperframes/player",
-      "version": "0.4.5",
+      "version": "0.4.11",
       "devDependencies": {
         "tsup": "^8.0.0",
         "typescript": "^5.0.0",
@@ -115,7 +122,7 @@
     },
     "packages/producer": {
       "name": "@hyperframes/producer",
-      "version": "0.4.5",
+      "version": "0.4.11",
       "dependencies": {
         "@fontsource/archivo-black": "^5.2.8",
         "@fontsource/eb-garamond": "^5.2.7",
@@ -154,7 +161,7 @@
     },
     "packages/shader-transitions": {
       "name": "@hyperframes/shader-transitions",
-      "version": "0.4.5",
+      "version": "0.4.11",
       "dependencies": {
         "html2canvas": "^1.4.1",
       },
@@ -166,7 +173,7 @@
     },
     "packages/studio": {
       "name": "@hyperframes/studio",
-      "version": "0.4.5",
+      "version": "0.4.11",
       "dependencies": {
         "@codemirror/autocomplete": "^6.20.1",
         "@codemirror/commands": "^6.10.3",
@@ -437,6 +444,8 @@
     "@hono/node-server": ["@hono/node-server@1.19.11", "", { "peerDependencies": { "hono": "4.12.8" } }, "sha512-dr8/3zEaB+p0D2n/IUrlPF1HZm586qgJNXK1a9fhg/PzdtkK7Ksd5l312tJX2yBuALqDYBlG20QEbayqPyxn+g=="],
 
     "@hyperframes/cli": ["@hyperframes/cli@workspace:packages/cli"],
+
+    "@hyperframes/codex-plugin": ["@hyperframes/codex-plugin@workspace:packages/codex-plugin"],
 
     "@hyperframes/core": ["@hyperframes/core@workspace:packages/core"],
 

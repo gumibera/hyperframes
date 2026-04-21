@@ -12,6 +12,11 @@ pre-commit:
     typecheck:
       glob: "*.{ts,tsx}"
       run: cd packages/core && bunx tsc --noEmit && cd ../studio && bunx tsc --noEmit
+    codex-plugin-sync:
+      # Rebuild the Codex plugin's skills/ copy whenever a source skill changes.
+      # Auto-stages the rebuilt output so the committed plugin never drifts.
+      glob: "skills/**/*"
+      run: bun run build:codex-plugin && git add packages/codex-plugin/skills
 
 commit-msg:
   commands:
