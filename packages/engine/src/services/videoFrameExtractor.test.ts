@@ -115,6 +115,9 @@ beforeAll(() => {
   // 10s testsrc2 at 60fps, ~40% of frames dropped via select filter and
   // encoded with -vsync vfr so timestamps are irregular. Declared fps 60,
   // actual average ~36 — well over the 10% threshold used by isVFR.
+  // The select expression drops four 1-second windows (frames 30-89,
+  // 180-239, 330-389, 480-539) to simulate static segments in a screen
+  // recording where no pixels changed.
   runFfmpegSync([
     "-y",
     "-hide_banner",

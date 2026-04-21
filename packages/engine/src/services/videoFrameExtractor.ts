@@ -427,14 +427,9 @@ export async function extractAllVideoFrames(
     }
   }
 
-  // Phase 2b: Normalize VFR (variable frame rate) inputs to CFR. Screen
-  // recordings and phone videos often have irregular timestamps that cause
-  // the fps filter in extractVideoFramesRange to emit fewer frames than
-  // expected, which surfaces downstream as frozen video segments. Only the
-  // used [mediaStart, mediaStart+duration] window is re-encoded, so long
-  // recordings don't pay the full-file transcode cost for a short clip.
+  // Phase 2b: Re-encode VFR inputs to CFR so the fps filter in Phase 3 produces
+  // the expected frame count. Only the used segment is transcoded.
   const vfrNormDir = join(options.outputDir, "_vfr_normalized");
-  let vfrNormDirCreated = false;
   for (let i = 0; i < resolvedVideos.length; i++) {
     if (signal?.aborted) break;
     const entry = resolvedVideos[i];
@@ -448,11 +443,7 @@ export async function extractAllVideoFrames(
       segDuration = sourceRemaining > 0 ? sourceRemaining : metadata.durationSeconds;
     }
 
-    if (!vfrNormDirCreated) {
-      mkdirSync(vfrNormDir, { recursive: true });
-      vfrNormDirCreated = true;
-    }
-
+    mkdirSync(vfrNormDir, { recursive: true });
     const normalizedPath = join(vfrNormDir, `${entry.video.id}_cfr.mp4`);
     try {
       await convertVfrToCfr(
@@ -472,7 +463,7 @@ export async function extractAllVideoFrames(
     } catch (err) {
       errors.push({
         videoId: entry.video.id,
-        error: `VFR→CFR conversion failed: ${err instanceof Error ? err.message : String(err)}`,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
   }
