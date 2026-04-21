@@ -225,6 +225,42 @@ describe("createRuntimePlayer", () => {
       expect(() => player.pause()).not.toThrow();
       expect(scene.pause).toHaveBeenCalled();
     });
+
+    it("seek intentionally does NOT iterate the registry (cascade handles nested children)", () => {
+      // Siblings registered in `__timelines` are also added as children of
+      // the master via `rootTimeline.add(child, startSec)` in `init.ts`.
+      // GSAP's `totalTime` cascade propagates from the master to each nested
+      // child at its own nested time automatically. Iterating the registry
+      // and calling `totalTime(rootTime, false)` on each sibling would
+      // overwrite that cascade with the wrong absolute time — breaking
+      // every producer regression baseline.
+      const master = createMockTimeline({ duration: 20 });
+      const scene1 = createMockTimeline({ duration: 5 });
+      const scene2 = createMockTimeline({ duration: 15 });
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer({
+        ...deps,
+        getTimelineRegistry: () => ({ main: master, scene1, scene2 }),
+      });
+      player.seek(7);
+      expect(master.pause).toHaveBeenCalledTimes(1);
+      expect(master.totalTime).toHaveBeenCalledWith(7, false);
+      expect(scene1.totalTime).not.toHaveBeenCalled();
+      expect(scene2.totalTime).not.toHaveBeenCalled();
+    });
+
+    it("renderSeek intentionally does NOT iterate the registry either", () => {
+      const master = createMockTimeline({ duration: 20 });
+      const scene = createMockTimeline({ duration: 10 });
+      const deps = createMockDeps(master);
+      const player = createRuntimePlayer({
+        ...deps,
+        getTimelineRegistry: () => ({ main: master, scene }),
+      });
+      player.renderSeek(3);
+      expect(master.totalTime).toHaveBeenCalledWith(3, false);
+      expect(scene.totalTime).not.toHaveBeenCalled();
+    });
   });
 
   describe("seek", () => {

@@ -22,8 +22,13 @@ type PlayerDeps = {
    * Provided so that play/pause propagate to sub-scene timelines registered
    * alongside the master — e.g. a nested-composition master with per-scene
    * timelines like `scene1-logo-intro`, `scene2-4-canvas`. Without this,
-   * pausing the master would leave scene timelines free-running and
-   * animations would continue to advance visually past the paused time.
+   * pausing the master would leave scene timelines free-running.
+   *
+   * Note: `seek`/`renderSeek` do NOT iterate the registry. Siblings are
+   * also added as children of the master in `init.ts`, and GSAP's
+   * `totalTime` cascade positions each child at its nested time
+   * automatically. Iterating and calling `totalTime(rootTime, false)` on
+   * each sibling would overwrite the cascade with the wrong absolute time.
    */
   getTimelineRegistry?: () => Record<string, RuntimeTimelineLike | undefined>;
 };
@@ -112,6 +117,19 @@ export function createRuntimePlayer(deps: PlayerDeps): RuntimePlayer {
       const timeline = deps.getTimeline();
       if (!timeline) return;
       const safeTime = Math.max(0, Number(timeSeconds) || 0);
+      // Seek only the master. Siblings in the registry are also added as
+      // children of the master in `init.ts`; GSAP's `totalTime` cascade
+      // propagates from master to each nested child at its own nested time
+      // automatically. Iterating the registry and calling
+      // `totalTime(rootTime, false)` on each sibling would overwrite the
+      // cascaded nested time with the (wrong) absolute root time — breaking
+      // every producer golden baseline.
+      //
+      // Caveat: in the async-scene-loading path with children individually
+      // paused (preview mode), cascade won't re-render paused children, so a
+      // scrub-back after playthrough can leave scenes parked at their
+      // end state. Fixing that properly requires the async loader to parent
+      // scenes to the master reliably (see init.ts notes) — follow-up.
       const quantized = seekTimelineDeterministically(timeline, safeTime, deps.getCanonicalFps());
       deps.onDeterministicSeek(quantized);
       deps.setIsPlaying(false);

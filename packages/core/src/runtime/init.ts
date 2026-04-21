@@ -635,7 +635,27 @@ export function initSandboxRuntimeModular(): void {
         }
       }
     };
-    if (rootChildCandidates.length > 0) {
+    // In render mode (producer's seek-driven frame capture, signalled by
+    // `window.__HF_VIRTUAL_TIME__`), child scenes MUST be un-paused: GSAP's
+    // `totalTime` cascade propagates from master to each nested child, but a
+    // child that's individually paused won't render at its nested time on
+    // cascade — the seek preserves whatever state the child had. The producer
+    // regression suite (PSNR-checked golden baselines) was produced with this
+    // un-pause, so skipping it in render mode breaks the entire baseline.
+    //
+    // In preview mode (the `<hyperframes-player>` embed used by static sites
+    // and the Vercel template), un-pausing causes scenes to free-run on GSAP's
+    // real-time ticker — the master stays paused at 0:00 but each scene
+    // visibly animates. That's the "autoplay on load" bug.
+    //
+    // Keep children paused in preview and un-pause in render. The play/pause
+    // propagation in `createRuntimePlayer` (see `./player.ts`) then handles
+    // the preview path: user clicks play, we iterate every registry entry
+    // and un-pause it; user clicks pause, we pause every registry entry.
+    const isRenderMode =
+      typeof window !== "undefined" &&
+      (window as Window & { __HF_VIRTUAL_TIME__?: unknown }).__HF_VIRTUAL_TIME__ != null;
+    if (isRenderMode && rootChildCandidates.length > 0) {
       ensureChildCandidatesActive(rootChildCandidates);
     }
     if (rootTimeline) {
