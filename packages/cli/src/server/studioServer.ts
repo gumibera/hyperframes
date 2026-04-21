@@ -10,6 +10,7 @@ import { streamSSE } from "hono/streaming";
 import { existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { createProjectWatcher, type ProjectWatcher } from "./fileWatcher.js";
+import { loadRuntimeSourceFallback } from "./runtimeSource.js";
 import { VERSION as version } from "../version.js";
 import {
   createStudioApi,
@@ -43,18 +44,6 @@ function resolveRuntimePath(): string {
   );
   if (existsSync(devPath)) return devPath;
   return builtPath;
-}
-
-export async function loadRuntimeSourceFallback(): Promise<string | null> {
-  try {
-    const mod = await import("@hyperframes/core");
-    if (typeof mod.loadHyperframeRuntimeSource === "function") {
-      return mod.loadHyperframeRuntimeSource();
-    }
-  } catch (err) {
-    console.warn("[studio] Failed to load runtime source fallback:", err);
-  }
-  return null;
 }
 
 // ── Shared thumbnail browser (singleton per process) ────────────────────────
