@@ -208,6 +208,34 @@ function findTimelineDomNode(doc: Document, id: string): Element | null {
   );
 }
 
+export function resolveStandaloneRootCompositionSrc(iframeSrc: string): string | undefined {
+  const compPathMatch = iframeSrc.match(/\/preview\/comp\/(.+?)(?:\?|$)/);
+  return compPathMatch ? decodeURIComponent(compPathMatch[1]) : undefined;
+}
+
+export function buildStandaloneRootTimelineElement(params: {
+  compositionId: string;
+  tagName: string;
+  rootDuration: number;
+  iframeSrc: string;
+  selector?: string;
+}): TimelineElement | null {
+  if (!Number.isFinite(params.rootDuration) || params.rootDuration <= 0) return null;
+
+  const compositionSrc = resolveStandaloneRootCompositionSrc(params.iframeSrc);
+
+  return {
+    id: params.compositionId,
+    tag: params.tagName.toLowerCase() || "div",
+    start: 0,
+    duration: params.rootDuration,
+    track: 0,
+    compositionSrc,
+    selector: params.selector,
+    sourceFile: compositionSrc,
+  };
+}
+
 function normalizePreviewViewport(doc: Document, win: Window): void {
   if (doc.documentElement) {
     doc.documentElement.style.overflow = "hidden";
@@ -771,26 +799,18 @@ export function useTimelinePlayer() {
             const rootComp = doc.querySelector("[data-composition-id]");
             const rootDuration = adapter.getDuration();
             if (rootComp && rootDuration > 0) {
-              const rootId = rootComp.getAttribute("data-composition-id") || "composition";
-              // Derive compositionSrc from the iframe URL for thumbnail rendering.
-              // URL pattern: /api/projects/{id}/preview/comp/{path}
-              const iframeSrc = iframe?.src || "";
-              const compPathMatch = iframeSrc.match(/\/preview\/comp\/(.+?)(?:\?|$)/);
-              const compositionSrc = compPathMatch
-                ? decodeURIComponent(compPathMatch[1])
-                : undefined;
-              // Always show the root composition as a single clip — guarantees
-              // the timeline is never empty when a valid composition is loaded.
-              syncTimelineElements([
-                {
-                  id: rootId,
-                  tag: (rootComp as HTMLElement).tagName?.toLowerCase() || "div",
-                  start: 0,
-                  duration: rootDuration,
-                  track: 0,
-                  compositionSrc,
-                },
-              ]);
+              const fallbackElement = buildStandaloneRootTimelineElement({
+                compositionId: rootComp.getAttribute("data-composition-id") || "composition",
+                tagName: (rootComp as HTMLElement).tagName || "div",
+                rootDuration,
+                iframeSrc: iframe?.src || "",
+                selector: getTimelineElementSelector(rootComp),
+              });
+              if (fallbackElement) {
+                // Always show the root composition as a single clip — guarantees
+                // the timeline is never empty when a valid composition is loaded.
+                syncTimelineElements([fallbackElement]);
+              }
             }
           }
           // The runtime will also postMessage the full timeline after all compositions load.
