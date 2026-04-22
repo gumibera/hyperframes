@@ -125,16 +125,6 @@ Every composition has two layers:
   Never use scripts to play/pause/seek media elements or to show/hide clips based on timing. The framework handles this automatically from data attributes. Scripts that duplicate this behavior will conflict with the framework. See [Common Mistakes](/guides/common-mistakes) for examples.
 </Warning>
 
-## Variables
-
-Compositions can expose variables for dynamic content:
-
-```html compositions/card.html
-<div data-composition-id="card" data-var-title="string" data-var-color="color">
-```
-
-Variables make compositions reusable as [examples](/examples) -- the same composition can render different content by injecting variable values at render time.
-
 ## Listing Compositions
 
 Use the [CLI](/packages/cli) to see all compositions in a project:
