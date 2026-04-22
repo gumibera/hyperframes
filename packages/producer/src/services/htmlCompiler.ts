@@ -53,7 +53,7 @@ export interface CompiledComposition {
   renderModeHints: RenderModeHints;
 }
 
-export type RenderModeHintCode = "iframe" | "requestAnimationFrame";
+export type RenderModeHintCode = "iframe" | "requestAnimationFrame" | "webgl";
 
 export interface RenderModeHint {
   code: RenderModeHintCode;
@@ -76,6 +76,11 @@ function dedupeElementsById<T extends { id: string }>(elements: T[]): T[] {
 const INLINE_SCRIPT_PATTERN = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const COMPILER_MOUNT_BLOCK_START = "/* __HF_COMPILER_MOUNT_START__ */";
 const COMPILER_MOUNT_BLOCK_END = "/* __HF_COMPILER_MOUNT_END__ */";
+const WEBGL_CONTEXT_PATTERN = /\bgetContext\s*\(\s*["'`](?:webgl2?|experimental-webgl)["'`]\s*\)/i;
+const WEBGL_INLINE_PATTERN =
+  /\b(?:THREE\.(?:WebGLRenderer|PMREMGenerator)|WebGL(?:2)?RenderingContext|PMREMGenerator|EffectComposer|UnrealBloomPass)\b|(?:import\s*\(?\s*["'`]three(?:\/|["'`]))/i;
+const WEBGL_SCRIPT_SRC_PATTERN =
+  /(?:@react-three\/(?:fiber|drei))|(?:^|[/@-])three(?:[./@-]|(?:\.module|\.min)?(?:\.js)?(?:$|[?#/]))/i;
 
 function stripJsComments(source: string): string {
   return source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -105,21 +110,49 @@ export function detectRenderModeHints(html: string): RenderModeHints {
 
   let scriptMatch: RegExpExecArray | null;
   const scriptPattern = new RegExp(INLINE_SCRIPT_PATTERN.source, INLINE_SCRIPT_PATTERN.flags);
+  let detectedInlineRequestAnimationFrame = false;
+  let detectedWebgl = false;
   while ((scriptMatch = scriptPattern.exec(html)) !== null) {
     const attrs = scriptMatch[1] || "";
-    if (/\bsrc\s*=/i.test(attrs)) continue;
+    if (/\bsrc\s*=/i.test(attrs)) {
+      const srcMatch = attrs.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+      if (srcMatch?.[1] && WEBGL_SCRIPT_SRC_PATTERN.test(srcMatch[1])) {
+        detectedWebgl = true;
+      }
+      continue;
+    }
     const content = stripJsComments(stripCompilerMountBootstrap(scriptMatch[2] || ""));
-    if (!/requestAnimationFrame\s*\(/.test(content)) continue;
+    if (!detectedInlineRequestAnimationFrame && /requestAnimationFrame\s*\(/.test(content)) {
+      detectedInlineRequestAnimationFrame = true;
+    }
+    if (
+      !detectedWebgl &&
+      (WEBGL_CONTEXT_PATTERN.test(content) || WEBGL_INLINE_PATTERN.test(content))
+    ) {
+      detectedWebgl = true;
+    }
+  }
+
+  if (detectedInlineRequestAnimationFrame) {
     reasons.push({
       code: "requestAnimationFrame",
       message:
         "Detected raw requestAnimationFrame() in an inline script. This render is routed through screenshot capture mode with virtual time enabled.",
     });
-    break;
+  }
+
+  if (detectedWebgl) {
+    reasons.push({
+      code: "webgl",
+      message:
+        "Detected WebGL/Three.js scene setup. GPU-heavy compositions often need fewer auto workers to avoid Chrome compositor starvation.",
+    });
   }
 
   return {
-    recommendScreenshot: reasons.length > 0,
+    recommendScreenshot: reasons.some(
+      (reason) => reason.code === "iframe" || reason.code === "requestAnimationFrame",
+    ),
     reasons,
   };
 }

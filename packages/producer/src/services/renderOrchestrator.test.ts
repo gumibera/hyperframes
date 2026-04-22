@@ -13,6 +13,31 @@ import {
 } from "./renderOrchestrator.js";
 import { toExternalAssetKey } from "../utils/paths.js";
 
+function createCompiledComposition(
+  reasonCodes: Array<"iframe" | "requestAnimationFrame" | "webgl">,
+): CompiledComposition {
+  return {
+    html: "<html></html>",
+    subCompositions: new Map(),
+    videos: [],
+    audios: [],
+    unresolvedCompositions: [],
+    externalAssets: new Map(),
+    width: 1920,
+    height: 1080,
+    staticDuration: 5,
+    renderModeHints: {
+      recommendScreenshot: reasonCodes.some(
+        (code) => code === "iframe" || code === "requestAnimationFrame",
+      ),
+      reasons: reasonCodes.map((code) => ({
+        code,
+        message: `reason: ${code}`,
+      })),
+    },
+  };
+}
+
 describe("extractStandaloneEntryFromIndex", () => {
   it("reuses the index wrapper and keeps only the requested composition host", () => {
     const indexHtml = `<!DOCTYPE html>
@@ -160,29 +185,6 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
 });
 
 describe("applyRenderModeHints", () => {
-  function createCompiledComposition(
-    reasonCodes: Array<"iframe" | "requestAnimationFrame">,
-  ): CompiledComposition {
-    return {
-      html: "<html></html>",
-      subCompositions: new Map(),
-      videos: [],
-      audios: [],
-      unresolvedCompositions: [],
-      externalAssets: new Map(),
-      width: 1920,
-      height: 1080,
-      staticDuration: 5,
-      renderModeHints: {
-        recommendScreenshot: reasonCodes.length > 0,
-        reasons: reasonCodes.map((code) => ({
-          code,
-          message: `reason: ${code}`,
-        })),
-      },
-    };
-  }
-
   function createConfig(): EngineConfig {
     return {
       fps: 30,
@@ -247,29 +249,6 @@ describe("applyRenderModeHints", () => {
 });
 
 describe("applyAutoWorkerCompatibilityHints", () => {
-  function createCompiledComposition(
-    reasonCodes: Array<"iframe" | "requestAnimationFrame">,
-  ): CompiledComposition {
-    return {
-      html: "<html></html>",
-      subCompositions: new Map(),
-      videos: [],
-      audios: [],
-      unresolvedCompositions: [],
-      externalAssets: new Map(),
-      width: 1920,
-      height: 1080,
-      staticDuration: 5,
-      renderModeHints: {
-        recommendScreenshot: reasonCodes.length > 0,
-        reasons: reasonCodes.map((code) => ({
-          code,
-          message: `reason: ${code}`,
-        })),
-      },
-    };
-  }
-
   it("caps auto workers for requestAnimationFrame screenshot-mode compositions", () => {
     const log = {
       error: vi.fn(),
@@ -306,6 +285,25 @@ describe("applyAutoWorkerCompatibilityHints", () => {
 
     expect(workers).toBe(6);
     expect(log.info).not.toHaveBeenCalled();
+  });
+
+  it("caps auto workers for detected WebGL-heavy compositions", () => {
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    const workers = applyAutoWorkerCompatibilityHints(
+      6,
+      { fps: 30, quality: "standard" },
+      createCompiledComposition(["webgl"]),
+      log,
+    );
+
+    expect(workers).toBe(2);
+    expect(log.info).toHaveBeenCalledOnce();
   });
 
   it("does not cap when compatibility hints are unrelated to requestAnimationFrame", () => {

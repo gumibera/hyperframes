@@ -396,7 +396,9 @@ export function applyRenderModeHints(
   });
 }
 
-const SCREENSHOT_MODE_AUTO_WORKER_CAP = 2;
+// Issue #410 reported that 2 workers stayed stable for GPU-heavy scenes where
+// the default auto heuristic chose 6 and hit Chrome compositor starvation.
+const WEBGL_AUTO_WORKER_CAP = 2;
 
 export function applyAutoWorkerCompatibilityHints(
   workerCount: number,
@@ -406,15 +408,15 @@ export function applyAutoWorkerCompatibilityHints(
 ): number {
   if (config.workers !== undefined) return workerCount;
 
-  const hasRequestAnimationFrameHint = compiled.renderModeHints.reasons.some(
-    (reason) => reason.code === "requestAnimationFrame",
+  const hasCompatibilityHint = compiled.renderModeHints.reasons.some(
+    (reason) => reason.code === "requestAnimationFrame" || reason.code === "webgl",
   );
-  if (!hasRequestAnimationFrameHint || workerCount <= SCREENSHOT_MODE_AUTO_WORKER_CAP) {
+  if (!hasCompatibilityHint || workerCount <= WEBGL_AUTO_WORKER_CAP) {
     return workerCount;
   }
 
-  const reducedWorkerCount = SCREENSHOT_MODE_AUTO_WORKER_CAP;
-  log.info("Reduced auto worker count for screenshot-mode composition", {
+  const reducedWorkerCount = WEBGL_AUTO_WORKER_CAP;
+  log.info("Reduced auto worker count for WebGL-heavy composition", {
     from: workerCount,
     to: reducedWorkerCount,
     reasonCodes: compiled.renderModeHints.reasons.map((reason) => reason.code),

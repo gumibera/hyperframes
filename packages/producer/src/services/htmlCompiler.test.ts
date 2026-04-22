@@ -327,6 +327,36 @@ describe("detectRenderModeHints", () => {
     expect(result.reasons.map((reason) => reason.code)).toEqual(["requestAnimationFrame"]);
   });
 
+  it("detects inline WebGL and Three.js scenes without forcing screenshot mode", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+  <canvas id="scene"></canvas>
+  <script>
+    import * as THREE from "three";
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("scene") });
+    const composer = new EffectComposer(renderer);
+  </script>
+</body></html>`;
+
+    const result = detectRenderModeHints(html);
+
+    expect(result.recommendScreenshot).toBe(false);
+    expect(result.reasons.map((reason) => reason.code)).toEqual(["webgl"]);
+  });
+
+  it("detects external Three.js scripts as WebGL-heavy", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+  <canvas id="scene"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.min.js"></script>
+</body></html>`;
+
+    const result = detectRenderModeHints(html);
+
+    expect(result.recommendScreenshot).toBe(false);
+    expect(result.reasons.map((reason) => reason.code)).toEqual(["webgl"]);
+  });
+
   it("ignores requestAnimationFrame inside comments and external scripts", () => {
     const html = `<!DOCTYPE html>
 <html><body>
