@@ -169,6 +169,16 @@ export interface TimelinePromptElement {
   track: number;
 }
 
+export interface TimelineEditCapabilities {
+  canMove: boolean;
+  canTrimStart: boolean;
+  canTrimEnd: boolean;
+}
+
+export function hasPatchableTimelineTarget(input: { domId?: string; selector?: string }): boolean {
+  return Boolean(input.domId || input.selector);
+}
+
 export function canOffsetTrimClipStart(input: {
   tag: string;
   playbackStart?: number;
@@ -184,6 +194,24 @@ export function canOffsetTrimClipStart(input: {
     Number.isFinite(input.sourceDuration) &&
     input.sourceDuration > 0
   );
+}
+
+export function getTimelineEditCapabilities(input: {
+  tag: string;
+  duration: number;
+  domId?: string;
+  selector?: string;
+  playbackStart?: number;
+  playbackStartAttr?: "media-start" | "playback-start";
+  sourceDuration?: number;
+}): TimelineEditCapabilities {
+  const canPatch = hasPatchableTimelineTarget(input);
+  const hasFiniteDuration = Number.isFinite(input.duration) && input.duration > 0;
+  return {
+    canMove: canPatch,
+    canTrimEnd: canPatch && hasFiniteDuration,
+    canTrimStart: canPatch && hasFiniteDuration && canOffsetTrimClipStart(input),
+  };
 }
 
 export function buildTimelineAgentPrompt({

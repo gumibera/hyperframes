@@ -4,6 +4,8 @@ import {
   buildTimelineAgentPrompt,
   buildTrackZIndexMap,
   canOffsetTrimClipStart,
+  getTimelineEditCapabilities,
+  hasPatchableTimelineTarget,
   resolveTimelineAutoScroll,
   resolveTimelineMove,
   resolveTimelineResize,
@@ -202,6 +204,66 @@ describe("canOffsetTrimClipStart", () => {
         tag: "section",
       }),
     ).toBe(false);
+  });
+});
+
+describe("hasPatchableTimelineTarget", () => {
+  it("returns true when the clip has a DOM id", () => {
+    expect(hasPatchableTimelineTarget({ domId: "hero-card" })).toBe(true);
+  });
+
+  it("returns true when the clip has a selector", () => {
+    expect(hasPatchableTimelineTarget({ selector: ".hero-card" })).toBe(true);
+  });
+
+  it("returns false when the clip has no stable patch target", () => {
+    expect(hasPatchableTimelineTarget({})).toBe(false);
+  });
+});
+
+describe("getTimelineEditCapabilities", () => {
+  it("allows move and end trim for generic patchable motion clips", () => {
+    expect(
+      getTimelineEditCapabilities({
+        tag: "section",
+        duration: 2,
+        selector: ".feature-card",
+      }),
+    ).toEqual({
+      canMove: true,
+      canTrimStart: false,
+      canTrimEnd: true,
+    });
+  });
+
+  it("allows move and both trims for patchable media clips with offset support", () => {
+    expect(
+      getTimelineEditCapabilities({
+        tag: "video",
+        duration: 2,
+        selector: "#media-card",
+        playbackStartAttr: "media-start",
+        sourceDuration: 10,
+      }),
+    ).toEqual({
+      canMove: true,
+      canTrimStart: true,
+      canTrimEnd: true,
+    });
+  });
+
+  it("disables all timeline edits for clips without a patchable target", () => {
+    expect(
+      getTimelineEditCapabilities({
+        tag: "video",
+        duration: 2,
+        sourceDuration: 10,
+      }),
+    ).toEqual({
+      canMove: false,
+      canTrimStart: false,
+      canTrimEnd: false,
+    });
   });
 });
 

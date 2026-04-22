@@ -4,7 +4,7 @@ import type { TimelineTrackStyle } from "./timelineTheme";
 import { memo, type ReactNode } from "react";
 import type { TimelineElement } from "../store/playerStore";
 import { defaultTimelineTheme, getClipHandleOpacity, type TimelineTheme } from "./timelineTheme";
-import { canOffsetTrimClipStart } from "./timelineEditing";
+import { getTimelineEditCapabilities } from "./timelineEditing";
 
 interface TimelineClipProps {
   el: TimelineElement;
@@ -60,7 +60,7 @@ export const TimelineClip = memo(function TimelineClip({
       : isHovered
         ? theme.clipShadowHover
         : theme.clipShadow;
-  const canTrimStart = canOffsetTrimClipStart(el);
+  const capabilities = getTimelineEditCapabilities(el);
   const showHandles = handleOpacity > 0.01;
 
   return (
@@ -87,7 +87,7 @@ export const TimelineClip = memo(function TimelineClip({
         transition:
           "border-color 120ms ease-out, box-shadow 140ms ease-out, background 140ms ease-out",
         zIndex: isDragging ? 20 : isSelected ? 10 : isHovered ? 5 : 1,
-        cursor: "grab",
+        cursor: capabilities.canMove ? "grab" : "default",
         transform: isDragging ? "translateY(-1px)" : undefined,
       }}
       title={
@@ -111,13 +111,13 @@ export const TimelineClip = memo(function TimelineClip({
           top: 0,
           bottom: 0,
           width: 18,
-          opacity: showHandles && canTrimStart ? 1 : 0,
-          pointerEvents: onResizeStart && canTrimStart ? "auto" : "none",
+          opacity: showHandles && capabilities.canTrimStart ? 1 : 0,
+          pointerEvents: onResizeStart && capabilities.canTrimStart ? "auto" : "none",
           zIndex: 4,
           transition: "opacity 120ms ease-out",
           cursor: "col-resize",
           background:
-            showHandles && canTrimStart
+            showHandles && capabilities.canTrimStart
               ? `linear-gradient(90deg, ${trackStyle.accent}4d 0%, ${trackStyle.accent}22 42%, transparent 100%)`
               : "transparent",
         }}
@@ -148,13 +148,14 @@ export const TimelineClip = memo(function TimelineClip({
           bottom: 0,
           width: 18,
           opacity: showHandles ? 1 : 0,
-          pointerEvents: onResizeStart ? "auto" : "none",
+          pointerEvents: onResizeStart && capabilities.canTrimEnd ? "auto" : "none",
           zIndex: 4,
           transition: "opacity 120ms ease-out",
           cursor: "col-resize",
-          background: showHandles
-            ? `linear-gradient(270deg, ${trackStyle.accent}4d 0%, ${trackStyle.accent}22 42%, transparent 100%)`
-            : "transparent",
+          background:
+            showHandles && capabilities.canTrimEnd
+              ? `linear-gradient(270deg, ${trackStyle.accent}4d 0%, ${trackStyle.accent}22 42%, transparent 100%)`
+              : "transparent",
         }}
       >
         <div
