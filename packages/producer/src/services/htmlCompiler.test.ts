@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   collectExternalAssets,
+  compileForRender,
   detectRenderModeHints,
   inlineExternalScripts,
 } from "./htmlCompiler.js";
@@ -342,5 +343,71 @@ describe("detectRenderModeHints", () => {
 
     expect(result.recommendScreenshot).toBe(false);
     expect(result.reasons).toEqual([]);
+  });
+
+  it("ignores requestAnimationFrame inside compiler-inlined GSAP scripts", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="root" data-width="1920" data-height="1080"></div>
+  <script>
+    /* inlined: https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js */
+    function __gsapTicker() {
+      requestAnimationFrame(__gsapTicker);
+    }
+    window.gsap = { version: "3.14.2" };
+  </script>
+</body></html>`;
+
+    const result = detectRenderModeHints(html);
+
+    expect(result.recommendScreenshot).toBe(false);
+    expect(result.reasons).toEqual([]);
+  });
+
+  it("does not recommend screenshot mode for nested compositions that hoist GSAP from a CDN script", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "hf-render-mode-"));
+    const compositionsDir = join(projectDir, "compositions");
+    mkdirSync(compositionsDir, { recursive: true });
+
+    writeFileSync(
+      join(projectDir, "index.html"),
+      `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="root" data-width="1920" data-height="1080">
+    <div data-composition-id="intro" data-composition-src="compositions/intro.html" data-start="0"></div>
+  </div>
+</body></html>`,
+    );
+    writeFileSync(
+      join(compositionsDir, "intro.html"),
+      `<template id="intro-template">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <div data-composition-id="intro" data-width="1920" data-height="1080">
+    <div class="title">Hello</div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["intro"] = gsap.timeline({ paused: true });
+    </script>
+  </div>
+</template>`,
+    );
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock(async () => {
+      return new Response(
+        "window.gsap = { timeline: function() { return { paused: true }; } }; function __ticker(){ requestAnimationFrame(__ticker); }",
+        { status: 200 },
+      );
+    }) as any;
+
+    try {
+      const result = await compileForRender(projectDir, join(projectDir, "index.html"), projectDir);
+
+      expect(result.renderModeHints.recommendScreenshot).toBe(false);
+      expect(result.renderModeHints.reasons).toEqual([]);
+      expect(result.html).toContain("requestAnimationFrame(__ticker)");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
