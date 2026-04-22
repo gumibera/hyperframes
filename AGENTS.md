@@ -7,7 +7,7 @@ Open-source video rendering framework: write HTML, render video.
 This repo ships AI agent skills via [vercel-labs/skills](https://github.com/vercel-labs/skills). Install them before writing compositions — they encode framework-specific patterns that generic docs don't cover.
 
 ```bash
-npx skills add heygen-com/hyperframes
+npx skills add https://hyperframes.heygen.com
 ```
 
 ## Build & Test

@@ -645,27 +645,19 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     | `--codex` | Install to Codex CLI (`~/.codex/skills/`) |
     | `--cursor` | Install to Cursor (`.cursor/skills/` in current project) |
 
-    Skills are fetched from GitHub and include composition authoring, GSAP animation patterns, registry block/component wiring, and other domain-specific knowledge. The `init` command also offers to install skills automatically after scaffolding a project.
+    Skills are fetched from the HyperFrames docs site and include composition authoring, GSAP animation patterns, registry block/component wiring, and other domain-specific knowledge. The `init` command also offers to install skills automatically after scaffolding a project.
 
-    #### Troubleshooting: `fatal: active post-checkout hook found during git clone`
+    The hosted install path avoids `git clone`, so it works on machines without `git-lfs` and avoids clone-hook failures from globally installed Git LFS hooks.
 
-    If you installed Git LFS globally (`git lfs install`), Git 2.45+ refuses to run the LFS post-checkout hook during any `git clone` — including the clone the upstream `skills` CLI performs under the hood. The error looks like:
+    #### Direct install
 
-    ```
-    ■  Failed to clone repository
-    fatal: active `post-checkout` hook found during `git clone`
-    └  Installation failed
-    ```
-
-    **Using `hyperframes skills` is already fine** — as of v0.4.5 the CLI sets `GIT_CLONE_PROTECTION_ACTIVE=0` on the child environment, which is the opt-in knob Git provides for exactly this case. You don't need to do anything.
-
-    **If you ran `npx skills add heygen-com/hyperframes` directly** (bypassing the HyperFrames CLI), set the env var yourself:
+    If you want to install the skills without going through the HyperFrames CLI, use the hosted source directly:
 
     ```bash
-    GIT_CLONE_PROTECTION_ACTIVE=0 npx skills add heygen-com/hyperframes
+    npx skills add https://hyperframes.heygen.com
     ```
 
-    This is tracked in [GH #316](https://github.com/heygen-com/hyperframes/issues/316). An upstream fix in the `skills` CLI itself is the right long-term answer; until that lands, the env var is the correct workaround.
+    The legacy repo source (`npx skills add heygen-com/hyperframes`) still depends on the upstream `skills` CLI clone path and may require future upstream fixes for Git LFS-free installs.
   </Tab>
 </Tabs>
 

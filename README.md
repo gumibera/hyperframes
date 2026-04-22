@@ -28,10 +28,11 @@ Hyperframes is an open-source video rendering framework that lets you create, pr
 Install the HyperFrames skills, then describe the video you want:
 
 ```bash
-npx skills add heygen-com/hyperframes
+npx skills add https://hyperframes.heygen.com
 ```
 
 This teaches your agent (Claude Code, Cursor, Gemini CLI, Codex) how to write correct compositions and GSAP animations. In Claude Code, the skills register as slash commands — invoke `/hyperframes` to author compositions, `/hyperframes-cli` for CLI commands, and `/gsap` for animation help.
+The hosted install avoids cloning this repo, so it works on machines that do not have `git-lfs` installed.
 
 For Codex specifically, the same skills are also exposed as an [OpenAI Codex plugin](./.codex-plugin/plugin.json) — sparse-install just the plugin surface:
 
@@ -176,7 +177,7 @@ Full documentation at **[hyperframes.heygen.com/introduction](https://hyperframe
 HyperFrames ships [skills](https://github.com/vercel-labs/skills) that teach AI agents framework-specific patterns that generic docs don't cover.
 
 ```bash
-npx skills add heygen-com/hyperframes
+npx skills add https://hyperframes.heygen.com
 ```
 
 | Skill                    | What it teaches                                                                              |

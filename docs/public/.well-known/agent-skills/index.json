@@ -1,0 +1,94 @@
+{
+  "skills": [
+    {
+      "name": "gsap",
+      "description": "GSAP animation reference for HyperFrames. Covers gsap.to(), from(), fromTo(), easing, stagger, defaults, timelines (gsap.timeline(), position parameter, labels, nesting, playback), and performance (transforms, will-change, quickTo). Use when writing GSAP animations in HyperFrames compositions.",
+      "files": [
+        "references/effects.md",
+        "scripts/extract-audio-data.py",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "hyperframes",
+      "description": "Create video compositions, animations, title cards, overlays, captions, voiceovers, audio-reactive visuals, and scene transitions in HyperFrames HTML. Use when asked to build any HTML-based video content, add captions or subtitles synced to audio, generate text-to-speech narration, create audio-reactive animation (beat sync, glow, pulse driven by music), add animated text highlighting (marker sweeps, hand-drawn circles, burst lines, scribble, sketchout), or add transitions between scenes (crossfades, wipes, reveals, shader transitions). Covers composition authoring, timing, media, and the full video production workflow. For CLI commands (init, lint, preview, render, transcribe, tts) see the hyperframes-cli skill.",
+      "files": [
+        "data-in-motion.md",
+        "house-style.md",
+        "palettes/bold-energetic.md",
+        "palettes/clean-corporate.md",
+        "palettes/dark-premium.md",
+        "palettes/jewel-rich.md",
+        "palettes/monochrome.md",
+        "palettes/nature-earth.md",
+        "palettes/neon-electric.md",
+        "palettes/pastel-soft.md",
+        "palettes/warm-editorial.md",
+        "patterns.md",
+        "references/audio-reactive.md",
+        "references/captions.md",
+        "references/css-patterns.md",
+        "references/dynamic-techniques.md",
+        "references/motion-principles.md",
+        "references/transcript-guide.md",
+        "references/transitions.md",
+        "references/transitions/catalog.md",
+        "references/transitions/css-3d.md",
+        "references/transitions/css-blur.md",
+        "references/transitions/css-cover.md",
+        "references/transitions/css-destruction.md",
+        "references/transitions/css-dissolve.md",
+        "references/transitions/css-distortion.md",
+        "references/transitions/css-grid.md",
+        "references/transitions/css-light.md",
+        "references/transitions/css-mechanical.md",
+        "references/transitions/css-other.md",
+        "references/transitions/css-push.md",
+        "references/transitions/css-radial.md",
+        "references/transitions/css-scale.md",
+        "references/tts.md",
+        "references/typography.md",
+        "scripts/animation-map.mjs",
+        "scripts/contrast-report.mjs",
+        "SKILL.md",
+        "visual-styles.md"
+      ]
+    },
+    {
+      "name": "hyperframes-cli",
+      "description": "HyperFrames CLI tool — hyperframes init, lint, preview, render, transcribe, tts, doctor, browser, info, upgrade, compositions, docs, benchmark. Use when scaffolding a project, linting or validating compositions, previewing in the studio, rendering to video, transcribing audio, generating TTS, or troubleshooting the HyperFrames environment.",
+      "files": [
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "hyperframes-registry",
+      "description": "Install and wire registry blocks and components into HyperFrames compositions. Use when running hyperframes add, installing a block or component, wiring an installed item into index.html, or working with hyperframes.json. Covers the add command, install locations, block sub-composition wiring, component snippet merging, and registry discovery.",
+      "files": [
+        "examples/add-block.md",
+        "examples/add-component.md",
+        "references/demo-html-pattern.md",
+        "references/discovery.md",
+        "references/install-locations.md",
+        "references/wiring-blocks.md",
+        "references/wiring-components.md",
+        "SKILL.md"
+      ]
+    },
+    {
+      "name": "website-to-hyperframes",
+      "description": "Capture a website and create a HyperFrames video from it. Use when: (1) a user provides a URL and wants a video, (2) someone says \"capture this site\", \"turn this into a video\", \"make a promo from my site\", (3) the user wants a social ad, product tour, or any video based on an existing website, (4) the user shares a link and asks for any kind of video content. Even if the user just pastes a URL — this is the skill to use.",
+      "files": [
+        "references/step-1-capture.md",
+        "references/step-2-design.md",
+        "references/step-3-script.md",
+        "references/step-4-storyboard.md",
+        "references/step-5-vo.md",
+        "references/step-6-build.md",
+        "references/step-7-validate.md",
+        "references/techniques.md",
+        "SKILL.md"
+      ]
+    }
+  ]
+}

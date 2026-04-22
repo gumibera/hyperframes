@@ -10,10 +10,11 @@ Go from zero to a rendered MP4 — either by prompting your AI agent or by start
 Install the HyperFrames skills, then describe the video you want:
 
 ```bash
-npx skills add heygen-com/hyperframes
+npx skills add https://hyperframes.heygen.com
 ```
 
 This teaches your agent (Claude Code, Cursor, Gemini CLI, Codex) how to write correct compositions and GSAP animations. In Claude Code the skills register as slash commands — `/hyperframes` for composition authoring, `/hyperframes-cli` for CLI commands, and `/gsap` for animation help. Invoking the slash command loads the skill context explicitly, which produces correct output the first time.
+The hosted install avoids cloning this repo, so it works on machines that do not have `git-lfs` installed.
 
 ### Try it: example prompts
 

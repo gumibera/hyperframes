@@ -12,18 +12,15 @@ function hasNpx(): boolean {
   }
 }
 
-function runSkillsAdd(repo: string): Promise<void> {
+function runSkillsAdd(source: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn("npx", ["skills", "add", repo, "--all"], {
+    const child = spawn("npx", ["skills", "add", source, "--all"], {
       stdio: "inherit",
       timeout: 120_000,
-      // GH #316 — the upstream `skills` CLI shells out to `git clone`.
-      // When Git's clone-hook protection is active (shipped on by
-      // default in 2.45.1, reverted in 2.45.2, still present on many
-      // corporate and CI setups), any globally-registered
-      // `git lfs install` post-checkout hook aborts the clone. The
-      // `repo` reaching this function is hardcoded in SOURCES below
-      // — no user input reaches the spawn — so opting out here is safe.
+      // The hosted docs endpoint serves a static .well-known skills index, so
+      // the upstream `skills` CLI can install without cloning this repo or
+      // touching Git LFS. Keep Git's clone-protection opt-out as a harmless
+      // fallback in case upstream behavior changes.
       env: { ...process.env, GIT_CLONE_PROTECTION_ACTIVE: "0" },
     });
     child.on("close", (code, signal) => {
@@ -35,7 +32,7 @@ function runSkillsAdd(repo: string): Promise<void> {
   });
 }
 
-const SOURCES = [{ name: "HyperFrames", repo: "heygen-com/hyperframes" }];
+const SOURCES = [{ name: "HyperFrames", repo: "https://hyperframes.heygen.com" }];
 
 export default defineCommand({
   meta: {
