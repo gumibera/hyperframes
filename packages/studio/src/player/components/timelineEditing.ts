@@ -168,6 +168,23 @@ export interface TimelinePromptElement {
   track: number;
 }
 
+export function canOffsetTrimClipStart(input: {
+  tag: string;
+  playbackStart?: number;
+  playbackStartAttr?: "media-start" | "playback-start";
+  sourceDuration?: number;
+}): boolean {
+  if (input.playbackStartAttr != null) return true;
+  if (input.playbackStart != null) return true;
+  const normalizedTag = input.tag.toLowerCase();
+  if (!["video", "audio"].includes(normalizedTag)) return false;
+  return (
+    input.sourceDuration != null &&
+    Number.isFinite(input.sourceDuration) &&
+    input.sourceDuration > 0
+  );
+}
+
 export function buildTimelineAgentPrompt({
   rangeStart,
   rangeEnd,

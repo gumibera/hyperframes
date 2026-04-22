@@ -10,6 +10,7 @@ import { formatTime } from "../lib/time";
 import { TimelineClip } from "./TimelineClip";
 import { EditPopover } from "./EditModal";
 import {
+  canOffsetTrimClipStart,
   resolveTimelineAutoScroll,
   resolveTimelineMove,
   resolveTimelineResize,
@@ -1109,6 +1110,7 @@ export const Timeline = memo(function Timeline({
                         onHoverEnd={() => setHoveredClip(null)}
                         onResizeStart={(edge, e) => {
                           if (e.button !== 0 || e.shiftKey || !onResizeElement) return;
+                          if (edge === "start" && !canOffsetTrimClipStart(el)) return;
                           e.stopPropagation();
                           setShowPopover(false);
                           setRangeSelection(null);
