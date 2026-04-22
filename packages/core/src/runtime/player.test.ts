@@ -381,7 +381,7 @@ describe("createRuntimePlayer", () => {
       expect(deps.onRenderFrameSeek).toHaveBeenCalled();
     });
 
-    it("renderSeek rearms paused siblings before seeking the master timeline", () => {
+    it("renderSeek rearms paused siblings and keeps them active for export frames", () => {
       const { master, scene1, scene2, scene5 } = createNestedTimelineHarness();
       const deps = createMockDeps(master);
       const player = createRuntimePlayer({
@@ -390,12 +390,16 @@ describe("createRuntimePlayer", () => {
       });
       player.pause();
       player.renderSeek(5);
+      expect(master.totalTime).toHaveBeenCalledWith(5, false);
       expect(scene1.time()).toBe(1.5);
       expect(scene2.time()).toBe(3.5);
       expect(scene5.time()).toBe(0);
       expect(scene1.play).toHaveBeenCalledTimes(1);
       expect(scene2.play).toHaveBeenCalledTimes(1);
       expect(scene5.play).toHaveBeenCalledTimes(1);
+      expect(scene1.pause).toHaveBeenCalledTimes(1);
+      expect(scene2.pause).toHaveBeenCalledTimes(1);
+      expect(scene5.pause).toHaveBeenCalledTimes(1);
     });
   });
 

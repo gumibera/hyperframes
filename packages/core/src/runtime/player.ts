@@ -83,6 +83,15 @@ function seekMasterAndSiblingTimelinesDeterministically(
   }
 }
 
+function activateSiblingTimelines(
+  registry: Record<string, RuntimeTimelineLike | undefined> | undefined | null,
+  master: RuntimeTimelineLike,
+): void {
+  forEachSiblingTimeline(registry, master, (tl) => {
+    tl.play();
+  });
+}
+
 export function createRuntimePlayer(deps: PlayerDeps): RuntimePlayer {
   return {
     _timeline: null,
@@ -156,12 +165,13 @@ export function createRuntimePlayer(deps: PlayerDeps): RuntimePlayer {
       // their animations advance. Without this, non-GSAP compositions freeze
       // on their initial frame.
       const quantized = timeline
-        ? seekMasterAndSiblingTimelinesDeterministically(
-            deps.getTimelineRegistry?.(),
-            timeline,
-            timeSeconds,
-            canonicalFps,
-          )
+        ? (() => {
+            // Export seeks run frame-by-frame through the resolved root timeline.
+            // If nested siblings stay paused, GSAP collapses the root back to the
+            // authored master duration and later frames clamp incorrectly.
+            activateSiblingTimelines(deps.getTimelineRegistry?.(), timeline);
+            return seekTimelineDeterministically(timeline, timeSeconds, canonicalFps);
+          })()
         : quantizeTimeToFrame(Math.max(0, Number(timeSeconds) || 0), canonicalFps);
       deps.onDeterministicSeek(quantized);
       deps.setIsPlaying(false);
