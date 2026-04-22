@@ -85,22 +85,4 @@ describe("publishProjectArchive", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
-
-  it("routes publish to canary when requested", async () => {
-    const dir = makeProjectDir();
-    try {
-      writeFileSync(join(dir, "index.html"), "<html></html>", "utf-8");
-
-      await publishProjectArchive(dir, { canary: true });
-
-      expect(fetch).toHaveBeenCalledWith(
-        "https://api2.heygen.com/v1/hyperframes/projects/publish",
-        expect.objectContaining({
-          headers: { heygen_route: "canary" },
-        }),
-      );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
 });

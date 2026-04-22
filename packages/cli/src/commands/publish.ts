@@ -12,7 +12,6 @@ import { publishProjectArchive } from "../utils/publishProject.js";
 
 export const examples: Example[] = [
   ["Publish the current project with a public URL", "hyperframes publish"],
-  ["Publish against canary heygen-server", "hyperframes publish --canary"],
   ["Publish a specific directory", "hyperframes publish ./my-video"],
   ["Skip the consent prompt (scripts)", "hyperframes publish --yes"],
 ];
@@ -28,11 +27,6 @@ export default defineCommand({
       type: "boolean",
       alias: "y",
       description: "Skip the publish confirmation prompt",
-      default: false,
-    },
-    canary: {
-      type: "boolean",
-      description: "Route the publish request to canary heygen-server",
       default: false,
     },
   },
@@ -60,11 +54,6 @@ export default defineCommand({
       console.log(
         `  ${c.dim("Anyone with the URL can open the published project and claim it after authenticating.")}`,
       );
-      if (args.canary === true) {
-        console.log(
-          `  ${c.dim("This run will route the publish request to canary heygen-server.")}`,
-        );
-      }
       console.log();
       const approved = await clack.confirm({ message: "Publish this project?" });
       if (clack.isCancel(approved) || approved !== true) {
@@ -80,7 +69,7 @@ export default defineCommand({
     publishSpinner.start("Uploading project...");
 
     try {
-      const published = await publishProjectArchive(dir, { canary: args.canary === true });
+      const published = await publishProjectArchive(dir);
       const claimUrl = new URL(published.url);
       claimUrl.searchParams.set("claim_token", published.claimToken);
       publishSpinner.stop(c.success("Project published"));
@@ -88,9 +77,6 @@ export default defineCommand({
       console.log();
       console.log(`  ${c.dim("Project")}    ${c.accent(published.title)}`);
       console.log(`  ${c.dim("Files")}      ${String(published.fileCount)}`);
-      if (args.canary === true) {
-        console.log(`  ${c.dim("Route")}      ${c.accent("canary")}`);
-      }
       console.log(`  ${c.dim("Public")}     ${c.accent(claimUrl.toString())}`);
       console.log();
       console.log(

@@ -18,10 +18,6 @@ export interface PublishedProjectResponse {
   claimToken: string;
 }
 
-export interface PublishProjectOptions {
-  canary?: boolean;
-}
-
 function shouldIgnoreSegment(segment: string): boolean {
   return segment.startsWith(".") || IGNORED_DIRS.has(segment) || IGNORED_FILES.has(segment);
 }
@@ -69,10 +65,7 @@ export function getPublishApiBaseUrl(): string {
   ).replace(/\/$/, "");
 }
 
-export async function publishProjectArchive(
-  projectDir: string,
-  options: PublishProjectOptions = {},
-): Promise<PublishedProjectResponse> {
+export async function publishProjectArchive(projectDir: string): Promise<PublishedProjectResponse> {
   const title = basename(projectDir);
   const archive = createPublishArchive(projectDir);
   const archiveBytes = new Uint8Array(archive.buffer.byteLength);
@@ -80,15 +73,10 @@ export async function publishProjectArchive(
   const body = new FormData();
   body.set("title", title);
   body.set("file", new File([archiveBytes], `${title}.zip`, { type: "application/zip" }));
-  const headers: Record<string, string> = {};
-  if (options.canary) {
-    headers["heygen_route"] = "canary";
-  }
 
   const response = await fetch(`${getPublishApiBaseUrl()}/v1/hyperframes/projects/publish`, {
     method: "POST",
     body,
-    headers,
     signal: AbortSignal.timeout(30_000),
   });
 

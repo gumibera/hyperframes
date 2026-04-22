@@ -401,13 +401,11 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     ```bash
     npx hyperframes publish [dir]
     npx hyperframes publish --yes
-    npx hyperframes publish --canary
     ```
 
     | Flag | Description |
     |------|-------------|
     | `--yes` | Skip the confirmation prompt |
-    | `--canary` | Route the publish request to canary heygen-server |
 
     `publish` zips the current project, uploads it to the HyperFrames publish backend, and prints a stable `hyperframes.dev` URL for that stored project.
 
