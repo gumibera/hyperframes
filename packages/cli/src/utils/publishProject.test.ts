@@ -78,6 +78,7 @@ describe("publishProjectArchive", () => {
         "https://api2.heygen.com/v1/hyperframes/projects/publish",
         expect.objectContaining({
           method: "POST",
+          headers: { heygen_route: "canary" },
           signal: expect.any(AbortSignal),
         }),
       );

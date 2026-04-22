@@ -73,10 +73,14 @@ export async function publishProjectArchive(projectDir: string): Promise<Publish
   const body = new FormData();
   body.set("title", title);
   body.set("file", new File([archiveBytes], `${title}.zip`, { type: "application/zip" }));
+  const headers: Record<string, string> = {
+    heygen_route: "canary",
+  };
 
   const response = await fetch(`${getPublishApiBaseUrl()}/v1/hyperframes/projects/publish`, {
     method: "POST",
     body,
+    headers,
     signal: AbortSignal.timeout(30_000),
   });
 
