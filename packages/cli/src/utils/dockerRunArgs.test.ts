@@ -159,4 +159,12 @@ describe("buildDockerRunArgs", () => {
     expect(args).toContain("10M");
     expect(args).not.toContain("--crf");
   });
+
+  it("omits --workers when auto-selection should happen inside the container", () => {
+    const args = buildDockerRunArgs({
+      ...FIXED_INPUT,
+      options: { ...BASE, workers: undefined },
+    });
+    expect(args).not.toContain("--workers");
+  });
 });

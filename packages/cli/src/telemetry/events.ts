@@ -8,7 +8,7 @@ export function trackRenderComplete(props: {
   durationMs: number;
   fps: number;
   quality: string;
-  workers: number;
+  workers?: number;
   docker: boolean;
   gpu: boolean;
   // Composition metadata

@@ -154,16 +154,13 @@ Each render worker launches a **separate Chrome browser process** to capture fra
 
 ### Default behavior
 
-By default, Hyperframes uses **half of your CPU cores, capped at 4**:
+By default, HyperFrames uses a frame-aware auto heuristic instead of a fixed per-machine table:
 
-| Machine | CPU cores | Default workers |
-|---------|-----------|----------------|
-| MacBook Air (M1) | 8 | 4 |
-| MacBook Pro (M3) | 12 | 4 (capped) |
-| 4-core laptop | 4 | 2 |
-| 2-core VM | 2 | 1 |
+- very short renders stay single-worker, because parallel startup overhead outweighs the gain
+- longer renders scale up based on CPU, available memory, and total frame count
+- very large renders are capped again to avoid Chrome/FFmpeg contention
 
-This is intentionally conservative. Each worker spawns its own Chrome process, so the per-worker overhead is significant. Fewer workers avoids resource contention with FFmpeg encoding and your other applications.
+This is intentionally conservative. Each worker spawns its own Chrome process, so the per-worker overhead is significant. Fewer workers avoids resource contention with FFmpeg encoding, GPU-heavy capture, and your other applications.
 
 ### Choosing a worker count
 
@@ -182,11 +179,16 @@ npx hyperframes render --workers 8 --output output.mp4
   Start with the default. If renders feel slow and your system has headroom (check Activity Monitor / `htop`), try increasing `--workers`. If you see high memory pressure or fan noise, reduce it.
 </Tip>
 
+<Tip>
+  If a WebGL-heavy, Three.js, or bloom-heavy composition times out under `--workers auto`, try `--workers 2` before dropping all the way to sequential capture. Scenes with multiple actively seeking video elements may still need `--workers 1`.
+</Tip>
+
 ### When to use 1 worker
 
 - Short compositions (under 2 seconds / 60 frames) — parallelism overhead exceeds the benefit
 - Low-memory machines (4 GB or less)
 - Running renders alongside other heavy processes (video editing, large builds)
+- Multi-video compositions that keep timing out under parallel capture
 
 ### When to increase workers
 

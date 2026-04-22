@@ -396,6 +396,32 @@ export function applyRenderModeHints(
   });
 }
 
+const SCREENSHOT_MODE_AUTO_WORKER_CAP = 2;
+
+export function applyAutoWorkerCompatibilityHints(
+  workerCount: number,
+  config: RenderConfig,
+  compiled: CompiledComposition,
+  log: ProducerLogger = defaultLogger,
+): number {
+  if (config.workers !== undefined) return workerCount;
+
+  const hasRequestAnimationFrameHint = compiled.renderModeHints.reasons.some(
+    (reason) => reason.code === "requestAnimationFrame",
+  );
+  if (!hasRequestAnimationFrameHint || workerCount <= SCREENSHOT_MODE_AUTO_WORKER_CAP) {
+    return workerCount;
+  }
+
+  const reducedWorkerCount = SCREENSHOT_MODE_AUTO_WORKER_CAP;
+  log.info("Reduced auto worker count for screenshot-mode composition", {
+    from: workerCount,
+    to: reducedWorkerCount,
+    reasonCodes: compiled.renderModeHints.reasons.map((reason) => reason.code),
+  });
+  return reducedWorkerCount;
+}
+
 /**
  * Blit a single HDR video layer onto an rgb48le canvas.
  *
@@ -1172,7 +1198,12 @@ export async function executeRenderJob(
       quality: needsAlpha ? undefined : job.config.quality === "draft" ? 80 : 95,
     };
 
-    const workerCount = calculateOptimalWorkers(totalFrames, job.config.workers, cfg);
+    const workerCount = applyAutoWorkerCompatibilityHints(
+      calculateOptimalWorkers(totalFrames, job.config.workers, cfg),
+      job.config,
+      compiled,
+      log,
+    );
 
     const FORMAT_EXT: Record<string, string> = { mp4: ".mp4", webm: ".webm", mov: ".mov" };
     const videoExt = FORMAT_EXT[outputFormat] ?? ".mp4";
@@ -2359,7 +2390,8 @@ export async function executeRenderJob(
     if (isTimeoutError && wasParallel) {
       log.warn(
         `Parallel capture timed out with ${job.config.workers ?? "auto"} workers. ` +
-          `Video-heavy compositions often need sequential capture. Retry with --workers 1`,
+          `WebGL-heavy scenes often need lower parallelism. Retry with --workers 2 first; ` +
+          `video-heavy compositions with multiple active elements may still need --workers 1`,
       );
     }
 

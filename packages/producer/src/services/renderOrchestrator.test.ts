@@ -6,6 +6,7 @@ import type { EngineConfig } from "@hyperframes/engine";
 import type { CompiledComposition } from "./htmlCompiler.js";
 
 import {
+  applyAutoWorkerCompatibilityHints,
   applyRenderModeHints,
   extractStandaloneEntryFromIndex,
   writeCompiledArtifacts,
@@ -242,5 +243,87 @@ describe("applyRenderModeHints", () => {
     applyRenderModeHints(cfg, compiled, log);
 
     expect(log.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyAutoWorkerCompatibilityHints", () => {
+  function createCompiledComposition(
+    reasonCodes: Array<"iframe" | "requestAnimationFrame">,
+  ): CompiledComposition {
+    return {
+      html: "<html></html>",
+      subCompositions: new Map(),
+      videos: [],
+      audios: [],
+      unresolvedCompositions: [],
+      externalAssets: new Map(),
+      width: 1920,
+      height: 1080,
+      staticDuration: 5,
+      renderModeHints: {
+        recommendScreenshot: reasonCodes.length > 0,
+        reasons: reasonCodes.map((code) => ({
+          code,
+          message: `reason: ${code}`,
+        })),
+      },
+    };
+  }
+
+  it("caps auto workers for requestAnimationFrame screenshot-mode compositions", () => {
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    const workers = applyAutoWorkerCompatibilityHints(
+      6,
+      { fps: 30, quality: "standard" },
+      createCompiledComposition(["requestAnimationFrame"]),
+      log,
+    );
+
+    expect(workers).toBe(2);
+    expect(log.info).toHaveBeenCalledOnce();
+  });
+
+  it("does not cap explicitly requested workers", () => {
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    const workers = applyAutoWorkerCompatibilityHints(
+      6,
+      { fps: 30, quality: "standard", workers: 6 },
+      createCompiledComposition(["requestAnimationFrame"]),
+      log,
+    );
+
+    expect(workers).toBe(6);
+    expect(log.info).not.toHaveBeenCalled();
+  });
+
+  it("does not cap when compatibility hints are unrelated to requestAnimationFrame", () => {
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    const workers = applyAutoWorkerCompatibilityHints(
+      6,
+      { fps: 30, quality: "standard" },
+      createCompiledComposition(["iframe"]),
+      log,
+    );
+
+    expect(workers).toBe(6);
+    expect(log.info).not.toHaveBeenCalled();
   });
 });

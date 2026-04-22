@@ -26,4 +26,6 @@ Requires: Docker installed and running.
 
 - Use `draft` quality for fast previews during development
 - Use `npx hyperframes benchmark` to find optimal settings
-- 4 workers is usually the sweet spot for most compositions
+- Leave `--workers` on `auto` unless you have a reason to override it
+- If a WebGL-heavy or bloom-heavy scene times out under `auto`, try `--workers 2`
+- If a composition has multiple actively seeking video elements, try `--workers 1`

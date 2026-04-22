@@ -11,7 +11,7 @@ export const examples: Example[] = [
   ["Parallel rendering with 6 workers", "hyperframes render --workers 6 --output fast.mp4"],
   ["HDR output (H.265 10-bit)", "hyperframes render --hdr --output hdr-output.mp4"],
 ];
-import { cpus, freemem, tmpdir } from "node:os";
+import { freemem, tmpdir } from "node:os";
 import { resolve, dirname, join, basename } from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { resolveProject } from "../utils/project.js";
@@ -32,13 +32,6 @@ const VALID_FPS = new Set([24, 30, 60]);
 const VALID_QUALITY = new Set(["draft", "standard", "high"]);
 const VALID_FORMAT = new Set(["mp4", "webm", "mov"]);
 const FORMAT_EXT: Record<string, string> = { mp4: ".mp4", webm: ".webm", mov: ".mov" };
-
-const CPU_CORE_COUNT = cpus().length;
-
-/** 3/4 of CPU cores, capped at 8. Each worker spawns a Chrome process (~256 MB). */
-function defaultWorkerCount(): number {
-  return Math.max(1, Math.min(Math.floor((CPU_CORE_COUNT * 3) / 4), 8));
-}
 
 export default defineCommand({
   meta: {
@@ -216,12 +209,9 @@ export default defineCommand({
     }
 
     // ── Print render plan ─────────────────────────────────────────────────
-    const workerCount = workers ?? defaultWorkerCount();
     if (!quiet) {
       const workerLabel =
-        args.workers != null
-          ? `${workerCount} workers`
-          : `${workerCount} workers (auto — ${CPU_CORE_COUNT} cores detected)`;
+        workers != null ? `${workers} workers` : "workers auto (frame-aware heuristic)";
       console.log("");
       console.log(
         c.accent("\u25C6") +
@@ -307,7 +297,7 @@ export default defineCommand({
         fps,
         quality,
         format,
-        workers: workerCount,
+        workers,
         gpu: useGpu,
         hdr: args.hdr ?? false,
         crf,
@@ -319,7 +309,7 @@ export default defineCommand({
         fps,
         quality,
         format,
-        workers: workerCount,
+        workers,
         gpu: useGpu,
         hdr: args.hdr ?? false,
         crf,
@@ -335,7 +325,7 @@ interface RenderOptions {
   fps: 24 | 30 | 60;
   quality: "draft" | "standard" | "high";
   format: "mp4" | "webm" | "mov";
-  workers: number;
+  workers?: number;
   gpu: boolean;
   hdr: boolean;
   crf?: number;
@@ -601,7 +591,7 @@ function trackRenderMetrics(
     durationMs: elapsedMs,
     fps: options.fps,
     quality: options.quality,
-    workers: options.workers,
+    workers: job.perfSummary?.workers ?? options.workers,
     docker,
     gpu: options.gpu,
     compositionDurationMs,
