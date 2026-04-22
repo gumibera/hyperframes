@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPromptCopyText,
+  buildTimelineElementAgentPrompt,
   buildTimelineAgentPrompt,
   buildTrackZIndexMap,
   canOffsetTrimClipStart,
@@ -222,7 +223,7 @@ describe("hasPatchableTimelineTarget", () => {
 });
 
 describe("getTimelineEditCapabilities", () => {
-  it("allows move and end trim for generic patchable motion clips", () => {
+  it("disables move and trims for generic motion clips even when patchable", () => {
     expect(
       getTimelineEditCapabilities({
         tag: "section",
@@ -230,9 +231,9 @@ describe("getTimelineEditCapabilities", () => {
         selector: ".feature-card",
       }),
     ).toEqual({
-      canMove: true,
+      canMove: false,
       canTrimStart: false,
-      canTrimEnd: true,
+      canTrimEnd: false,
     });
   });
 
@@ -248,6 +249,37 @@ describe("getTimelineEditCapabilities", () => {
     ).toEqual({
       canMove: true,
       canTrimStart: true,
+      canTrimEnd: true,
+    });
+  });
+
+  it("treats wrapped media clips with media metadata as deterministic", () => {
+    expect(
+      getTimelineEditCapabilities({
+        tag: "div",
+        duration: 2,
+        selector: "#media-card",
+        playbackStartAttr: "media-start",
+        sourceDuration: 10,
+      }),
+    ).toEqual({
+      canMove: true,
+      canTrimStart: true,
+      canTrimEnd: true,
+    });
+  });
+
+  it("allows move and end trim for patchable composition hosts", () => {
+    expect(
+      getTimelineEditCapabilities({
+        tag: "div",
+        duration: 3,
+        selector: '[data-composition-id="intro"]',
+        compositionSrc: "compositions/intro.html",
+      }),
+    ).toEqual({
+      canMove: true,
+      canTrimStart: false,
       canTrimEnd: true,
     });
   });
@@ -332,6 +364,22 @@ describe("buildTimelineAgentPrompt", () => {
     expect(text).toContain("#title (div)");
     expect(text).toContain("#music (audio)");
     expect(text).toContain("Move the title later and lower the music");
+  });
+});
+
+describe("buildTimelineElementAgentPrompt", () => {
+  it("includes the clip context and guidance for agent-based edits", () => {
+    expect(
+      buildTimelineElementAgentPrompt({
+        id: "feature-card",
+        tag: "section",
+        start: 1.4,
+        duration: 1.6,
+        track: 1,
+        sourceFile: "index.html",
+        selector: "#feature-card",
+      }),
+    ).toContain("If this clip is animated with GSAP");
   });
 });
 
