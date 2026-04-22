@@ -155,13 +155,13 @@ describe("resolveTimelineMove", () => {
 });
 
 describe("buildTrackZIndexMap", () => {
-  it("maps higher track numbers onto higher z-index values", () => {
+  it("maps visually higher tracks onto higher z-index values", () => {
     expect(buildTrackZIndexMap([-2, -1, 0, 3])).toEqual(
       new Map([
-        [-2, 1],
-        [-1, 2],
-        [0, 3],
-        [3, 4],
+        [-2, 4],
+        [-1, 3],
+        [0, 2],
+        [3, 1],
       ]),
     );
   });
@@ -169,9 +169,9 @@ describe("buildTrackZIndexMap", () => {
   it("deduplicates tracks before assigning z-index values", () => {
     expect(buildTrackZIndexMap([-1, 0, -1, 3, 3])).toEqual(
       new Map([
-        [-1, 1],
+        [-1, 3],
         [0, 2],
-        [3, 3],
+        [3, 1],
       ]),
     );
   });
