@@ -830,7 +830,14 @@ class HyperframesPlayer extends HTMLElement {
         }
       }
     });
-    obs.observe(doc.body, { childList: true, subtree: true });
+    const hosts = doc.querySelectorAll("[data-composition-id]");
+    if (hosts.length > 0) {
+      for (const host of hosts) {
+        obs.observe(host, { childList: true, subtree: true });
+      }
+    } else {
+      obs.observe(doc.body, { childList: true, subtree: true });
+    }
     this._mediaObserver = obs;
   }
 
