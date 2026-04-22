@@ -27,6 +27,13 @@ The suite is intentionally short (5 s, two windows) — it exists to detect
 regressions in the HLG-specific code path, not to enumerate every composition
 shape (those live in `hdr-regression`).
 
+## Tolerance
+
+`maxFrameFailures` is **0** here. HLG is a pure pass-through path — no known
+failures, no transcoder workarounds — and HEVC encoding against the rendered
+`rgb48le` buffer is byte-deterministic on the same fixture. Any drift is a
+real regression, not codec noise, so the budget is the strictest possible.
+
 ## Fixture
 
 `src/hdr-hlg-clip.mp4` — last 5 seconds of a user-recorded HEVC HLG clip,
