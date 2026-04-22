@@ -381,26 +381,22 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
 
     ### `publish`
 
-    Expose the preview over a public HTTPS URL so collaborators can view the composition without having to install anything:
+    Upload the project and get back a stable `hyperframes.dev` URL:
 
     ```bash
     npx hyperframes publish [dir]
-    npx hyperframes publish --provider tuns
+    npx hyperframes publish --yes
     ```
 
     | Flag | Description |
     |------|-------------|
-    | `--port` | Port to run the preview server on (default: 3002) |
-    | `--provider` | Tunnel provider: `cloudflared`, `tuns`, or `auto` (default) |
+    | `--yes` | Skip the confirmation prompt |
 
-    `publish` starts the preview and opens a public HTTPS tunnel to it. The URL is printed and stays live for as long as the command runs — Ctrl+C tears everything down.
+    `publish` zips the current project, uploads it to the HyperFrames publish backend, and prints a stable `hyperframes.dev` URL for that stored project.
 
-    **Providers**, chosen automatically:
+    The printed URL already includes the claim token, so opening it on `hyperframes.dev` lets the intended user claim the uploaded project and continue editing in the web app.
 
-    1. **`cloudflared`** — Cloudflare's free quick tunnel. Requires the `cloudflared` binary (`brew install cloudflared`). Most reliable option.
-    2. **`tuns.sh`** — zero-install fallback that uses your system's `ssh` to open a remote forward. Works anywhere OpenSSH is available (macOS, Linux, Windows 10+).
-
-    No accounts, no API keys, no configuration files. The tunnel URL rotates each run — share it immediately or re-run to get a new one.
+    This flow does not keep a local preview server alive and does not open a tunnel. The published URL resolves to the persisted project stored by HeyGen, so it keeps working after the CLI process exits.
 
     ### `lint`
 

@@ -47,6 +47,7 @@ describe("publishProjectArchive", () => {
               title: "demo",
               file_count: 2,
               url: "https://hyperframes.dev/p/hfp_123",
+              claim_token: "claim-token",
             },
           }),
           { status: 200 },

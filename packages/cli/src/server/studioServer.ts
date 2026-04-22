@@ -10,6 +10,7 @@ import { streamSSE } from "hono/streaming";
 import { existsSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { createProjectWatcher, type ProjectWatcher } from "./fileWatcher.js";
+import { loadRuntimeSourceFallback } from "./runtimeSource.js";
 import { VERSION as version } from "../version.js";
 import {
   createStudioApi,
@@ -21,48 +22,12 @@ import {
 
 // ── Path resolution ─────────────────────────────────────────────────────────
 
-/**
- * Error thrown when the studio UI assets cannot be located. The message
- * is actionable — it tells the user exactly where we looked and what to
- * run to fix it. Callers (like `publish.ts`) can catch this and format a
- * user-friendly error before any tunnel opens.
- */
-export class StudioAssetsMissingError extends Error {
-  constructor(searchedPaths: string[]) {
-    super(
-      [
-        "Studio UI assets not found.",
-        "",
-        "Searched:",
-        ...searchedPaths.map((p) => `  • ${p}`),
-        "",
-        "Fix: from the hyperframes-oss repo root, run:",
-        "  bun install && bun run build",
-        "",
-        "If you installed via `npm i -g hyperframes`, re-install: your package is incomplete.",
-      ].join("\n"),
-    );
-    this.name = "StudioAssetsMissingError";
-  }
-}
-
 function resolveDistDir(): string {
-  // Shipped layout: CLI's build:copy step copies ../studio/dist into
-  // packages/cli/dist/studio, so this is the first place we check.
   const builtPath = resolve(__dirname, "studio");
   if (existsSync(resolve(builtPath, "index.html"))) return builtPath;
-
-  // Dev layout: running from the monorepo without build:copy, OR the
-  // auto-repair path in publish.ts just ran `bun run build` in the
-  // studio package. `__dirname` here is packages/cli/dist, so the
-  // sibling package is three levels up.
-  const devPath = resolve(__dirname, "..", "..", "studio", "dist");
+  const devPath = resolve(__dirname, "..", "..", "..", "studio", "dist");
   if (existsSync(resolve(devPath, "index.html"))) return devPath;
-
-  throw new StudioAssetsMissingError([
-    resolve(builtPath, "index.html"),
-    resolve(devPath, "index.html"),
-  ]);
+  return builtPath;
 }
 
 function resolveRuntimePath(): string {
@@ -264,7 +229,31 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
         }, opts.seekTime);
         // Let the seek render settle.
         await new Promise((r) => setTimeout(r, 200));
-        const screenshot = (await page.screenshot({ type: "jpeg", quality: 80 })) as Buffer;
+        let clip: { x: number; y: number; width: number; height: number } | undefined;
+        if (opts.selector) {
+          clip = await page.evaluate((selector: string) => {
+            const el = document.querySelector(selector);
+            if (!(el instanceof HTMLElement)) return undefined;
+            const rect = el.getBoundingClientRect();
+            if (rect.width < 4 || rect.height < 4) return undefined;
+            const pad = 8;
+            const x = Math.max(0, rect.left - pad);
+            const y = Math.max(0, rect.top - pad);
+            const maxWidth = window.innerWidth - x;
+            const maxHeight = window.innerHeight - y;
+            return {
+              x,
+              y,
+              width: Math.max(1, Math.min(rect.width + pad * 2, maxWidth)),
+              height: Math.max(1, Math.min(rect.height + pad * 2, maxHeight)),
+            };
+          }, opts.selector);
+        }
+        const screenshot = (await page.screenshot({
+          type: "jpeg",
+          quality: 80,
+          ...(clip ? { clip } : {}),
+        })) as Buffer;
         return screenshot;
       } catch {
         return null;
@@ -292,11 +281,17 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
 
   // CLI-specific routes (before shared API)
   app.get("/api/runtime.js", (c) => {
-    if (!existsSync(runtimePath)) return c.text("runtime not built", 404);
-    return c.body(readFileSync(runtimePath, "utf-8"), 200, {
-      "Content-Type": "text/javascript",
-      "Cache-Control": "no-store",
-    });
+    const serve = async () => {
+      const runtimeSource = existsSync(runtimePath)
+        ? readFileSync(runtimePath, "utf-8")
+        : await loadRuntimeSourceFallback();
+      if (!runtimeSource) return c.text("runtime not available", 404);
+      return c.body(runtimeSource, 200, {
+        "Content-Type": "text/javascript",
+        "Cache-Control": "no-store",
+      });
+    };
+    return serve();
   });
 
   app.get("/api/events", (c) => {
@@ -347,12 +342,14 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
     });
   });
 
-  // SPA fallback. `studioDir` is guaranteed to contain index.html because
-  // resolveDistDir() throws StudioAssetsMissingError at construction time
-  // if the assets are missing — so this read cannot produce the old
-  // "Studio not found" 500 response.
-  const indexHtml = readFileSync(resolve(studioDir, "index.html"), "utf-8");
-  app.get("*", (c) => c.html(indexHtml));
+  // SPA fallback
+  app.get("*", (c) => {
+    const indexPath = resolve(studioDir, "index.html");
+    if (!existsSync(indexPath)) {
+      return c.text("Studio not found. Rebuild with: pnpm run build", 500);
+    }
+    return c.html(readFileSync(indexPath, "utf-8"));
+  });
 
   return { app, watcher };
 }

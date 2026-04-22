@@ -1,6 +1,6 @@
 {
   "name": "@hyperframes/cli",
-  "version": "0.4.3",
+  "version": "0.4.13-alpha.2",
   "description": "HyperFrames CLI — create, preview, and render HTML video compositions",
   "repository": {
     "type": "git",
@@ -19,9 +19,8 @@
     "dev": "tsx src/cli.ts",
     "build": "bun run build:fonts && tsup && bun run build:runtime && bun run build:copy",
     "build:fonts": "cd ../producer && tsx scripts/generate-font-data.ts",
-    "//build:studio": "Intentionally removed — the root `bun run build` serializes studio first, so nesting another studio build here only creates a race on ../studio/dist.",
     "build:runtime": "tsx scripts/build-runtime.ts",
-    "build:copy": "bash -e scripts/build-copy.sh",
+    "build:copy": "node scripts/build-copy.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -44,6 +43,7 @@
     "@hyperframes/core": "workspace:*",
     "@hyperframes/engine": "workspace:*",
     "@hyperframes/producer": "workspace:*",
+    "@hyperframes/studio": "workspace:*",
     "@types/adm-zip": "^0.5.7",
     "@types/mime-types": "^3.0.1",
     "@types/node": "^22.0.0",
