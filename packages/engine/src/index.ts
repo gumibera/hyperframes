@@ -122,9 +122,14 @@ export {
   type ExtractedFrames,
   type ExtractionOptions,
   type ExtractionResult,
+  type ExtractionPhaseBreakdown,
 } from "./services/videoFrameExtractor.js";
 
-export { createVideoFrameInjector } from "./services/videoFrameInjector.js";
+export {
+  createVideoFrameInjector,
+  createEmptyInjectorCacheStats,
+  type InjectorCacheStats,
+} from "./services/videoFrameInjector.js";
 
 export { parseAudioElements, processCompositionAudio } from "./services/audioMixer.js";
 export type { AudioElement, AudioTrack, MixResult } from "./services/audioMixer.types.js";

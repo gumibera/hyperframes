@@ -42,12 +42,29 @@ export interface ExtractionOptions {
   format?: "jpg" | "png";
 }
 
+export interface ExtractionPhaseBreakdown {
+  /** Resolve relative paths + download remote inputs. */
+  resolveMs: number;
+  /** ffprobe passes across all inputs (color-space probe + VFR metadata). */
+  probeMs: number;
+  /** Sum of per-input `convertSdrToHdr` re-encodes. */
+  hdrPreflightMs: number;
+  /** Sum of per-input `convertVfrToCfr` re-encodes. */
+  vfrPreflightMs: number;
+  /** Phase 3 — parallel frame extraction (wall time, not summed). */
+  extractMs: number;
+  /** Counts of inputs hitting each preflight, for ratio analysis. */
+  hdrPreflightCount: number;
+  vfrPreflightCount: number;
+}
+
 export interface ExtractionResult {
   success: boolean;
   extracted: ExtractedFrames[];
   errors: Array<{ videoId: string; error: string }>;
   totalFramesExtracted: number;
   durationMs: number;
+  phaseBreakdown: ExtractionPhaseBreakdown;
 }
 
 export function parseVideoElements(html: string): VideoElement[] {
@@ -364,8 +381,18 @@ export async function extractAllVideoFrames(
   const extracted: ExtractedFrames[] = [];
   const errors: Array<{ videoId: string; error: string }> = [];
   let totalFramesExtracted = 0;
+  const phaseBreakdown: ExtractionPhaseBreakdown = {
+    resolveMs: 0,
+    probeMs: 0,
+    hdrPreflightMs: 0,
+    vfrPreflightMs: 0,
+    extractMs: 0,
+    hdrPreflightCount: 0,
+    vfrPreflightCount: 0,
+  };
 
   // Phase 1: Resolve paths and download remote videos
+  const resolveStart = Date.now();
   const resolvedVideos: Array<{ video: VideoElement; videoPath: string }> = [];
   for (const video of videos) {
     if (signal?.aborted) break;
@@ -392,14 +419,17 @@ export async function extractAllVideoFrames(
       errors.push({ videoId: video.id, error: err instanceof Error ? err.message : String(err) });
     }
   }
+  phaseBreakdown.resolveMs = Date.now() - resolveStart;
 
   // Phase 2: Probe color spaces and normalize if mixed HDR/SDR
+  const probeStart = Date.now();
   const videoColorSpaces = await Promise.all(
     resolvedVideos.map(async ({ videoPath }) => {
       const metadata = await extractVideoMetadata(videoPath);
       return metadata.colorSpace;
     }),
   );
+  phaseBreakdown.probeMs += Date.now() - probeStart;
 
   const hasAnyHdr = videoColorSpaces.some(isHdrColorSpaceUtil);
   if (hasAnyHdr) {
@@ -414,14 +444,18 @@ export async function extractAllVideoFrames(
         const entry = resolvedVideos[i];
         if (!entry) continue;
         const convertedPath = join(convertDir, `${entry.video.id}_hdr.mp4`);
+        const hdrStart = Date.now();
         try {
           await convertSdrToHdr(entry.videoPath, convertedPath, signal, config);
           entry.videoPath = convertedPath;
+          phaseBreakdown.hdrPreflightCount += 1;
         } catch (err) {
           errors.push({
             videoId: entry.video.id,
             error: `SDR→HDR conversion failed: ${err instanceof Error ? err.message : String(err)}`,
           });
+        } finally {
+          phaseBreakdown.hdrPreflightMs += Date.now() - hdrStart;
         }
       }
     }
@@ -434,7 +468,9 @@ export async function extractAllVideoFrames(
     if (signal?.aborted) break;
     const entry = resolvedVideos[i];
     if (!entry) continue;
+    const vfrProbeStart = Date.now();
     const metadata = await extractVideoMetadata(entry.videoPath);
+    phaseBreakdown.probeMs += Date.now() - vfrProbeStart;
     if (!metadata.isVFR) continue;
 
     let segDuration = entry.video.end - entry.video.start;
@@ -445,6 +481,7 @@ export async function extractAllVideoFrames(
 
     mkdirSync(vfrNormDir, { recursive: true });
     const normalizedPath = join(vfrNormDir, `${entry.video.id}_cfr.mp4`);
+    const vfrStart = Date.now();
     try {
       await convertVfrToCfr(
         entry.videoPath,
@@ -460,15 +497,19 @@ export async function extractAllVideoFrames(
       // extraction must seek from 0, not the original mediaStart. Shallow-copy
       // to avoid mutating the caller's VideoElement.
       entry.video = { ...entry.video, mediaStart: 0 };
+      phaseBreakdown.vfrPreflightCount += 1;
     } catch (err) {
       errors.push({
         videoId: entry.video.id,
         error: err instanceof Error ? err.message : String(err),
       });
+    } finally {
+      phaseBreakdown.vfrPreflightMs += Date.now() - vfrStart;
     }
   }
 
   // Phase 3: Extract frames (parallel)
+  const extractStart = Date.now();
   const results = await Promise.all(
     resolvedVideos.map(async ({ video, videoPath }) => {
       if (signal?.aborted) {
@@ -508,6 +549,8 @@ export async function extractAllVideoFrames(
     }),
   );
 
+  phaseBreakdown.extractMs = Date.now() - extractStart;
+
   // Collect results and errors
   for (const item of results) {
     if ("error" in item && item.error) {
@@ -524,6 +567,7 @@ export async function extractAllVideoFrames(
     errors,
     totalFramesExtracted,
     durationMs: Date.now() - startTime,
+    phaseBreakdown,
   };
 }
 

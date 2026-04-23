@@ -22,6 +22,7 @@ import {
   writeFileSync,
   copyFileSync,
   appendFileSync,
+  statSync,
 } from "fs";
 import { parseHTML } from "linkedom";
 import {
@@ -43,6 +44,9 @@ import {
   type CaptureOptions,
   type CaptureSession,
   createVideoFrameInjector,
+  createEmptyInjectorCacheStats,
+  type InjectorCacheStats,
+  type ExtractionPhaseBreakdown,
   encodeFramesFromDir,
   encodeFramesChunkedConcat,
   muxVideoWithAudio,
@@ -114,6 +118,40 @@ async function safeCleanup(
       error: err instanceof Error ? err.message : String(err),
     });
   }
+}
+
+/**
+ * Recursively sum file sizes under `root`. Used at end-of-render to report a
+ * lower bound on peak `workDir` usage (the extracted-frame dir, captured-frame
+ * dir, and intermediate audio/video artifacts all coexist at this point, just
+ * before cleanup). Silently tolerates missing/unreadable paths — the caller
+ * only uses this for telemetry, not correctness.
+ */
+function sumDirBytes(root: string): number {
+  let total = 0;
+  const walk = (dir: string): void => {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const name of entries) {
+      const full = join(dir, name);
+      try {
+        const st = statSync(full);
+        if (st.isDirectory()) {
+          walk(full);
+        } else if (st.isFile()) {
+          total += st.size;
+        }
+      } catch {
+        // Missing between readdir and stat — skip.
+      }
+    }
+  };
+  walk(root);
+  return total;
 }
 
 /**
@@ -211,6 +249,20 @@ export interface RenderPerfSummary {
   captureAvgMs?: number;
   capturePeakMs?: number;
   hdrDiagnostics?: HdrDiagnostics;
+  /**
+   * Phase-level split of the extractor wall time (resolve / probe / HDR
+   * preflight / VFR preflight / Phase 3 extract). Absent when the
+   * composition had no video inputs.
+   */
+  videoExtractBreakdown?: ExtractionPhaseBreakdown;
+  /**
+   * Frame-data-URI LRU counters for the sequential-capture path. Parallel
+   * workers run in separate processes and don't contribute here; absent
+   * when parallel was the only path taken.
+   */
+  injectorStats?: InjectorCacheStats;
+  /** Peak bytes under `workDir` (extracted frames + captured frames + transient dirs). */
+  tmpPeakBytes?: number;
 }
 
 export interface HdrDiagnostics {
@@ -993,6 +1045,12 @@ export async function executeRenderJob(
     let frameLookup: FrameLookupTable | null = null;
     const compiledDir = join(workDir, "compiled");
     let extractionResult: Awaited<ReturnType<typeof extractAllVideoFrames>> | null = null;
+    // Shared LRU stats for sequential-capture injector instances. Parallel
+    // workers live in separate processes and cannot mutate this object, so
+    // only sequential renders populate it (and only those render types
+    // contribute to `perfSummary.injectorStats`).
+    const injectorCacheStats: InjectorCacheStats = createEmptyInjectorCacheStats();
+    let sequentialInjectorUsed = false;
 
     // Probe ORIGINAL color spaces before extraction (which may convert SDR→HDR).
     // This is needed to identify which videos are natively HDR vs converted-SDR
@@ -1239,11 +1297,13 @@ export async function executeRenderJob(
       // readiness wait for these IDs; otherwise the render hangs 45s and
       // throws "video metadata not ready" even though we never asked the
       // browser to decode the video.
+      const domInjector = createVideoFrameInjector(frameLookup, cfg, injectorCacheStats);
+      if (domInjector) sequentialInjectorUsed = true;
       const domSession = await createCaptureSession(
         fileServer.url,
         framesDir,
         { ...captureOptions, skipReadinessVideoIds: Array.from(nativeHdrVideoIds) },
-        createVideoFrameInjector(frameLookup),
+        domInjector,
         cfg,
       );
       await initializeSession(domSession);
@@ -2023,7 +2083,8 @@ export async function executeRenderJob(
         } else {
           // Sequential capture → streaming encode
 
-          const videoInjector = createVideoFrameInjector(frameLookup);
+          const videoInjector = createVideoFrameInjector(frameLookup, cfg, injectorCacheStats);
+          if (videoInjector) sequentialInjectorUsed = true;
           const session =
             probeSession ??
             (await createCaptureSession(
@@ -2125,7 +2186,8 @@ export async function executeRenderJob(
         } else {
           // Sequential capture
 
-          const videoInjector = createVideoFrameInjector(frameLookup);
+          const videoInjector = createVideoFrameInjector(frameLookup, cfg, injectorCacheStats);
+          if (videoInjector) sequentialInjectorUsed = true;
           const session =
             probeSession ??
             (await createCaptureSession(
@@ -2253,6 +2315,13 @@ export async function executeRenderJob(
 
     perfStages.assembleMs = Date.now() - stage6Start;
 
+    // Sample workDir size just before cleanup — by this point both the
+    // extracted-frame dir and captured-frame dir (plus intermediate audio +
+    // video-only artifacts) are all on disk, so this is close to the peak
+    // usage footprint for the render. The doc's validation plan lists this
+    // as one of the three reference metrics.
+    const tmpPeakBytes = sumDirBytes(workDir);
+
     // ── Complete ─────────────────────────────────────────────────────────
     job.outputPath = outputPath;
     updateJobStatus(job, "complete", "Render complete", 100, onProgress);
@@ -2279,6 +2348,9 @@ export async function executeRenderJob(
           : undefined,
       captureAvgMs:
         totalFrames > 0 ? Math.round((perfStages.captureMs ?? 0) / totalFrames) : undefined,
+      videoExtractBreakdown: extractionResult?.phaseBreakdown,
+      injectorStats: sequentialInjectorUsed ? { ...injectorCacheStats } : undefined,
+      tmpPeakBytes,
     };
     job.perfSummary = perfSummary;
     if (job.config.debug) {

@@ -198,6 +198,46 @@ describe.skipIf(!HAS_FFMPEG)("extractAllVideoFrames on a VFR source", () => {
   // (116/300); on the actual reporter's ScreenCaptureKit clip, 18–44% across
   // segments. <10% threshold leaves margin across ffmpeg versions without
   // letting a regression slip through.
+  it("populates phaseBreakdown with timings for resolve, probe, VFR preflight, and extract", async () => {
+    const outputDir = join(FIXTURE_DIR, "out-phase-breakdown");
+    mkdirSync(outputDir, { recursive: true });
+
+    const video: VideoElement = {
+      id: "vbreak",
+      src: VFR_FIXTURE,
+      start: 0,
+      end: 2,
+      mediaStart: 0,
+      hasAudio: false,
+    };
+
+    const result = await extractAllVideoFrames([video], FIXTURE_DIR, {
+      fps: 30,
+      outputDir,
+    });
+
+    expect(result.errors).toEqual([]);
+    const pb = result.phaseBreakdown;
+    // Each phase ran; non-negative is the only universal invariant since
+    // resolveMs can round to 0 on fast local paths.
+    expect(pb.resolveMs).toBeGreaterThanOrEqual(0);
+    expect(pb.probeMs).toBeGreaterThanOrEqual(0);
+    expect(pb.hdrPreflightMs).toBeGreaterThanOrEqual(0);
+    expect(pb.vfrPreflightMs).toBeGreaterThanOrEqual(0);
+    expect(pb.extractMs).toBeGreaterThan(0);
+    // The VFR fixture is synthesized with irregular timestamps, so the VFR
+    // preflight must have actually run and been counted.
+    expect(pb.vfrPreflightCount).toBe(1);
+    expect(pb.vfrPreflightMs).toBeGreaterThan(0);
+    // No HDR source, so the HDR preflight is skipped entirely.
+    expect(pb.hdrPreflightCount).toBe(0);
+    expect(pb.hdrPreflightMs).toBe(0);
+    // Phases are bounded by total wall time (allow 50ms slack for timer
+    // resolution + overhead between the Date.now() samples).
+    const phaseSum = pb.resolveMs + pb.probeMs + pb.vfrPreflightMs + pb.extractMs;
+    expect(phaseSum).toBeLessThanOrEqual(result.durationMs + 50);
+  }, 60_000);
+
   it("produces the full frame count and no duplicate-frame runs on the full VFR file", async () => {
     const outputDir = join(FIXTURE_DIR, "out-full");
     mkdirSync(outputDir, { recursive: true });

@@ -14,7 +14,37 @@ import { injectVideoFramesBatch, syncVideoFrameVisibility } from "./screenshotSe
 import { type BeforeCaptureHook } from "./frameCapture.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
 
-function createFrameDataUriCache(cacheLimit: number) {
+/**
+ * Per-render metrics for the frame-dataURI LRU. Populated by the injector
+ * when the caller passes a stats object to `createVideoFrameInjector`.
+ *
+ * Designed to be read once at end-of-render; values are cumulative counters
+ * plus a peak watermark.
+ */
+export interface InjectorCacheStats {
+  /** Cache returned a previously-loaded data URI without touching disk. */
+  hits: number;
+  /** Cache miss — a new disk read was issued. */
+  misses: number;
+  /** Concurrent request for an in-flight read was coalesced onto the pending promise. */
+  inFlightCoalesced: number;
+  /** Max size the LRU reached during the render (counts of data-URI entries). */
+  peakEntries: number;
+}
+
+export function createEmptyInjectorCacheStats(): InjectorCacheStats {
+  return { hits: 0, misses: 0, inFlightCoalesced: 0, peakEntries: 0 };
+}
+
+/**
+ * Exported for unit tests only — not part of the package's public API.
+ * Used to validate the LRU / stats behavior without spinning up a Chrome page.
+ */
+export function __createFrameDataUriCacheForTests(cacheLimit: number, stats?: InjectorCacheStats) {
+  return createFrameDataUriCache(cacheLimit, stats);
+}
+
+function createFrameDataUriCache(cacheLimit: number, stats?: InjectorCacheStats) {
   const cache = new Map<string, string>();
   const inFlight = new Map<string, Promise<string>>();
 
@@ -29,21 +59,27 @@ function createFrameDataUriCache(cacheLimit: number) {
         cache.delete(oldestKey);
       }
     }
+    if (stats && cache.size > stats.peakEntries) {
+      stats.peakEntries = cache.size;
+    }
     return dataUri;
   }
 
   async function get(framePath: string): Promise<string> {
     const cached = cache.get(framePath);
     if (cached) {
+      if (stats) stats.hits += 1;
       remember(framePath, cached);
       return cached;
     }
 
     const existing = inFlight.get(framePath);
     if (existing) {
+      if (stats) stats.inFlightCoalesced += 1;
       return existing;
     }
 
+    if (stats) stats.misses += 1;
     const pending = fs
       .readFile(framePath)
       .then((frameData) => {
@@ -68,6 +104,7 @@ function createFrameDataUriCache(cacheLimit: number) {
 export function createVideoFrameInjector(
   frameLookup: FrameLookupTable | null,
   config?: Partial<Pick<EngineConfig, "frameDataUriCacheLimit">>,
+  stats?: InjectorCacheStats,
 ): BeforeCaptureHook | null {
   if (!frameLookup) return null;
 
@@ -75,7 +112,7 @@ export function createVideoFrameInjector(
     32,
     config?.frameDataUriCacheLimit ?? DEFAULT_CONFIG.frameDataUriCacheLimit,
   );
-  const frameCache = createFrameDataUriCache(cacheLimit);
+  const frameCache = createFrameDataUriCache(cacheLimit, stats);
   const lastInjectedFrameByVideo = new Map<string, number>();
 
   return async (page: Page, time: number) => {
