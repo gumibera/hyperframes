@@ -273,18 +273,30 @@ export async function extractVideoFramesRange(
  * Uses zscale for color space conversion with a nominal peak luminance of
  * 600 nits — high enough that SDR content doesn't appear too dark next to
  * HDR, matching the approach used by HeyGen's Rio pipeline.
+ *
+ * Only the [startTime, startTime+duration] window is re-encoded, matching
+ * the segment-scoping used by `convertVfrToCfr`. This avoids transcoding
+ * a full 60-minute source when only a 4-second clip is used in the
+ * composition — on typical long-form inputs this is the difference
+ * between minutes of preflight and a second of preflight.
  */
 async function convertSdrToHdr(
   inputPath: string,
   outputPath: string,
+  startTime: number,
+  duration: number,
   signal?: AbortSignal,
   config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
 ): Promise<void> {
   const timeout = config?.ffmpegProcessTimeout ?? DEFAULT_CONFIG.ffmpegProcessTimeout;
 
   const args = [
+    "-ss",
+    String(startTime),
     "-i",
     inputPath,
+    "-t",
+    String(duration),
     "-vf",
     "colorspace=all=bt2020:iall=bt709:range=tv",
     "-color_primaries",
@@ -423,31 +435,56 @@ export async function extractAllVideoFrames(
 
   // Phase 2: Probe color spaces and normalize if mixed HDR/SDR
   const probeStart = Date.now();
-  const videoColorSpaces = await Promise.all(
+  const videoProbes = await Promise.all(
     resolvedVideos.map(async ({ videoPath }) => {
       const metadata = await extractVideoMetadata(videoPath);
-      return metadata.colorSpace;
+      return { colorSpace: metadata.colorSpace, durationSeconds: metadata.durationSeconds };
     }),
   );
   phaseBreakdown.probeMs += Date.now() - probeStart;
 
-  const hasAnyHdr = videoColorSpaces.some(isHdrColorSpaceUtil);
+  const hasAnyHdr = videoProbes.some((p) => isHdrColorSpaceUtil(p.colorSpace));
   if (hasAnyHdr) {
     const convertDir = join(options.outputDir, "_hdr_normalized");
     mkdirSync(convertDir, { recursive: true });
 
     for (let i = 0; i < resolvedVideos.length; i++) {
       if (signal?.aborted) break;
-      const cs = videoColorSpaces[i] ?? null;
+      const probe = videoProbes[i];
+      const cs = probe?.colorSpace ?? null;
       if (!isHdrColorSpaceUtil(cs)) {
         // SDR video in a mixed timeline — convert to HDR color space
         const entry = resolvedVideos[i];
         if (!entry) continue;
+
+        // Segment-scope the re-encode to the used window. For an explicit
+        // [start, end] pair this is end-start; for unbounded clips fall back
+        // to the source's natural duration minus mediaStart (same fallback
+        // used by Phase 3 and Phase 2b).
+        let segDuration = entry.video.end - entry.video.start;
+        if (!Number.isFinite(segDuration) || segDuration <= 0) {
+          const sourceDuration = probe?.durationSeconds ?? 0;
+          const sourceRemaining = sourceDuration - entry.video.mediaStart;
+          segDuration = sourceRemaining > 0 ? sourceRemaining : sourceDuration;
+        }
+
         const convertedPath = join(convertDir, `${entry.video.id}_hdr.mp4`);
         const hdrStart = Date.now();
         try {
-          await convertSdrToHdr(entry.videoPath, convertedPath, signal, config);
+          await convertSdrToHdr(
+            entry.videoPath,
+            convertedPath,
+            entry.video.mediaStart,
+            segDuration,
+            signal,
+            config,
+          );
           entry.videoPath = convertedPath;
+          // Segment-scoped re-encode starts the new file at t=0, so
+          // downstream phases (VFR preflight + Phase 3 extraction) must seek
+          // from 0, not the original mediaStart. Shallow-copy to avoid
+          // mutating the caller's VideoElement.
+          entry.video = { ...entry.video, mediaStart: 0 };
           phaseBreakdown.hdrPreflightCount += 1;
         } catch (err) {
           errors.push({

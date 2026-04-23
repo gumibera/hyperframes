@@ -277,3 +277,125 @@ describe.skipIf(!HAS_FFMPEG)("extractAllVideoFrames on a VFR source", () => {
     expect(duplicateRate).toBeLessThan(0.1);
   }, 60_000);
 });
+
+// Regression test for the segment-scoped SDR→HDR preflight. Before this
+// change the preflight re-encoded the full source — for a 4-second window
+// of a 60-minute recording this was the difference between seconds and
+// minutes of pipeline time. The fix mirrors what convertVfrToCfr already
+// does. Validation: the converted file's on-disk duration must match the
+// composition window, not the source's natural duration.
+describe.skipIf(!HAS_FFMPEG)("extractAllVideoFrames with mixed HDR/SDR segment scoping", () => {
+  const FIXTURE_DIR = mkdtempSync(join(tmpdir(), "hf-hdr-scope-test-"));
+  const SDR_LONG = join(FIXTURE_DIR, "sdr_long.mp4");
+  const HDR_SHORT = join(FIXTURE_DIR, "hdr_short.mp4");
+
+  beforeAll(async () => {
+    // 10-second SDR source — the "long recording" we want to AVOID
+    // re-encoding in full.
+    const sdrResult = await runFfmpeg([
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=s=160x120:d=10:rate=30",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-pix_fmt",
+      "yuv420p",
+      SDR_LONG,
+    ]);
+    if (!sdrResult.success) {
+      throw new Error(`SDR fixture synthesis failed: ${sdrResult.stderr.slice(-400)}`);
+    }
+
+    // 2-second HDR-tagged source. ffprobe picks up colorspace/primaries/
+    // transfer tags and returns VideoColorSpace; isHdrColorSpace() returns
+    // true for colorTransfer === "arib-std-b67" (HLG), which is what the
+    // Phase 2a gate checks.
+    const hdrResult = await runFfmpeg([
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=s=160x120:d=2:rate=30",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-pix_fmt",
+      "yuv420p",
+      "-color_primaries",
+      "bt2020",
+      "-color_trc",
+      "arib-std-b67",
+      "-colorspace",
+      "bt2020nc",
+      HDR_SHORT,
+    ]);
+    if (!hdrResult.success) {
+      throw new Error(`HDR fixture synthesis failed: ${hdrResult.stderr.slice(-400)}`);
+    }
+  }, 30_000);
+
+  afterAll(() => {
+    if (existsSync(FIXTURE_DIR)) rmSync(FIXTURE_DIR, { recursive: true, force: true });
+  });
+
+  it("re-encodes only the used SDR window, not the full source", async () => {
+    const outputDir = join(FIXTURE_DIR, "out-hdr-scope");
+    mkdirSync(outputDir, { recursive: true });
+
+    // Compose a 2-second window out of the 10-second SDR source, alongside
+    // the 2-second HDR clip. Phase 2a must trigger (mixed timeline) and
+    // must re-encode only 2 seconds, not 10.
+    const sdrVideo: VideoElement = {
+      id: "sdr-segment",
+      src: SDR_LONG,
+      start: 0,
+      end: 2,
+      mediaStart: 3,
+      hasAudio: false,
+    };
+    const hdrVideo: VideoElement = {
+      id: "hdr-clip",
+      src: HDR_SHORT,
+      start: 2,
+      end: 4,
+      mediaStart: 0,
+      hasAudio: false,
+    };
+
+    const result = await extractAllVideoFrames([sdrVideo, hdrVideo], FIXTURE_DIR, {
+      fps: 30,
+      outputDir,
+    });
+
+    expect(result.errors).toEqual([]);
+    expect(result.phaseBreakdown.hdrPreflightCount).toBe(1);
+    expect(result.phaseBreakdown.hdrPreflightMs).toBeGreaterThan(0);
+
+    // The converted file lives at {outputDir}/_hdr_normalized/{id}_hdr.mp4.
+    // Before this change it would be ~10s (full source). After: ~2s (the
+    // composition window).
+    const convertedPath = join(outputDir, "_hdr_normalized", "sdr-segment_hdr.mp4");
+    expect(existsSync(convertedPath)).toBe(true);
+    const convertedMeta = await extractVideoMetadata(convertedPath);
+    // 0.5s slack for codec container overhead and ffmpeg's -ss keyframe snap.
+    expect(convertedMeta.durationSeconds).toBeGreaterThan(1.5);
+    expect(convertedMeta.durationSeconds).toBeLessThan(2.5);
+
+    // Phase 3 extraction still produces the expected number of frames —
+    // the composition window is 2s @ 30fps = 60 frames.
+    const frames = readdirSync(join(outputDir, "sdr-segment")).filter((f) => f.endsWith(".jpg"));
+    expect(frames.length).toBeGreaterThanOrEqual(58);
+    expect(frames.length).toBeLessThanOrEqual(62);
+  }, 60_000);
+});
