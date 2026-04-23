@@ -68,3 +68,21 @@ will not match CI. Use it only for local-only experimentation.
 ## Skills
 
 Composition authoring (not repo development) is guided by skills installed via `npx skills add heygen-com/hyperframes`. See `skills/` for source. Invoke `/hyperframes`, `/hyperframes-cli`, `/hyperframes-registry`, or `/gsap` when authoring compositions. When a user provides a website URL and wants a video, invoke `/website-to-hyperframes` — it runs the full 7-step capture-to-video pipeline.
+
+### Reviewing skill changes
+
+When reviewing a changeset that touches `skills/`, review as an agent-instruction
+designer who has shipped many skills and watched agents fail on each one. Focus on:
+
+- **Where will agents misinterpret?** Ambiguous vocabulary, instructions that assume
+  context the agent won't have 200 lines later, field names that don't match across
+  files (e.g., a picker emits "Canvas" but an eval checks for "bg").
+- **Where will agents silently skip?** Soft suggestions agents will deprioritize,
+  gates that lack enforcement, steps with no verification that they ran.
+- **Where will agents produce wrong output on first attempt?** Missing examples
+  (agents need to see the shape, not just read the rules), under-specified formats,
+  instructions that require multi-step reasoning to combine.
+
+Assume the agent reads the full SKILL.md before authoring and has no memory
+between compositions. Consider: will this instruction survive in a 300+ line
+file? Will the agent connect Step 0's context to a quality check 250 lines later?
