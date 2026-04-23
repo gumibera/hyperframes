@@ -1,7 +1,11 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, expect, it } from "vitest";
-import { extractPngMetadataFromBuffer, extractVideoMetadata } from "./ffprobe.js";
+import {
+  extractPngMetadataFromBuffer,
+  extractVideoMetadata,
+  pixelFormatHasAlpha,
+} from "./ffprobe.js";
 
 function crc32(buf: Buffer): number {
   let crc = 0xffffffff;
@@ -105,5 +109,47 @@ describe("extractPngMetadataFromBuffer", () => {
       resolve(__dirname, "../../../producer/tests/hdr-regression/src/hdr-photo-pq.png"),
     );
     expect(extractPngMetadataFromBuffer(fixture)?.colorSpace?.colorTransfer).toBe("smpte2084");
+  });
+});
+
+// Drives the hwaccel gating in the extractor — a misclassification here
+// would either strip alpha silently (false negatives) or disable a safe
+// optimization (false positives). Covers the common alpha pix_fmts plus
+// the 10/12-bit yuva variants ProRes 4444 and WebM-alpha emit.
+describe("pixelFormatHasAlpha", () => {
+  it.each([
+    "yuva420p",
+    "yuva422p",
+    "yuva444p",
+    "yuva444p10le",
+    "yuva444p12le",
+    "rgba",
+    "bgra",
+    "argb",
+    "abgr",
+    "rgba64le",
+    "rgba64be",
+  ])("returns true for alpha-bearing pix_fmt %s", (pf) => {
+    expect(pixelFormatHasAlpha(pf)).toBe(true);
+  });
+
+  it.each([
+    "yuv420p",
+    "yuv422p",
+    "yuv444p",
+    "yuv444p10le",
+    "gbrp",
+    "nv12",
+    "rgb24",
+    "bgr24",
+    "rgb48le",
+    "",
+  ])("returns false for opaque pix_fmt %s", (pf) => {
+    expect(pixelFormatHasAlpha(pf)).toBe(false);
+  });
+
+  it("is case-insensitive", () => {
+    expect(pixelFormatHasAlpha("YUVA420P")).toBe(true);
+    expect(pixelFormatHasAlpha("Rgba")).toBe(true);
   });
 });

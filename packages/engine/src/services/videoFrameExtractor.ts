@@ -184,6 +184,40 @@ export function parseImageElements(html: string): ImageElement[] {
   return images;
 }
 
+/**
+ * Decide whether to add `-hwaccel auto` to the Phase 3 ffmpeg args for a
+ * given input. Gated on three independent conditions, all of which must
+ * be met:
+ *
+ * 1. `hwaccelSdrDecode` is enabled in config (default true).
+ * 2. Source is SDR. HDR already takes a macOS-specific VideoToolbox
+ *    path; generic hwaccel would conflict, and Linux HDR handling needs
+ *    the filter graph that hwaccel bypasses.
+ * 3. Source pixel format has no alpha. Hardware decoders generally
+ *    collapse the alpha plane — a silent correctness regression for
+ *    alpha-bearing WebM / ProRes 4444 sources.
+ * 4. Segment duration ≥ `hwaccelMinDurationSeconds` (default 2). Short
+ *    clips don't amortize the decoder init cost — measured and called
+ *    out in the architecture review.
+ *
+ * Exported for unit testing; the extractor inlines this decision into
+ * its ffmpeg-args construction. External callers who want to know
+ * whether the extractor will pick up hwaccel for a given input can use
+ * this directly.
+ */
+export function shouldEnableHwaccelSdr(input: {
+  isHdr: boolean;
+  hasAlpha: boolean;
+  durationSeconds: number;
+  config: Pick<EngineConfig, "hwaccelSdrDecode" | "hwaccelMinDurationSeconds">;
+}): boolean {
+  if (!input.config.hwaccelSdrDecode) return false;
+  if (input.isHdr) return false;
+  if (input.hasAlpha) return false;
+  if (input.durationSeconds < input.config.hwaccelMinDurationSeconds) return false;
+  return true;
+}
+
 export async function extractVideoFramesRange(
   videoPath: string,
   videoId: string,
@@ -191,7 +225,9 @@ export async function extractVideoFramesRange(
   duration: number,
   options: ExtractionOptions,
   signal?: AbortSignal,
-  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
+  config?: Partial<
+    Pick<EngineConfig, "ffmpegProcessTimeout" | "hwaccelSdrDecode" | "hwaccelMinDurationSeconds">
+  >,
   /**
    * When set, write frames into this directory directly instead of the
    * conventional `join(options.outputDir, videoId)`. Used by the
@@ -216,9 +252,28 @@ export async function extractVideoFramesRange(
   const isHdr = isHdrColorSpaceUtil(metadata.colorSpace);
   const isMacOS = process.platform === "darwin";
 
+  const hwaccelEnabled = shouldEnableHwaccelSdr({
+    isHdr,
+    hasAlpha: metadata.hasAlpha,
+    durationSeconds: duration,
+    config: {
+      hwaccelSdrDecode: config?.hwaccelSdrDecode ?? DEFAULT_CONFIG.hwaccelSdrDecode,
+      hwaccelMinDurationSeconds:
+        config?.hwaccelMinDurationSeconds ?? DEFAULT_CONFIG.hwaccelMinDurationSeconds,
+    },
+  });
+
   const args: string[] = [];
   if (isHdr && isMacOS) {
+    // HDR path keeps its existing VideoToolbox-on-macOS handling — this
+    // branch is exclusive with the generic hwaccel below.
     args.push("-hwaccel", "videotoolbox");
+  } else if (hwaccelEnabled) {
+    // `-hwaccel auto` lets ffmpeg pick the best available accelerator
+    // (VideoToolbox on macOS, VAAPI on Linux, NVDEC on CUDA-equipped
+    // hosts, etc.). If none is available ffmpeg silently falls back to
+    // software decode — safe as a production default with gating above.
+    args.push("-hwaccel", "auto");
   }
   args.push("-ss", String(startTime), "-i", videoPath, "-t", String(duration));
 
@@ -427,7 +482,12 @@ export async function extractAllVideoFrames(
   baseDir: string,
   options: ExtractionOptions,
   signal?: AbortSignal,
-  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout" | "extractCacheDir">>,
+  config?: Partial<
+    Pick<
+      EngineConfig,
+      "ffmpegProcessTimeout" | "extractCacheDir" | "hwaccelSdrDecode" | "hwaccelMinDurationSeconds"
+    >
+  >,
   compiledDir?: string,
 ): Promise<ExtractionResult> {
   const startTime = Date.now();

@@ -64,6 +64,14 @@ export interface VideoMetadata {
   isVFR: boolean;
   /** Color space info from the video stream. Null if ffprobe didn't report it. */
   colorSpace: VideoColorSpace | null;
+  /** Pixel format reported by ffprobe (`pix_fmt`), e.g. "yuv420p", "yuva420p". Empty string when unknown. */
+  pixelFormat: string;
+  /**
+   * True when the pixel format carries an alpha plane (e.g. yuva420p,
+   * rgba, bgra). Consumers use this to gate decisions that would lose
+   * alpha — notably hardware decoders, which generally strip it.
+   */
+  hasAlpha: boolean;
 }
 
 export interface AudioMetadata {
@@ -86,6 +94,35 @@ interface FFProbeStream {
   color_transfer?: string;
   color_primaries?: string;
   color_space?: string;
+  pix_fmt?: string;
+}
+
+/**
+ * Determine whether an ffprobe `pix_fmt` value carries an alpha plane.
+ * Coverage: `yuva*` (planar YUV with alpha, including 10/12-bit variants
+ * like yuva444p10le), `rgba`/`bgra`/`argb`/`abgr` (packed 8-bit RGBA),
+ * and 16-bit-per-channel RGBA variants like `rgba64le`. Returns false
+ * for anything else including `yuv420p`, `yuv444p`, `gbrp`, `nv12`.
+ *
+ * Exported for unit testing and for external callers that derive their
+ * own pixel formats (e.g. Puppeteer capture paths).
+ */
+export function pixelFormatHasAlpha(pixFmt: string): boolean {
+  if (!pixFmt) return false;
+  const lower = pixFmt.toLowerCase();
+  if (lower.startsWith("yuva")) return true;
+  // 8-bit packed RGBA variants — exact match not substring because "bgr"
+  // (no alpha) is a prefix of "bgra".
+  if (lower === "rgba" || lower === "bgra" || lower === "argb" || lower === "abgr") return true;
+  // 16-bit packed RGBA variants.
+  if (
+    lower.startsWith("rgba64") ||
+    lower.startsWith("bgra64") ||
+    lower.startsWith("argb64") ||
+    lower.startsWith("abgr64")
+  )
+    return true;
+  return false;
 }
 
 interface FFProbeFormat {
@@ -245,6 +282,8 @@ export async function extractVideoMetadata(filePath: string): Promise<VideoMetad
           hasAudio: false,
           isVFR: false,
           colorSpace: stillImageMeta.colorSpace,
+          pixelFormat: "",
+          hasAlpha: false,
         };
       }
       throw new Error("[FFmpeg] No video stream found");
@@ -265,6 +304,7 @@ export async function extractVideoMetadata(filePath: string): Promise<VideoMetad
         : null;
     const colorSpace = ffprobeColorSpace ?? stillImageMeta?.colorSpace ?? null;
 
+    const pixelFormat = videoStream.pix_fmt ?? "";
     return {
       durationSeconds: output?.format.duration ? parseFloat(output.format.duration) : 0,
       width: videoStream.width || stillImageMeta?.width || 0,
@@ -274,6 +314,8 @@ export async function extractVideoMetadata(filePath: string): Promise<VideoMetad
       hasAudio: output?.streams.some((s) => s.codec_type === "audio") ?? false,
       isVFR,
       colorSpace,
+      pixelFormat,
+      hasAlpha: pixelFormatHasAlpha(pixelFormat),
     };
   })();
 

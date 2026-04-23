@@ -8,6 +8,7 @@ import {
   parseVideoElements,
   parseImageElements,
   extractAllVideoFrames,
+  shouldEnableHwaccelSdr,
   type VideoElement,
 } from "./videoFrameExtractor.js";
 import { extractVideoMetadata } from "../utils/ffprobe.js";
@@ -20,6 +21,94 @@ import { runFfmpeg } from "../utils/runFfmpeg.js";
 // below run too — they exercise the extractor in isolation against a
 // synthesized VFR fixture.
 const HAS_FFMPEG = spawnSync("ffmpeg", ["-version"]).status === 0;
+
+// Gating logic that controls whether -hwaccel auto gets added to the
+// Phase 3 ffmpeg args. The architecture review explicitly cautions
+// against a blanket default; these cases are the fence posts it names.
+describe("shouldEnableHwaccelSdr", () => {
+  const defaults = { hwaccelSdrDecode: true, hwaccelMinDurationSeconds: 2.0 };
+
+  it("enables hwaccel for a long opaque SDR input", () => {
+    expect(
+      shouldEnableHwaccelSdr({
+        isHdr: false,
+        hasAlpha: false,
+        durationSeconds: 30,
+        config: defaults,
+      }),
+    ).toBe(true);
+  });
+
+  it("disables hwaccel when the source has an alpha plane", () => {
+    // Hardware decoders silently drop alpha — this guard is the whole
+    // reason PR 5 doesn't land as a blanket default.
+    expect(
+      shouldEnableHwaccelSdr({
+        isHdr: false,
+        hasAlpha: true,
+        durationSeconds: 30,
+        config: defaults,
+      }),
+    ).toBe(false);
+  });
+
+  it("disables hwaccel for HDR sources (HDR path has its own VideoToolbox handling)", () => {
+    expect(
+      shouldEnableHwaccelSdr({
+        isHdr: true,
+        hasAlpha: false,
+        durationSeconds: 30,
+        config: defaults,
+      }),
+    ).toBe(false);
+  });
+
+  it("disables hwaccel when segment duration is below the floor", () => {
+    // Init cost of a hwaccel context often wipes out any decode speedup
+    // on sub-2-second segments. The floor is tunable per platform.
+    expect(
+      shouldEnableHwaccelSdr({
+        isHdr: false,
+        hasAlpha: false,
+        durationSeconds: 1.5,
+        config: defaults,
+      }),
+    ).toBe(false);
+  });
+
+  it("respects the hwaccelSdrDecode master switch", () => {
+    expect(
+      shouldEnableHwaccelSdr({
+        isHdr: false,
+        hasAlpha: false,
+        durationSeconds: 30,
+        config: { hwaccelSdrDecode: false, hwaccelMinDurationSeconds: 2.0 },
+      }),
+    ).toBe(false);
+  });
+
+  it("honors a lowered duration floor (platforms where init cost is negligible)", () => {
+    expect(
+      shouldEnableHwaccelSdr({
+        isHdr: false,
+        hasAlpha: false,
+        durationSeconds: 0.5,
+        config: { hwaccelSdrDecode: true, hwaccelMinDurationSeconds: 0.25 },
+      }),
+    ).toBe(true);
+  });
+
+  it("enables right at the duration floor (inclusive boundary)", () => {
+    expect(
+      shouldEnableHwaccelSdr({
+        isHdr: false,
+        hasAlpha: false,
+        durationSeconds: 2.0,
+        config: defaults,
+      }),
+    ).toBe(true);
+  });
+});
 
 describe("parseVideoElements", () => {
   it("parses videos without an id or data-start attribute", () => {

@@ -52,6 +52,28 @@ export interface EngineConfig {
   /** Timeout for FFmpeg streaming encode (ms). Default: 600_000 */
   ffmpegStreamingTimeout: number;
 
+  // ── FFmpeg hardware acceleration ─────────────────────────────────────
+  /**
+   * Enable `-hwaccel auto` on Phase 3 extraction for SDR, non-alpha
+   * sources that exceed `hwaccelMinDurationSeconds`. Default: true.
+   *
+   * Gating is enforced inside the extractor:
+   * - HDR sources stay on software decode (on macOS they already use
+   *   VideoToolbox via the existing HDR path — generic hwaccel could
+   *   conflict).
+   * - Alpha-bearing pixel formats stay on software decode — hwaccel
+   *   decoders generally collapse the alpha plane.
+   * - Short segments skip hwaccel because decoder init cost typically
+   *   wipes out any decode speedup.
+   */
+  hwaccelSdrDecode: boolean;
+  /**
+   * Minimum segment duration (seconds) before `-hwaccel auto` is
+   * enabled. Default: 2.0. Tune down on platforms where decoder init
+   * is cheap, or up when profiling shows no win on short clips.
+   */
+  hwaccelMinDurationSeconds: number;
+
   // ── HDR ──────────────────────────────────────────────────────────────
   /** HDR output transfer function. false = SDR output (default). */
   hdr: { transfer: "hlg" | "pq" } | false;
@@ -113,6 +135,9 @@ export const DEFAULT_CONFIG: EngineConfig = {
   ffmpegEncodeTimeout: 600_000,
   ffmpegProcessTimeout: 300_000,
   ffmpegStreamingTimeout: 600_000,
+
+  hwaccelSdrDecode: true,
+  hwaccelMinDurationSeconds: 2.0,
 
   hdr: false,
   hdrAutoDetect: true,
@@ -189,6 +214,12 @@ export function resolveConfig(overrides?: Partial<EngineConfig>): EngineConfig {
     ffmpegStreamingTimeout: envNum(
       "FFMPEG_STREAMING_TIMEOUT_MS",
       DEFAULT_CONFIG.ffmpegStreamingTimeout,
+    ),
+
+    hwaccelSdrDecode: envBool("PRODUCER_HWACCEL_SDR_DECODE", DEFAULT_CONFIG.hwaccelSdrDecode),
+    hwaccelMinDurationSeconds: envNum(
+      "PRODUCER_HWACCEL_MIN_DURATION_SECONDS",
+      DEFAULT_CONFIG.hwaccelMinDurationSeconds,
     ),
 
     hdr: (() => {
