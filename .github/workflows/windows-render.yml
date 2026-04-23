@@ -71,15 +71,37 @@ jobs:
       # -----------------------------------------------------------------
       # Install FFmpeg via Chocolatey (mirrors the recommended path for
       # real Windows users — no Docker, no WSL).
+      #
+      # Chocolatey's community feed (community.chocolatey.org) periodically
+      # returns 503 / NuGetResolverInputException, which fails the install
+      # outright with no automatic retry. Wrap in a small retry loop so a
+      # transient feed blip doesn't fail the whole job.
       # -----------------------------------------------------------------
       - name: Install FFmpeg (Chocolatey)
         shell: pwsh
         run: |
-          choco install ffmpeg -y --no-progress
-          refreshenv
-          Write-Host "--- ffmpeg sanity check ---"
-          where.exe ffmpeg
-          ffmpeg -version | Select-Object -First 1
+          $maxAttempts = 3
+          $delaysSeconds = @(15, 30)
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "--- choco install ffmpeg (attempt $attempt/$maxAttempts) ---"
+            choco install ffmpeg -y --no-progress
+            $chocoExit = $LASTEXITCODE
+            refreshenv
+            $ffmpegPath = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
+            if ($chocoExit -eq 0 -and $ffmpegPath) {
+              Write-Host "--- ffmpeg sanity check ---"
+              where.exe ffmpeg
+              ffmpeg -version | Select-Object -First 1
+              exit 0
+            }
+            Write-Warning "choco install failed (exit=$chocoExit, ffmpeg found=$([bool]$ffmpegPath))"
+            if ($attempt -lt $maxAttempts) {
+              $delay = $delaysSeconds[$attempt - 1]
+              Write-Host "Retrying in $delay seconds..."
+              Start-Sleep -Seconds $delay
+            }
+          }
+          throw "choco install ffmpeg failed after $maxAttempts attempts"
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
