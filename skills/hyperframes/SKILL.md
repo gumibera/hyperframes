@@ -11,11 +11,17 @@ HTML is the source of truth for video. A composition is an HTML file with `data-
 
 ### Step 0: Design system
 
-Check for a `design.md` in the project root. If one exists, read it — it defines colors, typography, motion, and mood for all compositions in this project. If none exists, follow [house-style.md](./house-style.md) defaults.
+Check for a `design.md` in the project root:
+
+1. **design.md exists?** → Read it. It defines colors, typography, motion, and mood for all compositions in this project.
+2. **User named a style or mood** (e.g., "Swiss Pulse", "dark and techy", "luxury brand")? → Read [visual-styles.md](./visual-styles.md) for matching presets. Generate a `design.md` with: `## Mood` (one paragraph), `## Colors` (bg, fg, accent hex values), `## Typography` (headline + body families and weights), `## What NOT to Do` (3–5 anti-patterns). Save to `design.md`.
+3. **None of the above?** → Follow [house-style.md](./house-style.md) defaults.
 
 ### Using design.md during construction
 
-If a `design.md` exists, it is the source of truth for all visual decisions. Use only the values it defines — colors, fonts, spacing, corners, depth, component treatments, and any other fields the user has added. Do not invent new colors, substitute fonts, or override its rules. If the composition needs a value the design.md doesn't cover, follow [house-style.md](./house-style.md) for that specific decision.
+If a `design.md` exists, it is the source of truth for all visual decisions — colors, fonts, spacing, corners, depth, component treatments, and any other fields the user has added. Do not invent new colors, substitute fonts, or override its rules. If the composition needs a value the design.md doesn't cover, follow [house-style.md](./house-style.md) for that specific decision.
+
+design.md defines appearance. [house-style.md](./house-style.md) defines motion. If design.md includes motion rules, they take precedence for that specific property.
 
 ### Step 1: Plan
 
@@ -294,14 +300,19 @@ Use `--no-contrast` to skip if iterating rapidly and you'll check later.
 
 If a `design.md` exists, verify the composition follows it after authoring. Read the HTML and check:
 
-1. **Colors** — every hex value in the composition appears in design.md's palette (accent, muted, surface, bg, fg). Flag any invented colors.
-2. **Typography** — font families and weights match design.md's headline/body spec. No substitutions.
-3. **Corners** — border-radius values match the declared corner style.
-4. **Spacing** — padding and gap values fall within the declared density range.
-5. **Depth** — shadow usage matches the declared depth level (flat = none, subtle = light, layered = glows).
-6. **"What NOT to Do"** — if design.md has a don'ts section, verify none are present.
+1. **Colors** — every hex value in the composition appears in design.md's palette section (however the user labeled it: Colors, Palette, Theme, etc.). Flag any invented colors.
+2. **Typography** — font families and weights match design.md's type spec. No substitutions.
+3. **Corners** — border-radius values match the declared corner style, if specified.
+4. **Spacing** — padding and gap values fall within the declared density range, if specified.
+5. **Depth** — shadow usage matches the declared depth level, if specified (flat = none, subtle = light, layered = glows).
+6. **Avoidance rules** — if design.md has a section listing things to avoid (commonly "What NOT to Do", "Don'ts", "Anti-patterns", or "Do's and Don'ts"), verify none are present.
 
 Report violations as a checklist. Fix each one before serving.
+
+If no `design.md` exists (house-style-only path), verify:
+
+1. **Palette consistency** — the same bg, fg, and accent colors are used across all scenes. No per-scene color invention.
+2. **No lazy defaults** — check the composition against house-style.md's "Lazy Defaults to Question" list. If any appear, they must be a deliberate choice for the content, not a default.
 
 ### Animation Map
 
