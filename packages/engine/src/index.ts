@@ -140,6 +140,7 @@ export {
   probeSourceForCacheKey,
   resolveCacheEntryPaths,
   CACHE_SENTINEL_FILENAME,
+  FRAME_FILENAME_PREFIX,
   type ExtractionCacheKeyInputs,
   type CacheEntryPaths,
   type CacheHit,

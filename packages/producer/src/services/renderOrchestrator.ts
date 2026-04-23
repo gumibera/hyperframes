@@ -1050,7 +1050,6 @@ export async function executeRenderJob(
     // only sequential renders populate it (and only those render types
     // contribute to `perfSummary.injectorStats`).
     const injectorCacheStats: InjectorCacheStats = createEmptyInjectorCacheStats();
-    let sequentialInjectorUsed = false;
 
     // Probe ORIGINAL color spaces before extraction (which may convert SDR→HDR).
     // This is needed to identify which videos are natively HDR vs converted-SDR
@@ -1315,7 +1314,6 @@ export async function executeRenderJob(
       // throws "video metadata not ready" even though we never asked the
       // browser to decode the video.
       const domInjector = createVideoFrameInjector(frameLookup, cfg, injectorCacheStats);
-      if (domInjector) sequentialInjectorUsed = true;
       const domSession = await createCaptureSession(
         fileServer.url,
         framesDir,
@@ -2101,7 +2099,6 @@ export async function executeRenderJob(
           // Sequential capture → streaming encode
 
           const videoInjector = createVideoFrameInjector(frameLookup, cfg, injectorCacheStats);
-          if (videoInjector) sequentialInjectorUsed = true;
           const session =
             probeSession ??
             (await createCaptureSession(
@@ -2204,7 +2201,6 @@ export async function executeRenderJob(
           // Sequential capture
 
           const videoInjector = createVideoFrameInjector(frameLookup, cfg, injectorCacheStats);
-          if (videoInjector) sequentialInjectorUsed = true;
           const session =
             probeSession ??
             (await createCaptureSession(
@@ -2366,7 +2362,14 @@ export async function executeRenderJob(
       captureAvgMs:
         totalFrames > 0 ? Math.round((perfStages.captureMs ?? 0) / totalFrames) : undefined,
       videoExtractBreakdown: extractionResult?.phaseBreakdown,
-      injectorStats: sequentialInjectorUsed ? { ...injectorCacheStats } : undefined,
+      // Stats are populated only by sequential-capture injectors (parallel
+      // workers run in separate processes). When all reads were 0 the
+      // injector either wasn't used or saw no traffic — omit the field.
+      injectorStats:
+        injectorCacheStats.hits + injectorCacheStats.misses + injectorCacheStats.inFlightCoalesced >
+        0
+          ? { ...injectorCacheStats }
+          : undefined,
       tmpPeakBytes,
     };
     job.perfSummary = perfSummary;

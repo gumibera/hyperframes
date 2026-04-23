@@ -51,6 +51,14 @@ const CACHE_SCHEMA_VERSION = 2;
  */
 export const CACHE_SENTINEL_FILENAME = ".hf-complete";
 
+/**
+ * Filename prefix shared by every extracted frame on disk. Used by ffmpeg's
+ * `-y outputDir/${FRAME_FILENAME_PREFIX}%05d.${format}` and by the cache
+ * lookup's directory filter — keeping them in sync via a single export
+ * prevents a one-sided rename from silently producing zero cache hits.
+ */
+export const FRAME_FILENAME_PREFIX = "frame_";
+
 export interface ExtractionCacheKeyInputs {
   /** Resolved absolute path to the source video file. */
   sourcePath: string;
@@ -160,7 +168,9 @@ export function lookupCacheEntry(
 
   const suffix = `.${format}`;
   const framePaths = new Map<number, string>();
-  const matching = entries.filter((f) => f.startsWith("frame_") && f.endsWith(suffix)).sort();
+  const matching = entries
+    .filter((f) => f.startsWith(FRAME_FILENAME_PREFIX) && f.endsWith(suffix))
+    .sort();
   matching.forEach((file, index) => {
     framePaths.set(index, join(dir, file));
   });
@@ -184,6 +194,7 @@ export function markCacheEntryComplete(cacheRoot: string, key: string): void {
  */
 export function ensureCacheEntryDir(cacheRoot: string, key: string): string {
   const { dir } = resolveCacheEntryPaths(cacheRoot, key);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  // mkdirSync({recursive:true}) is idempotent — no existsSync precheck needed.
+  mkdirSync(dir, { recursive: true });
   return dir;
 }

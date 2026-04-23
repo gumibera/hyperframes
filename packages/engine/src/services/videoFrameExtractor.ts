@@ -15,6 +15,7 @@ import { downloadToTemp, isHttpUrl } from "../utils/urlDownloader.js";
 import { runFfmpeg } from "../utils/runFfmpeg.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
 import {
+  FRAME_FILENAME_PREFIX,
   computeExtractionCacheKey,
   ensureCacheEntryDir,
   lookupCacheEntry,
@@ -242,7 +243,7 @@ export async function extractVideoFramesRange(
   if (!existsSync(videoOutputDir)) mkdirSync(videoOutputDir, { recursive: true });
 
   const metadata = await extractVideoMetadata(videoPath);
-  const framePattern = `frame_%05d.${format}`;
+  const framePattern = `${FRAME_FILENAME_PREFIX}%05d.${format}`;
   const outputPattern = join(videoOutputDir, framePattern);
 
   // When extracting from HDR source, tone-map to SDR in FFmpeg rather than
@@ -332,7 +333,7 @@ export async function extractVideoFramesRange(
 
       const framePaths = new Map<number, string>();
       const files = readdirSync(videoOutputDir)
-        .filter((f) => f.startsWith("frame_") && f.endsWith(`.${format}`))
+        .filter((f) => f.startsWith(FRAME_FILENAME_PREFIX) && f.endsWith(`.${format}`))
         .sort();
       files.forEach((file, index) => {
         framePaths.set(index, join(videoOutputDir, file));
@@ -508,7 +509,19 @@ export async function extractAllVideoFrames(
 
   // Phase 1: Resolve paths and download remote videos
   const resolveStart = Date.now();
-  const resolvedVideos: Array<{ video: VideoElement; videoPath: string }> = [];
+  const resolvedVideos: Array<{
+    video: VideoElement;
+    videoPath: string;
+    /**
+     * Full ffprobe metadata for the original (pre-preflight) source. Set
+     * during Phase 2 and reused by Phase 3 cache hits so we don't re-probe
+     * every input. For inputs that go through the HDR or VFR preflight
+     * (which mutate `videoPath`), this metadata becomes stale — but
+     * preflighted inputs always cache-miss anyway, so the staleness is
+     * inert there.
+     */
+    sourceMetadata?: VideoMetadata;
+  }> = [];
   for (const video of videos) {
     if (signal?.aborted) break;
     try {
@@ -536,78 +549,76 @@ export async function extractAllVideoFrames(
   }
   phaseBreakdown.resolveMs = Date.now() - resolveStart;
 
-  // Phase 2: Probe color spaces and normalize if mixed HDR/SDR
+  // Phase 2: Probe color spaces and normalize if mixed HDR/SDR. The full
+  // metadata is stashed onto each resolvedVideo so later phases (VFR check,
+  // Phase 3 cache hits) can skip a redundant ffprobe per input.
   const probeStart = Date.now();
-  const videoProbes = await Promise.all(
-    resolvedVideos.map(async ({ videoPath }) => {
-      const metadata = await extractVideoMetadata(videoPath);
-      return { colorSpace: metadata.colorSpace, durationSeconds: metadata.durationSeconds };
+  await Promise.all(
+    resolvedVideos.map(async (entry) => {
+      entry.sourceMetadata = await extractVideoMetadata(entry.videoPath);
     }),
   );
   phaseBreakdown.probeMs += Date.now() - probeStart;
 
-  const hasAnyHdr = videoProbes.some((p) => isHdrColorSpaceUtil(p.colorSpace));
+  const hasAnyHdr = resolvedVideos.some((e) =>
+    isHdrColorSpaceUtil(e.sourceMetadata?.colorSpace ?? null),
+  );
   if (hasAnyHdr) {
     const convertDir = join(options.outputDir, "_hdr_normalized");
     mkdirSync(convertDir, { recursive: true });
 
-    for (let i = 0; i < resolvedVideos.length; i++) {
+    for (const entry of resolvedVideos) {
       if (signal?.aborted) break;
-      const probe = videoProbes[i];
-      const cs = probe?.colorSpace ?? null;
-      if (!isHdrColorSpaceUtil(cs)) {
-        // SDR video in a mixed timeline — convert to HDR color space
-        const entry = resolvedVideos[i];
-        if (!entry) continue;
+      const cs = entry.sourceMetadata?.colorSpace ?? null;
+      if (isHdrColorSpaceUtil(cs)) continue;
+      // SDR video in a mixed timeline — convert to HDR color space.
+      // Segment-scope the re-encode to the used window. For an explicit
+      // [start, end] pair this is end-start; for unbounded clips fall back
+      // to the source's natural duration minus mediaStart (same fallback
+      // used by Phase 3 and Phase 2b).
+      let segDuration = entry.video.end - entry.video.start;
+      if (!Number.isFinite(segDuration) || segDuration <= 0) {
+        const sourceDuration = entry.sourceMetadata?.durationSeconds ?? 0;
+        const sourceRemaining = sourceDuration - entry.video.mediaStart;
+        segDuration = sourceRemaining > 0 ? sourceRemaining : sourceDuration;
+      }
 
-        // Segment-scope the re-encode to the used window. For an explicit
-        // [start, end] pair this is end-start; for unbounded clips fall back
-        // to the source's natural duration minus mediaStart (same fallback
-        // used by Phase 3 and Phase 2b).
-        let segDuration = entry.video.end - entry.video.start;
-        if (!Number.isFinite(segDuration) || segDuration <= 0) {
-          const sourceDuration = probe?.durationSeconds ?? 0;
-          const sourceRemaining = sourceDuration - entry.video.mediaStart;
-          segDuration = sourceRemaining > 0 ? sourceRemaining : sourceDuration;
-        }
-
-        const convertedPath = join(convertDir, `${entry.video.id}_hdr.mp4`);
-        const hdrStart = Date.now();
-        try {
-          await convertSdrToHdr(
-            entry.videoPath,
-            convertedPath,
-            entry.video.mediaStart,
-            segDuration,
-            signal,
-            config,
-          );
-          entry.videoPath = convertedPath;
-          // Segment-scoped re-encode starts the new file at t=0, so
-          // downstream phases (VFR preflight + Phase 3 extraction) must seek
-          // from 0, not the original mediaStart. Shallow-copy to avoid
-          // mutating the caller's VideoElement.
-          entry.video = { ...entry.video, mediaStart: 0 };
-          phaseBreakdown.hdrPreflightCount += 1;
-        } catch (err) {
-          errors.push({
-            videoId: entry.video.id,
-            error: `SDR→HDR conversion failed: ${err instanceof Error ? err.message : String(err)}`,
-          });
-        } finally {
-          phaseBreakdown.hdrPreflightMs += Date.now() - hdrStart;
-        }
+      const convertedPath = join(convertDir, `${entry.video.id}_hdr.mp4`);
+      const hdrStart = Date.now();
+      try {
+        await convertSdrToHdr(
+          entry.videoPath,
+          convertedPath,
+          entry.video.mediaStart,
+          segDuration,
+          signal,
+          config,
+        );
+        entry.videoPath = convertedPath;
+        // Segment-scoped re-encode starts the new file at t=0, so
+        // downstream phases (VFR preflight + Phase 3 extraction) must seek
+        // from 0, not the original mediaStart. Shallow-copy to avoid
+        // mutating the caller's VideoElement.
+        entry.video = { ...entry.video, mediaStart: 0 };
+        phaseBreakdown.hdrPreflightCount += 1;
+      } catch (err) {
+        errors.push({
+          videoId: entry.video.id,
+          error: `SDR→HDR conversion failed: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      } finally {
+        phaseBreakdown.hdrPreflightMs += Date.now() - hdrStart;
       }
     }
   }
 
   // Phase 2b: Re-encode VFR inputs to CFR so the fps filter in Phase 3 produces
-  // the expected frame count. Only the used segment is transcoded.
+  // the expected frame count. Only the used segment is transcoded. We re-probe
+  // here (rather than reuse Phase 2's metadata) because HDR preflight may have
+  // rewritten the file with a different fps/timing structure.
   const vfrNormDir = join(options.outputDir, "_vfr_normalized");
-  for (let i = 0; i < resolvedVideos.length; i++) {
+  for (const entry of resolvedVideos) {
     if (signal?.aborted) break;
-    const entry = resolvedVideos[i];
-    if (!entry) continue;
     const vfrProbeStart = Date.now();
     const metadata = await extractVideoMetadata(entry.videoPath);
     phaseBreakdown.probeMs += Date.now() - vfrProbeStart;
@@ -665,7 +676,8 @@ export async function extractAllVideoFrames(
   const cacheRoot = config?.extractCacheDir;
   const extractFormat = options.format ?? "jpg";
   const results = await Promise.all(
-    resolvedVideos.map(async ({ video, videoPath }) => {
+    resolvedVideos.map(async (entry) => {
+      const { video, videoPath, sourceMetadata } = entry;
       if (signal?.aborted) {
         throw new Error("Video frame extraction cancelled");
       }
@@ -675,47 +687,60 @@ export async function extractAllVideoFrames(
         // Fallback: if no data-duration/data-end was specified (end is Infinity or 0),
         // probe the actual video file to get its natural duration.
         if (!Number.isFinite(videoDuration) || videoDuration <= 0) {
-          const metadata = await extractVideoMetadata(videoPath);
+          const metadata = sourceMetadata ?? (await extractVideoMetadata(videoPath));
           const sourceDuration = metadata.durationSeconds - video.mediaStart;
           videoDuration = sourceDuration > 0 ? sourceDuration : metadata.durationSeconds;
           video.end = video.start + videoDuration;
         }
 
         // ── Cache lookup ────────────────────────────────────────────────
-        let cacheEntryDir: string | null = null;
+        // Compute the key once and reuse for the post-extract sentinel
+        // write. cacheKey is null when caching is disabled or the source
+        // can't be stat'd (e.g. fresh HTTP download bypasses cache by
+        // design — see extractionCache.ts).
+        let cacheKey: string | null = null;
         if (cacheRoot) {
           const sourceStat = probeSourceForCacheKey(videoPath);
           if (sourceStat) {
-            const key = computeExtractionCacheKey({
+            cacheKey = computeExtractionCacheKey({
               ...sourceStat,
               mediaStart: video.mediaStart,
               duration: videoDuration,
               fps: options.fps,
               format: extractFormat,
             });
-            const hit = lookupCacheEntry(cacheRoot, key, extractFormat);
-            if (hit) {
-              phaseBreakdown.cacheHits += 1;
-              const metadata = await extractVideoMetadata(videoPath);
-              return {
-                result: {
-                  videoId: video.id,
-                  srcPath: videoPath,
-                  outputDir: hit.dir,
-                  framePattern: `frame_%05d.${extractFormat}`,
-                  fps: options.fps,
-                  totalFrames: hit.totalFrames,
-                  metadata,
-                  framePaths: hit.framePaths,
-                  ownedByLookup: false,
-                } satisfies ExtractedFrames,
-              };
-            }
-            // Cache miss — extract into the cache entry dir so the next
-            // render with the same inputs is a hit.
-            cacheEntryDir = ensureCacheEntryDir(cacheRoot, key);
-            phaseBreakdown.cacheMisses += 1;
           }
+        }
+
+        let cacheEntryDir: string | null = null;
+        if (cacheRoot && cacheKey) {
+          const hit = lookupCacheEntry(cacheRoot, cacheKey, extractFormat);
+          if (hit) {
+            phaseBreakdown.cacheHits += 1;
+            // Reuse the metadata Phase 2 already probed instead of paying
+            // for a second ffprobe just to populate ExtractedFrames.
+            // sourceMetadata is current for cache-hit inputs because the
+            // cache only matches when neither HDR nor VFR preflight ran
+            // (those mutate videoPath, which changes the cache key).
+            const metadata = sourceMetadata ?? (await extractVideoMetadata(videoPath));
+            return {
+              result: {
+                videoId: video.id,
+                srcPath: videoPath,
+                outputDir: hit.dir,
+                framePattern: `${FRAME_FILENAME_PREFIX}%05d.${extractFormat}`,
+                fps: options.fps,
+                totalFrames: hit.totalFrames,
+                metadata,
+                framePaths: hit.framePaths,
+                ownedByLookup: false,
+              } satisfies ExtractedFrames,
+            };
+          }
+          // Cache miss — extract into the cache entry dir so the next
+          // render with the same inputs is a hit.
+          cacheEntryDir = ensureCacheEntryDir(cacheRoot, cacheKey);
+          phaseBreakdown.cacheMisses += 1;
         }
 
         const result = await extractVideoFramesRange(
@@ -729,22 +754,8 @@ export async function extractAllVideoFrames(
           cacheEntryDir ?? undefined,
         );
 
-        if (cacheRoot && cacheEntryDir) {
-          // Reuse the cache-derived key by re-deriving it from the source
-          // stat so we write the sentinel next to the frames ffmpeg just
-          // produced. (The dir basename IS the key, but derive it cleanly
-          // rather than parsing a path.)
-          const sourceStat = probeSourceForCacheKey(videoPath);
-          if (sourceStat) {
-            const key = computeExtractionCacheKey({
-              ...sourceStat,
-              mediaStart: video.mediaStart,
-              duration: videoDuration,
-              fps: options.fps,
-              format: extractFormat,
-            });
-            markCacheEntryComplete(cacheRoot, key);
-          }
+        if (cacheRoot && cacheKey && cacheEntryDir) {
+          markCacheEntryComplete(cacheRoot, cacheKey);
           // Mark the ExtractedFrames as cache-owned so FrameLookupTable
           // doesn't rm it at end-of-render.
           return { result: { ...result, ownedByLookup: false } };
