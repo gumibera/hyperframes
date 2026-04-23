@@ -263,9 +263,35 @@ class HyperframesPlayer extends HTMLElement {
     this.dispatchEvent(new Event("pause"));
   }
 
+  /**
+   * Move playback to `timeInSeconds`.
+   *
+   * Two transports, with different precision semantics — read this before
+   * writing assertions against `seek` from outside the player:
+   *
+   * - **Same-origin (sync) path** — when the runtime's `window.__player.seek`
+   *   is reachable, we call it directly. `timeInSeconds` is forwarded
+   *   *verbatim* (no rounding), so a same-origin scrub of `seek(7.3333)`
+   *   lands the runtime at `7.3333 s` — sub-frame precision relative to
+   *   `DEFAULT_FPS` (30). Studio scrub UIs that need fractional-frame
+   *   alignment (e.g. waveform scrubbing on long-duration audio) get the
+   *   exact requested time.
+   * - **Cross-origin (postMessage) path** — when same-origin access throws
+   *   or `__player.seek` is missing, we fall back to the postMessage bridge.
+   *   The wire protocol carries integer frames (`frame: Math.round(t × FPS)`),
+   *   so cross-origin embeds are *frame-quantized* and `seek(7.3333)` lands
+   *   at `Math.round(7.3333 × 30) / 30 ≈ 7.3333…` (same value here, but for
+   *   most fractional inputs you'll see a snap to the nearest 1/30 s).
+   *
+   * `this._currentTime` always reflects the *requested* `timeInSeconds`
+   * regardless of transport, so the controls UI shows the un-quantized value
+   * either way; the asymmetry only affects what the runtime actually paints.
+   */
   seek(timeInSeconds: number) {
-    const frame = Math.round(timeInSeconds * DEFAULT_FPS);
-    this._sendControl("seek", { frame });
+    if (!this._trySyncSeek(timeInSeconds)) {
+      const frame = Math.round(timeInSeconds * DEFAULT_FPS);
+      this._sendControl("seek", { frame });
+    }
     this._currentTime = timeInSeconds;
 
     // Mirror parent proxy currentTime only while parent owns audible output.
@@ -334,6 +360,37 @@ class HyperframesPlayer extends HTMLElement {
       );
     } catch {
       /* cross-origin */
+    }
+  }
+
+  /**
+   * Reach into the runtime's `window.__player.seek` directly, skipping the
+   * postMessage hop. Same-origin only — cross-origin embeds throw a
+   * `SecurityError` on `contentWindow` property access, which we catch and
+   * report as a no-op so the caller can transparently fall back to the
+   * postMessage bridge. Returns `true` only when the runtime accepted the
+   * call (`__player.seek` exists, is callable, and didn't throw).
+   *
+   * Studio has used this access path privately via `iframe.contentWindow.__player`
+   * (see `useTimelinePlayer.ts`); this helper just formalizes the same
+   * detection inside the player so external scrub UIs get the same
+   * single-task latency. The runtime-side `seek` is the same wrapped
+   * function the postMessage handler calls (`installRuntimeControlBridge`
+   * routes through `player.seek`), so `markExplicitSeek()` and downstream
+   * runtime state stay identical between the two paths.
+   */
+  private _trySyncSeek(timeInSeconds: number): boolean {
+    try {
+      const win = this.iframe.contentWindow as
+        | (Window & { __player?: { seek?: (t: number) => void } })
+        | null;
+      const player = win?.__player;
+      const seek = player?.seek;
+      if (typeof seek !== "function") return false;
+      seek.call(player, timeInSeconds);
+      return true;
+    } catch {
+      return false;
     }
   }
 
