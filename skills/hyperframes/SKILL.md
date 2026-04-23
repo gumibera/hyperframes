@@ -15,7 +15,7 @@ Check for a `design.md` in the project root:
 
 1. **design.md exists?** → Read it. It defines colors, typography, motion, and mood for all compositions in this project.
 2. **User named a style or mood** (e.g., "Swiss Pulse", "dark and techy", "luxury brand")? → Read [visual-styles.md](./visual-styles.md) for matching presets. Generate a `design.md` with: `## Mood` (one paragraph), `## Colors` (bg, fg, accent hex values), `## Typography` (headline + body families and weights), `## What NOT to Do` (3–5 anti-patterns). Save to `design.md`.
-3. **None of the above?** → Follow [house-style.md](./house-style.md) defaults.
+3. **No design.md and no named style?** → Ask: "Want to pick a visual style before we build? (yes = design picker, no = use defaults)". If yes → read [references/design-picker.md](references/design-picker.md) for the full picker workflow. If no → follow [house-style.md](./house-style.md) defaults.
 
 ### Using design.md during construction
 
@@ -347,6 +347,7 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 - **[references/css-patterns.md](references/css-patterns.md)** — CSS+GSAP marker highlighting: highlight, circle, burst, scribble, sketchout. Deterministic, fully seekable. Read when adding visual emphasis to text.
 - **[references/typography.md](references/typography.md)** — Typography: font pairing, OpenType features, dark-background adjustments, font discovery script. **Always read** — every composition has text.
 - **[references/motion-principles.md](references/motion-principles.md)** — Motion design principles: easing as emotion, timing as weight, choreography as hierarchy, scene pacing, ambient motion, anti-patterns. Read when choreographing GSAP animations.
+- **[references/design-picker.md](references/design-picker.md)** — Create a design.md via visual picker. Read when no design.md exists and the user wants to create one.
 - **[visual-styles.md](visual-styles.md)** — 8 named visual styles (Swiss Pulse, Velvet Standard, Deconstructed, Maximalist Type, Data Drift, Soft Signal, Folk Frequency, Shadow Cut) with hex palettes, GSAP easing signatures, and shader pairings. Read when user names a style or when generating design.md.
 - **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no design.md is specified.
 - **[patterns.md](patterns.md)** — PiP, title cards, slide show patterns.
