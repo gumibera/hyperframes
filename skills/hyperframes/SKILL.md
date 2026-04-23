@@ -9,6 +9,16 @@ HTML is the source of truth for video. A composition is an HTML file with `data-
 
 ## Approach
 
+### Step 0: Design system
+
+Check for a `design.md` in the project root. If one exists, read it — it defines colors, typography, motion, and mood for all compositions in this project. If none exists, follow [house-style.md](./house-style.md) defaults.
+
+### Using design.md during construction
+
+If a `design.md` exists, it is the source of truth for all visual decisions. Use only the values it defines — colors, fonts, spacing, corners, depth, component treatments, and any other fields the user has added. Do not invent new colors, substitute fonts, or override its rules. If the composition needs a value the design.md doesn't cover, follow [house-style.md](./house-style.md) for that specific decision.
+
+### Step 1: Plan
+
 Before writing HTML, think at a high level:
 
 1. **What** — what should the viewer experience? Identify the narrative arc, key moments, and emotional beats.
@@ -18,27 +28,6 @@ Before writing HTML, think at a high level:
 5. **Animate** — then add motion using the rules below.
 
 For small edits (fix a color, adjust timing, add one element), skip straight to the rules.
-
-### Visual Identity Gate
-
-<HARD-GATE>
-Before writing ANY composition HTML, you MUST have a visual identity defined. Do NOT write compositions with default or generic colors.
-
-Check in this order:
-
-1. **DESIGN.md exists in the project?** → Read it. Use its exact colors, fonts, motion rules, and "What NOT to Do" constraints.
-2. **visual-style.md exists?** → Read it. Apply its `style_prompt_full` and structured fields. (Note: `visual-style.md` is a project-specific file. `visual-styles.md` is the style library with 8 named presets — different files.)
-3. **User named a style** (e.g., "Swiss Pulse", "dark and techy", "luxury brand")? → Read [visual-styles.md](./visual-styles.md) for the 8 named presets. Generate a minimal DESIGN.md with: `## Style Prompt` (one paragraph), `## Colors` (3-5 hex values with roles), `## Typography` (1-2 font families), `## What NOT to Do` (3-5 anti-patterns).
-4. **None of the above?** → Ask 3 questions before writing any HTML:
-   - What's the mood? (explosive / cinematic / fluid / technical / chaotic / warm)
-   - Light or dark canvas?
-   - Any specific brand colors, fonts, or visual references?
-     Then generate a minimal DESIGN.md from the answers.
-
-Every composition must trace its palette and typography back to a DESIGN.md, visual-style.md, or explicit user direction. If you're reaching for `#333`, `#3b82f6`, or `Roboto` — you skipped this step.
-</HARD-GATE>
-
-For motion defaults, sizing, entrance patterns, and easing — follow [house-style.md](./house-style.md). The house style handles HOW things move. The DESIGN.md handles WHAT things look like.
 
 ## Layout Before Animation
 
@@ -259,7 +248,7 @@ tl.from("#s2-heading", { x: -40, opacity: 0, duration: 0.6, ease: "expo.out" }, 
 - 60px+ headlines, 20px+ body, 16px+ data labels for rendered video
 - `font-variant-numeric: tabular-nums` on number columns
 
-When no `visual-style.md` or animation direction is provided, follow [house-style.md](./house-style.md) for aesthetic defaults.
+If no `design.md` was established in Step 0, follow [house-style.md](./house-style.md) for aesthetic defaults.
 
 ## Typography and Assets
 
@@ -277,6 +266,7 @@ When no `visual-style.md` or animation direction is provided, follow [house-styl
 ## Output Checklist
 
 - [ ] `npx hyperframes lint` and `npx hyperframes validate` both pass
+- [ ] Design adherence verified if design.md exists (see Quality Checks below)
 - [ ] Contrast warnings addressed (see Quality Checks below)
 - [ ] Animation choreography verified (see Quality Checks below)
 
@@ -299,6 +289,19 @@ If warnings appear:
 - Re-run `hyperframes validate` until clean
 
 Use `--no-contrast` to skip if iterating rapidly and you'll check later.
+
+### Design Adherence
+
+If a `design.md` exists, verify the composition follows it after authoring. Read the HTML and check:
+
+1. **Colors** — every hex value in the composition appears in design.md's palette (accent, muted, surface, bg, fg). Flag any invented colors.
+2. **Typography** — font families and weights match design.md's headline/body spec. No substitutions.
+3. **Corners** — border-radius values match the declared corner style.
+4. **Spacing** — padding and gap values fall within the declared density range.
+5. **Depth** — shadow usage matches the declared depth level (flat = none, subtle = light, layered = glows).
+6. **"What NOT to Do"** — if design.md has a don'ts section, verify none are present.
+
+Report violations as a checklist. Fix each one before serving.
 
 ### Animation Map
 
@@ -333,8 +336,8 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 - **[references/css-patterns.md](references/css-patterns.md)** — CSS+GSAP marker highlighting: highlight, circle, burst, scribble, sketchout. Deterministic, fully seekable. Read when adding visual emphasis to text.
 - **[references/typography.md](references/typography.md)** — Typography: font pairing, OpenType features, dark-background adjustments, font discovery script. **Always read** — every composition has text.
 - **[references/motion-principles.md](references/motion-principles.md)** — Motion design principles: easing as emotion, timing as weight, choreography as hierarchy, scene pacing, ambient motion, anti-patterns. Read when choreographing GSAP animations.
-- **[visual-styles.md](visual-styles.md)** — 8 named visual styles (Swiss Pulse, Velvet Standard, Deconstructed, Maximalist Type, Data Drift, Soft Signal, Folk Frequency, Shadow Cut) with hex palettes, GSAP easing signatures, and shader pairings. Read when user names a style or when generating DESIGN.md.
-- **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no style is specified.
+- **[visual-styles.md](visual-styles.md)** — 8 named visual styles (Swiss Pulse, Velvet Standard, Deconstructed, Maximalist Type, Data Drift, Soft Signal, Folk Frequency, Shadow Cut) with hex palettes, GSAP easing signatures, and shader pairings. Read when user names a style or when generating design.md.
+- **[house-style.md](house-style.md)** — Default motion, sizing, and color palettes when no design.md is specified.
 - **[patterns.md](patterns.md)** — PiP, title cards, slide show patterns.
 - **[data-in-motion.md](data-in-motion.md)** — Data, stats, and infographic patterns.
 - **[references/transcript-guide.md](references/transcript-guide.md)** — Transcription commands, whisper models, external APIs, troubleshooting.
