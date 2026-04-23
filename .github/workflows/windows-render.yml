@@ -69,39 +69,51 @@ jobs:
           Write-Host "Runner: windows-latest"
 
       # -----------------------------------------------------------------
-      # Install FFmpeg via Chocolatey (mirrors the recommended path for
-      # real Windows users — no Docker, no WSL).
+      # Install FFmpeg.
       #
-      # Chocolatey's community feed (community.chocolatey.org) periodically
-      # returns 503 / NuGetResolverInputException, which fails the install
-      # outright with no automatic retry. Wrap in a small retry loop so a
-      # transient feed blip doesn't fail the whole job.
+      # The user-facing recommended path on Windows is `choco install ffmpeg`,
+      # but Chocolatey's community feed (community.chocolatey.org) regularly
+      # returns 503 / 504 / NuGetResolverInputException with no automatic
+      # retry, which makes it unsuitable as a CI dependency. We download the
+      # same upstream Windows GPL binaries directly from BtbN/FFmpeg-Builds
+      # on GitHub Releases instead. From the harness's perspective this is
+      # equivalent: ffmpeg.exe / ffprobe.exe end up on PATH, which is what
+      # `findFFmpeg()` / `where ffmpeg` (the PR #336 fix) actually validates.
       # -----------------------------------------------------------------
-      - name: Install FFmpeg (Chocolatey)
+      - name: Install FFmpeg
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
+
+          $url = 'https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+          $dir = Join-Path $env:RUNNER_TEMP 'ffmpeg'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+
           $maxAttempts = 3
-          $delaysSeconds = @(15, 30)
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            Write-Host "--- choco install ffmpeg (attempt $attempt/$maxAttempts) ---"
-            choco install ffmpeg -y --no-progress
-            $chocoExit = $LASTEXITCODE
-            refreshenv
-            $ffmpegPath = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
-            if ($chocoExit -eq 0 -and $ffmpegPath) {
-              Write-Host "--- ffmpeg sanity check ---"
-              where.exe ffmpeg
-              ffmpeg -version | Select-Object -First 1
-              exit 0
-            }
-            Write-Warning "choco install failed (exit=$chocoExit, ffmpeg found=$([bool]$ffmpegPath))"
-            if ($attempt -lt $maxAttempts) {
-              $delay = $delaysSeconds[$attempt - 1]
-              Write-Host "Retrying in $delay seconds..."
-              Start-Sleep -Seconds $delay
+            Write-Host "--- Downloading ffmpeg from BtbN/FFmpeg-Builds (attempt $attempt/$maxAttempts) ---"
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+              break
+            } catch {
+              Write-Warning "Download failed: $($_.Exception.Message)"
+              if ($attempt -eq $maxAttempts) { throw }
+              Start-Sleep -Seconds (10 * $attempt)
             }
           }
-          throw "choco install ffmpeg failed after $maxAttempts attempts"
+
+          Write-Host "--- Extracting ffmpeg ---"
+          Expand-Archive -Path $zip -DestinationPath $dir -Force
+
+          $bin = Get-ChildItem -Path $dir -Recurse -Filter 'ffmpeg.exe' | Select-Object -First 1
+          if (-not $bin) { throw "ffmpeg.exe not found after extracting $url" }
+
+          # Persist on PATH for subsequent steps in this job.
+          Add-Content -Path $env:GITHUB_PATH -Value $bin.Directory.FullName
+
+          Write-Host "--- ffmpeg sanity check ---"
+          & $bin.FullName -version | Select-Object -First 1
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
