@@ -399,3 +399,139 @@ describe.skipIf(!HAS_FFMPEG)("extractAllVideoFrames with mixed HDR/SDR segment s
     expect(frames.length).toBeLessThanOrEqual(62);
   }, 60_000);
 });
+
+// Integration test for the extraction cache. Verifies the first render
+// populates the cache and the second render hits it (no ffmpeg spawn).
+// The indirect but strong signal: phaseBreakdown.extractMs on the second
+// call drops to near-zero, cacheHits goes to 1, and the cache dir
+// contents are reused (not re-created). Regression guard for the
+// architecture review's bottleneck #5 ("Extraction cache does not exist").
+describe.skipIf(!HAS_FFMPEG)("extractAllVideoFrames with extraction cache", () => {
+  const FIXTURE_DIR = mkdtempSync(join(tmpdir(), "hf-extcache-int-"));
+  const SOURCE = join(FIXTURE_DIR, "cache_src.mp4");
+
+  beforeAll(async () => {
+    // 3-second SDR CFR testsrc — the simplest input that exercises the
+    // extractor's Phase 3 without triggering HDR or VFR preflights (which
+    // would bypass the cache, per the cache-miss note in the code).
+    const result = await runFfmpeg([
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=s=160x120:d=3:rate=30",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-pix_fmt",
+      "yuv420p",
+      SOURCE,
+    ]);
+    if (!result.success) {
+      throw new Error(`cache-test fixture synthesis failed: ${result.stderr.slice(-400)}`);
+    }
+  }, 30_000);
+
+  afterAll(() => {
+    if (existsSync(FIXTURE_DIR)) rmSync(FIXTURE_DIR, { recursive: true, force: true });
+  });
+
+  it("misses on first call, hits on second call with identical inputs", async () => {
+    const cacheRoot = join(FIXTURE_DIR, "cache-root");
+    mkdirSync(cacheRoot, { recursive: true });
+
+    const video: VideoElement = {
+      id: "vid",
+      src: SOURCE,
+      start: 0,
+      end: 2,
+      mediaStart: 0.5,
+      hasAudio: false,
+    };
+
+    const outDir1 = join(FIXTURE_DIR, "run-1");
+    mkdirSync(outDir1, { recursive: true });
+    const result1 = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 30, outputDir: outDir1 },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    expect(result1.errors).toEqual([]);
+    expect(result1.phaseBreakdown.cacheHits).toBe(0);
+    expect(result1.phaseBreakdown.cacheMisses).toBe(1);
+    expect(result1.extracted[0]?.ownedByLookup).toBe(false);
+    // The first call extracted into the cache dir, not the per-render
+    // outputDir — so outDir1/vid/ does NOT exist (Phase 3 took the cache
+    // path exclusively).
+    expect(existsSync(join(outDir1, "vid"))).toBe(false);
+
+    const outDir2 = join(FIXTURE_DIR, "run-2");
+    mkdirSync(outDir2, { recursive: true });
+    const extractStart = Date.now();
+    const result2 = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 30, outputDir: outDir2 },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    const elapsed = Date.now() - extractStart;
+
+    expect(result2.errors).toEqual([]);
+    expect(result2.phaseBreakdown.cacheHits).toBe(1);
+    expect(result2.phaseBreakdown.cacheMisses).toBe(0);
+    expect(result2.extracted[0]?.ownedByLookup).toBe(false);
+    // Cache hit path is ffprobe-only — should be under ~500ms even on slow
+    // CI runners vs. seconds for the ffmpeg extract. This is a soft bound:
+    // the primary signal is cacheHits=1 above.
+    expect(elapsed).toBeLessThan(2_000);
+    // Frame counts match (cache hit returns the same frame map).
+    expect(result2.extracted[0]?.totalFrames).toBe(result1.extracted[0]?.totalFrames);
+  }, 60_000);
+
+  it("misses again when fps changes (keyed on fps)", async () => {
+    const cacheRoot = join(FIXTURE_DIR, "cache-fps");
+    mkdirSync(cacheRoot, { recursive: true });
+
+    const video: VideoElement = {
+      id: "vid",
+      src: SOURCE,
+      start: 0,
+      end: 2,
+      mediaStart: 0,
+      hasAudio: false,
+    };
+
+    const out1 = join(FIXTURE_DIR, "fps-1");
+    mkdirSync(out1, { recursive: true });
+    const r1 = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 30, outputDir: out1 },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    expect(r1.phaseBreakdown.cacheMisses).toBe(1);
+
+    const out2 = join(FIXTURE_DIR, "fps-2");
+    mkdirSync(out2, { recursive: true });
+    const r2 = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 24, outputDir: out2 },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    // Different fps → different key → miss again, new cache entry.
+    expect(r2.phaseBreakdown.cacheHits).toBe(0);
+    expect(r2.phaseBreakdown.cacheMisses).toBe(1);
+    // Frame count differs at different fps (24 vs 30 for the same 2s window).
+    expect(r2.extracted[0]?.totalFrames).not.toBe(r1.extracted[0]?.totalFrames);
+  }, 60_000);
+});

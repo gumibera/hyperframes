@@ -61,6 +61,18 @@ export interface EngineConfig {
   // ── Media ────────────────────────────────────────────────────────────
   audioGain: number;
   frameDataUriCacheLimit: number;
+  /**
+   * Directory for the extraction cache. When set, `extractAllVideoFrames`
+   * reuses previously-extracted frames for `(source, window, fps, format)`
+   * pairs it has seen before. Cache entries are content-addressed by the
+   * source file's path + mtime + size, and each entry completes with a
+   * sentinel file so partial/aborted extractions aren't served as hits.
+   *
+   * Disabled by default — users opt in, since the cache grows unbounded
+   * until eviction lands in a follow-up. HTTP-sourced inputs bypass the
+   * cache (each download resolves to a fresh tmp path).
+   */
+  extractCacheDir?: string;
 
   // ── Timeouts ─────────────────────────────────────────────────────────
   playerReadyTimeout: number;
@@ -203,6 +215,8 @@ export function resolveConfig(overrides?: Partial<EngineConfig>): EngineConfig {
 
     verifyRuntime: env("PRODUCER_VERIFY_HYPERFRAME_RUNTIME") !== "false",
     runtimeManifestPath: env("PRODUCER_HYPERFRAME_MANIFEST_PATH"),
+
+    extractCacheDir: env("HYPERFRAMES_EXTRACT_CACHE_DIR"),
   };
 
   // Remove undefined values so they don't override defaults

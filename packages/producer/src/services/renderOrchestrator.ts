@@ -1114,7 +1114,14 @@ export async function executeRenderJob(
         projectDir,
         { fps: job.config.fps, outputDir: join(workDir, "video-frames") },
         abortSignal,
-        undefined,
+        // Forward extractCacheDir (when configured) so repeat renders of
+        // the same source+window+fps+format pair skip Phase 3 entirely.
+        // ffmpegProcessTimeout is harmless to pass; the extractor only
+        // reads the fields it cares about via Pick<…>.
+        {
+          ffmpegProcessTimeout: cfg.ffmpegProcessTimeout,
+          extractCacheDir: cfg.extractCacheDir,
+        },
         compiledDir,
       );
       assertNotAborted();

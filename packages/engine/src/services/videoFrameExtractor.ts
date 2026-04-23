@@ -14,6 +14,13 @@ import { isHdrColorSpace as isHdrColorSpaceUtil } from "../utils/hdr.js";
 import { downloadToTemp, isHttpUrl } from "../utils/urlDownloader.js";
 import { runFfmpeg } from "../utils/runFfmpeg.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
+import {
+  computeExtractionCacheKey,
+  ensureCacheEntryDir,
+  lookupCacheEntry,
+  markCacheEntryComplete,
+  probeSourceForCacheKey,
+} from "./extractionCache.js";
 
 export interface VideoElement {
   id: string;
@@ -33,6 +40,13 @@ export interface ExtractedFrames {
   totalFrames: number;
   metadata: VideoMetadata;
   framePaths: Map<number, string>;
+  /**
+   * When true (the default), `FrameLookupTable.cleanup()` may `rmSync` the
+   * outputDir. When false, the directory is managed by the extraction
+   * cache and must not be deleted. Set to false on both cache hits and
+   * cache misses whose extraction writes directly into the cache.
+   */
+  ownedByLookup?: boolean;
 }
 
 export interface ExtractionOptions {
@@ -56,6 +70,10 @@ export interface ExtractionPhaseBreakdown {
   /** Counts of inputs hitting each preflight, for ratio analysis. */
   hdrPreflightCount: number;
   vfrPreflightCount: number;
+  /** Inputs served from the extraction cache (no ffmpeg spawn). */
+  cacheHits: number;
+  /** Inputs that missed the cache and ran the full extraction. */
+  cacheMisses: number;
 }
 
 export interface ExtractionResult {
@@ -164,11 +182,17 @@ export async function extractVideoFramesRange(
   options: ExtractionOptions,
   signal?: AbortSignal,
   config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
+  /**
+   * When set, write frames into this directory directly instead of the
+   * conventional `join(options.outputDir, videoId)`. Used by the
+   * extraction cache so frames land in a keyed cache entry dir.
+   */
+  outputDirOverride?: string,
 ): Promise<ExtractedFrames> {
   const ffmpegProcessTimeout = config?.ffmpegProcessTimeout ?? DEFAULT_CONFIG.ffmpegProcessTimeout;
   const { fps, outputDir, quality = 95, format = "jpg" } = options;
 
-  const videoOutputDir = join(outputDir, videoId);
+  const videoOutputDir = outputDirOverride ?? join(outputDir, videoId);
   if (!existsSync(videoOutputDir)) mkdirSync(videoOutputDir, { recursive: true });
 
   const metadata = await extractVideoMetadata(videoPath);
@@ -386,7 +410,7 @@ export async function extractAllVideoFrames(
   baseDir: string,
   options: ExtractionOptions,
   signal?: AbortSignal,
-  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
+  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout" | "extractCacheDir">>,
   compiledDir?: string,
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
@@ -401,6 +425,8 @@ export async function extractAllVideoFrames(
     extractMs: 0,
     hdrPreflightCount: 0,
     vfrPreflightCount: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
   };
 
   // Phase 1: Resolve paths and download remote videos
@@ -545,8 +571,22 @@ export async function extractAllVideoFrames(
     }
   }
 
-  // Phase 3: Extract frames (parallel)
+  // Phase 3: Extract frames (parallel, optionally cache-backed).
+  //
+  // When config.extractCacheDir is set, each input is keyed by the resolved
+  // source's (path, mtime, size, mediaStart, duration, fps, format) tuple.
+  // Cache hits skip ffmpeg entirely; cache misses extract directly into the
+  // cache entry dir and write a sentinel file on success. See
+  // extractionCache.ts for the key/sentinel semantics.
+  //
+  // Note: inputs that went through the HDR or VFR preflight will have a
+  // per-render converted file path (different path/mtime across renders),
+  // so their cache keys differ across renders — they effectively bypass
+  // the cache. That's intentional for v1; preflight-cache coordination
+  // lives with future work.
   const extractStart = Date.now();
+  const cacheRoot = config?.extractCacheDir;
+  const extractFormat = options.format ?? "jpg";
   const results = await Promise.all(
     resolvedVideos.map(async ({ video, videoPath }) => {
       if (signal?.aborted) {
@@ -564,6 +604,43 @@ export async function extractAllVideoFrames(
           video.end = video.start + videoDuration;
         }
 
+        // ── Cache lookup ────────────────────────────────────────────────
+        let cacheEntryDir: string | null = null;
+        if (cacheRoot) {
+          const sourceStat = probeSourceForCacheKey(videoPath);
+          if (sourceStat) {
+            const key = computeExtractionCacheKey({
+              ...sourceStat,
+              mediaStart: video.mediaStart,
+              duration: videoDuration,
+              fps: options.fps,
+              format: extractFormat,
+            });
+            const hit = lookupCacheEntry(cacheRoot, key, extractFormat);
+            if (hit) {
+              phaseBreakdown.cacheHits += 1;
+              const metadata = await extractVideoMetadata(videoPath);
+              return {
+                result: {
+                  videoId: video.id,
+                  srcPath: videoPath,
+                  outputDir: hit.dir,
+                  framePattern: `frame_%05d.${extractFormat}`,
+                  fps: options.fps,
+                  totalFrames: hit.totalFrames,
+                  metadata,
+                  framePaths: hit.framePaths,
+                  ownedByLookup: false,
+                } satisfies ExtractedFrames,
+              };
+            }
+            // Cache miss — extract into the cache entry dir so the next
+            // render with the same inputs is a hit.
+            cacheEntryDir = ensureCacheEntryDir(cacheRoot, key);
+            phaseBreakdown.cacheMisses += 1;
+          }
+        }
+
         const result = await extractVideoFramesRange(
           videoPath,
           video.id,
@@ -572,7 +649,29 @@ export async function extractAllVideoFrames(
           options,
           signal,
           config,
+          cacheEntryDir ?? undefined,
         );
+
+        if (cacheRoot && cacheEntryDir) {
+          // Reuse the cache-derived key by re-deriving it from the source
+          // stat so we write the sentinel next to the frames ffmpeg just
+          // produced. (The dir basename IS the key, but derive it cleanly
+          // rather than parsing a path.)
+          const sourceStat = probeSourceForCacheKey(videoPath);
+          if (sourceStat) {
+            const key = computeExtractionCacheKey({
+              ...sourceStat,
+              mediaStart: video.mediaStart,
+              duration: videoDuration,
+              fps: options.fps,
+              format: extractFormat,
+            });
+            markCacheEntryComplete(cacheRoot, key);
+          }
+          // Mark the ExtractedFrames as cache-owned so FrameLookupTable
+          // doesn't rm it at end-of-render.
+          return { result: { ...result, ownedByLookup: false } };
+        }
 
         return { result };
       } catch (err) {
@@ -730,6 +829,9 @@ export class FrameLookupTable {
 
   cleanup(): void {
     for (const video of this.videos.values()) {
+      // Skip dirs the cache owns — they're meant to survive the render so
+      // the next render can hit instead of re-extracting.
+      if (video.extracted.ownedByLookup === false) continue;
       if (existsSync(video.extracted.outputDir)) {
         rmSync(video.extracted.outputDir, { recursive: true, force: true });
       }

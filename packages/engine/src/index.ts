@@ -131,6 +131,19 @@ export {
   type InjectorCacheStats,
 } from "./services/videoFrameInjector.js";
 
+export {
+  computeExtractionCacheKey,
+  lookupCacheEntry,
+  markCacheEntryComplete,
+  ensureCacheEntryDir,
+  probeSourceForCacheKey,
+  resolveCacheEntryPaths,
+  CACHE_SENTINEL_FILENAME,
+  type ExtractionCacheKeyInputs,
+  type CacheEntryPaths,
+  type CacheHit,
+} from "./services/extractionCache.js";
+
 export { parseAudioElements, processCompositionAudio } from "./services/audioMixer.js";
 export type { AudioElement, AudioTrack, MixResult } from "./services/audioMixer.types.js";
 
