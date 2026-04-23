@@ -2,6 +2,12 @@ name: CI
 
 on:
   pull_request:
+    # `edited` is required so the workflow re-fires when a PR's base ref is
+    # set back to `main` after a Graphite stack restack momentarily flips
+    # the base off of `main`. Without it, `pull_request` triggers are not
+    # re-evaluated on `base_ref_changed`, leaving required checks skipped
+    # for that head SHA forever.
+    types: [opened, synchronize, reopened, edited]
     branches: [main]
   push:
     branches: [main]
