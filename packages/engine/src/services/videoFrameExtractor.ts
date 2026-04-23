@@ -7,7 +7,7 @@
 
 import { spawn } from "child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync } from "fs";
-import { join } from "path";
+import { isAbsolute, join } from "path";
 import { parseHTML } from "linkedom";
 import { extractVideoMetadata, type VideoMetadata } from "../utils/ffprobe.js";
 import { isHdrColorSpace as isHdrColorSpaceUtil } from "../utils/hdr.js";
@@ -371,7 +371,11 @@ export async function extractAllVideoFrames(
     if (signal?.aborted) break;
     try {
       let videoPath = video.src;
-      if (!videoPath.startsWith("/") && !isHttpUrl(videoPath)) {
+      // Use isAbsolute() rather than startsWith("/"). On Windows, absolute paths
+      // like "C:\…" are not detected by the latter, so we'd re-join them under
+      // baseDir and produce duplicated, nonexistent paths
+      // (e.g. C:\tmp\hf-vfr-test-X\C:\tmp\hf-vfr-test-X\vfr_screen.mp4).
+      if (!isAbsolute(videoPath) && !isHttpUrl(videoPath)) {
         const fromCompiled = compiledDir ? join(compiledDir, videoPath) : null;
         videoPath =
           fromCompiled && existsSync(fromCompiled) ? fromCompiled : join(baseDir, videoPath);
