@@ -36,7 +36,9 @@ describe("computeExtractionCacheKey", () => {
 
   it("prefixes the key with the schema version so a future on-disk format change cannot collide", () => {
     const key = computeExtractionCacheKey(base);
-    expect(key.startsWith("v1-")).toBe(true);
+    // Shape: `v<N>-<hex>` — we don't pin N here so schema bumps (e.g. v1→v2
+    // for the WebP change) stay local to the extractionCache module.
+    expect(key).toMatch(/^v\d+-[0-9a-f]{32}$/);
   });
 
   it.each([

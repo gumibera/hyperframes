@@ -37,6 +37,18 @@ export function createEmptyInjectorCacheStats(): InjectorCacheStats {
 }
 
 /**
+ * Map a frame file path to the MIME type that should accompany its data URI.
+ * Chrome decodes webp, png, and jpeg natively inside `<img src="data:…">`.
+ * Unknown extensions default to JPEG — the legacy pre-WebP behavior — so
+ * callers that produce non-standard filenames don't regress.
+ */
+function mimeTypeForFramePath(framePath: string): string {
+  if (framePath.endsWith(".webp")) return "image/webp";
+  if (framePath.endsWith(".png")) return "image/png";
+  return "image/jpeg";
+}
+
+/**
  * Exported for unit tests only — not part of the package's public API.
  * Used to validate the LRU / stats behavior without spinning up a Chrome page.
  */
@@ -83,7 +95,7 @@ function createFrameDataUriCache(cacheLimit: number, stats?: InjectorCacheStats)
     const pending = fs
       .readFile(framePath)
       .then((frameData) => {
-        const mimeType = framePath.endsWith(".png") ? "image/png" : "image/jpeg";
+        const mimeType = mimeTypeForFramePath(framePath);
         const dataUri = `data:${mimeType};base64,${frameData.toString("base64")}`;
         return remember(framePath, dataUri);
       })

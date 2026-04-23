@@ -36,11 +36,14 @@ import { join } from "path";
 
 /**
  * Schema version embedded in every cache key. Bump whenever the on-disk
- * format of extracted frames changes in a way that breaks older entries
- * (e.g. the upcoming WebP-unified-format PR changes the frame extension
- * and MIME handling, so it will bump this to 2).
+ * format of extracted frames changes in a way that breaks older entries.
+ *
+ * - v1: jpg / png output from the pre-WebP extractor.
+ * - v2: adds webp as an extraction format. A v2 key for webp content can
+ *   never collide with a v1 jpg/png key, so both generations can coexist
+ *   under the same cache root during migration without cross-serving.
  */
-const CACHE_SCHEMA_VERSION = 1;
+const CACHE_SCHEMA_VERSION = 2;
 
 /**
  * Sentinel filename written inside each completed cache entry directory.
@@ -62,7 +65,7 @@ export interface ExtractionCacheKeyInputs {
   /** Target fps for extracted frames. */
   fps: number;
   /** Extracted frame format ("jpg" or "png"). */
-  format: "jpg" | "png";
+  format: "jpg" | "png" | "webp";
 }
 
 /**
@@ -143,7 +146,7 @@ export interface CacheHit {
 export function lookupCacheEntry(
   cacheRoot: string,
   key: string,
-  format: "jpg" | "png",
+  format: "jpg" | "png" | "webp",
 ): CacheHit | null {
   const { dir, sentinel } = resolveCacheEntryPaths(cacheRoot, key);
   if (!existsSync(sentinel)) return null;

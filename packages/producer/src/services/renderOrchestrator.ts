@@ -1112,7 +1112,17 @@ export async function executeRenderJob(
       extractionResult = await extractAllVideoFrames(
         composition.videos,
         projectDir,
-        { fps: job.config.fps, outputDir: join(workDir, "video-frames") },
+        {
+          fps: job.config.fps,
+          outputDir: join(workDir, "video-frames"),
+          // WebP gives smaller files than JPEG at equivalent visual quality
+          // AND handles alpha natively — used by the producer as the single
+          // extraction format so we don't have a jpg/png split. HDR pixel
+          // paths still produce PNG on their own out-of-band codepath (see
+          // the HDR pre-extract block below); this setting only affects
+          // SDR frames that flow through the `<img>` injector.
+          format: "webp",
+        },
         abortSignal,
         // Forward extractCacheDir (when configured) so repeat renders of
         // the same source+window+fps+format pair skip Phase 3 entirely.

@@ -53,7 +53,17 @@ export interface ExtractionOptions {
   fps: number;
   outputDir: string;
   quality?: number;
-  format?: "jpg" | "png";
+  /**
+   * On-disk frame format.
+   *
+   * - `"webp"` (recommended) — smaller files than jpg at equivalent quality,
+   *   handles alpha natively, decoded natively by Chrome. Default for the
+   *   producer's SDR extraction path.
+   * - `"jpg"` (legacy default) — opaque only, smallest for no-alpha content.
+   * - `"png"` — lossless, retained for external callers and alpha paths
+   *   that specifically want PNG semantics.
+   */
+  format?: "jpg" | "png" | "webp";
 }
 
 export interface ExtractionPhaseBreakdown {
@@ -220,8 +230,15 @@ export async function extractVideoFramesRange(
   vfFilters.push(`fps=${fps}`);
   args.push("-vf", vfFilters.join(","));
 
-  args.push("-q:v", format === "jpg" ? String(Math.ceil((100 - quality) / 3)) : "0");
-  if (format === "png") args.push("-compression_level", "6");
+  if (format === "webp") {
+    // libwebp: `-quality` is 0-100, higher = better (inverse of JPEG's -q:v).
+    // Lossy mode by default — near-lossless at quality=95 but ~5-10x smaller
+    // than PNG and typically smaller than a visually-equivalent JPEG.
+    args.push("-c:v", "libwebp", "-quality", String(quality), "-lossless", "0");
+  } else {
+    args.push("-q:v", format === "jpg" ? String(Math.ceil((100 - quality) / 3)) : "0");
+    if (format === "png") args.push("-compression_level", "6");
+  }
   args.push("-y", outputPattern);
 
   return new Promise((resolve, reject) => {

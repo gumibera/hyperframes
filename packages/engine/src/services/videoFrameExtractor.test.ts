@@ -495,6 +495,91 @@ describe.skipIf(!HAS_FFMPEG)("extractAllVideoFrames with extraction cache", () =
     expect(result2.extracted[0]?.totalFrames).toBe(result1.extracted[0]?.totalFrames);
   }, 60_000);
 
+  it("writes webp frames and reuses them on a second call", async () => {
+    const cacheRoot = join(FIXTURE_DIR, "cache-webp");
+    mkdirSync(cacheRoot, { recursive: true });
+
+    const video: VideoElement = {
+      id: "vid",
+      src: SOURCE,
+      start: 0,
+      end: 1,
+      mediaStart: 0,
+      hasAudio: false,
+    };
+
+    const out1 = join(FIXTURE_DIR, "webp-1");
+    mkdirSync(out1, { recursive: true });
+    const r1 = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 30, outputDir: out1, format: "webp" },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    expect(r1.errors).toEqual([]);
+    expect(r1.phaseBreakdown.cacheMisses).toBe(1);
+    // Cache hit on second call confirms the on-disk files are valid webp
+    // (lookupCacheEntry filters by extension); assert the file list directly
+    // too so a broken libwebp encode would surface as an empty dir.
+    const cacheDir = r1.extracted[0]?.outputDir;
+    expect(cacheDir).toBeDefined();
+    const frames = readdirSync(cacheDir!).filter((f) => f.endsWith(".webp"));
+    expect(frames.length).toBeGreaterThan(0);
+
+    const out2 = join(FIXTURE_DIR, "webp-2");
+    mkdirSync(out2, { recursive: true });
+    const r2 = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 30, outputDir: out2, format: "webp" },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    expect(r2.phaseBreakdown.cacheHits).toBe(1);
+    expect(r2.phaseBreakdown.cacheMisses).toBe(0);
+    expect(r2.extracted[0]?.totalFrames).toBe(r1.extracted[0]?.totalFrames);
+  }, 60_000);
+
+  it("does not cross-serve a jpg cache entry as webp (format is part of the key)", async () => {
+    const cacheRoot = join(FIXTURE_DIR, "cache-cross-format");
+    mkdirSync(cacheRoot, { recursive: true });
+
+    const video: VideoElement = {
+      id: "vid",
+      src: SOURCE,
+      start: 0,
+      end: 1,
+      mediaStart: 0,
+      hasAudio: false,
+    };
+
+    // Populate the cache with a jpg entry first.
+    const outJpg = join(FIXTURE_DIR, "cross-jpg");
+    mkdirSync(outJpg, { recursive: true });
+    const rJpg = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 30, outputDir: outJpg, format: "jpg" },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    expect(rJpg.phaseBreakdown.cacheMisses).toBe(1);
+
+    // Same inputs but format=webp — must be a fresh miss (different key).
+    const outWebp = join(FIXTURE_DIR, "cross-webp");
+    mkdirSync(outWebp, { recursive: true });
+    const rWebp = await extractAllVideoFrames(
+      [video],
+      FIXTURE_DIR,
+      { fps: 30, outputDir: outWebp, format: "webp" },
+      undefined,
+      { extractCacheDir: cacheRoot },
+    );
+    expect(rWebp.phaseBreakdown.cacheHits).toBe(0);
+    expect(rWebp.phaseBreakdown.cacheMisses).toBe(1);
+  }, 60_000);
+
   it("misses again when fps changes (keyed on fps)", async () => {
     const cacheRoot = join(FIXTURE_DIR, "cache-fps");
     mkdirSync(cacheRoot, { recursive: true });

@@ -95,3 +95,37 @@ describe("InjectorCacheStats via frame-dataURI LRU", () => {
     await expect(cache.get(FRAME_A)).resolves.toMatch(/^data:image\/jpeg;base64,/);
   });
 });
+
+// The injector's MIME detection drives what Chrome does with the data URI —
+// a mis-tagged WebP frame decodes as a broken image. This block verifies the
+// mapping through the LRU's public surface (the only way MIME-tagged URIs
+// leave the module).
+describe("frame path → MIME type tagging", () => {
+  const FIXTURE_DIR = mkdtempSync(join(tmpdir(), "hf-injector-mime-"));
+  const WEBP = join(FIXTURE_DIR, "frame_00001.webp");
+  const PNG = join(FIXTURE_DIR, "frame_00001.png");
+  const JPG = join(FIXTURE_DIR, "frame_00001.jpg");
+  const UNKNOWN = join(FIXTURE_DIR, "frame_00001.xyz");
+
+  beforeAll(() => {
+    // Content isn't validated, only the extension drives MIME selection.
+    writeFileSync(WEBP, Buffer.from("WEBP"));
+    writeFileSync(PNG, Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    writeFileSync(JPG, Buffer.from([0xff, 0xd8, 0xff, 0xe0]));
+    writeFileSync(UNKNOWN, Buffer.from("xx"));
+  });
+
+  afterAll(() => {
+    rmSync(FIXTURE_DIR, { recursive: true, force: true });
+  });
+
+  it.each([
+    [".webp path", WEBP, /^data:image\/webp;base64,/],
+    [".png path", PNG, /^data:image\/png;base64,/],
+    [".jpg path", JPG, /^data:image\/jpeg;base64,/],
+    ["unknown extension falls back to jpeg", UNKNOWN, /^data:image\/jpeg;base64,/],
+  ])("tags %s correctly", async (_label, path, mimePattern) => {
+    const cache = createCache(32);
+    await expect(cache.get(path)).resolves.toMatch(mimePattern);
+  });
+});
