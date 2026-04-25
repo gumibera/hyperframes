@@ -1,10 +1,11 @@
 use std::cell::RefCell;
 
 use skia_safe::{
-    Canvas, ClipOp, Color4f, Font, FontMgr, FontStyle, Paint, PaintStyle, Point, RRect,
-    Rect as SkRect, Typeface,
+    canvas::SrcRectConstraint, Canvas, ClipOp, Color4f, Font, FontMgr, FontStyle, Paint,
+    PaintStyle, Point, RRect, Rect as SkRect, Typeface,
 };
 
+use crate::paint::images::ImageCache;
 use crate::scene::{Color, Element, ElementKind, Rect};
 
 thread_local! {
@@ -69,7 +70,7 @@ fn radii_are_zero(radii: &[f32; 4]) -> bool {
 /// 5. Background
 /// 6. Content (text)
 /// 7. Children (recursion)
-pub fn paint_element(canvas: &Canvas, element: &Element) {
+pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache) {
     let style = &element.style;
 
     // Skip invisible elements entirely.
@@ -153,9 +154,44 @@ pub fn paint_element(canvas: &Canvas, element: &Element) {
         canvas.draw_str(content, (0.0, y), &font, &paint);
     }
 
+    // --- Image content (object-fit: cover) ---
+    if let ElementKind::Image { ref src } = element.kind {
+        if let Some(image) = images.get_or_load(src) {
+            let image = image.clone();
+            let dest_rect = to_sk_rect(&element.bounds);
+            let mut paint = Paint::default();
+            paint.set_anti_alias(true);
+
+            let src_w = image.width() as f32;
+            let src_h = image.height() as f32;
+            let dest_w = dest_rect.width();
+            let dest_h = dest_rect.height();
+
+            // Scale to fill the destination, cropping any overflow (cover).
+            let scale = (dest_w / src_w).max(dest_h / src_h);
+            let scaled_w = src_w * scale;
+            let scaled_h = src_h * scale;
+
+            // Center the crop region within the source image.
+            let src_rect = SkRect::from_xywh(
+                (scaled_w - dest_w) / (2.0 * scale),
+                (scaled_h - dest_h) / (2.0 * scale),
+                dest_w / scale,
+                dest_h / scale,
+            );
+
+            canvas.draw_image_rect(
+                &image,
+                Some((&src_rect, SrcRectConstraint::Strict)),
+                dest_rect,
+                &paint,
+            );
+        }
+    }
+
     // --- Children ---
     for child in &element.children {
-        paint_element(canvas, child);
+        paint_element(canvas, child, images);
     }
 
     canvas.restore_to_count(save_count);

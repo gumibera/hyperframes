@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use skia_safe::Color4f;
 
-use crate::paint::{paint_element, RenderSurface};
+use crate::paint::{paint_element, ImageCache, RenderSurface};
 use crate::scene::Scene;
 
 /// Configuration for a static render pass.
@@ -39,8 +39,9 @@ pub fn render_static(scene: &Scene, config: &RenderConfig) -> Result<RenderResul
     let mut surface = RenderSurface::new_raster(scene.width as i32, scene.height as i32)?;
     surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
 
+    let mut image_cache = ImageCache::new();
     for element in &scene.elements {
-        paint_element(surface.canvas(), element);
+        paint_element(surface.canvas(), element, &mut image_cache);
     }
 
     let frame_jpeg = surface

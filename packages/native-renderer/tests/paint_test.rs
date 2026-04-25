@@ -1,4 +1,4 @@
-use hyperframes_native_renderer::paint::{paint_element, RenderSurface};
+use hyperframes_native_renderer::paint::{paint_element, ImageCache, RenderSurface};
 use hyperframes_native_renderer::scene::{Color, Element, ElementKind, Rect, Style, Transform2D};
 use skia_safe::Color4f;
 
@@ -80,7 +80,7 @@ fn paint_scene_with_background_and_text() {
         }],
     };
 
-    paint_element(surface.canvas(), &container);
+    paint_element(surface.canvas(), &container, &mut ImageCache::new());
 
     let jpeg = surface.encode_jpeg(80).expect("should encode JPEG");
     assert!(jpeg.len() > 200, "JPEG should be non-trivial, got {} bytes", jpeg.len());
@@ -107,7 +107,7 @@ fn paint_element_with_border_radius_and_opacity() {
         children: vec![],
     };
 
-    paint_element(surface.canvas(), &card);
+    paint_element(surface.canvas(), &card, &mut ImageCache::new());
 
     let pixels = surface.read_pixels_rgba().expect("should read pixels");
 
@@ -150,7 +150,7 @@ fn paint_element_with_transform() {
         children: vec![],
     };
 
-    paint_element(surface.canvas(), &el);
+    paint_element(surface.canvas(), &el, &mut ImageCache::new());
 
     // Hard to assert pixel-perfect results for rotated/scaled content.
     // Verify it produces a valid JPEG without crashing.
@@ -176,7 +176,7 @@ fn paint_invisible_element_skipped() {
         children: vec![],
     };
 
-    paint_element(surface.canvas(), &el);
+    paint_element(surface.canvas(), &el, &mut ImageCache::new());
 
     let pixels = surface.read_pixels_rgba().expect("should read pixels");
     // Surface should still be magenta — the invisible element painted nothing.

@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use hyperframes_native_renderer::paint::elements::paint_element;
-use hyperframes_native_renderer::paint::RenderSurface;
+use hyperframes_native_renderer::paint::{ImageCache, RenderSurface};
 use hyperframes_native_renderer::scene::{Color, Element, ElementKind, Rect, Scene, Style};
 use skia_safe::Color4f;
 
@@ -95,19 +95,21 @@ fn bench_paint_frame(c: &mut Criterion) {
     let mut surface = RenderSurface::new_raster(1920, 1080).unwrap();
 
     c.bench_function("paint_1080p_20_elements", |b| {
+        let mut images = ImageCache::new();
         b.iter(|| {
             surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
             for element in &scene.elements {
-                paint_element(surface.canvas(), element);
+                paint_element(surface.canvas(), element, &mut images);
             }
         });
     });
 
     c.bench_function("paint_and_encode_jpeg_1080p", |b| {
+        let mut images = ImageCache::new();
         b.iter(|| {
             surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
             for element in &scene.elements {
-                paint_element(surface.canvas(), element);
+                paint_element(surface.canvas(), element, &mut images);
             }
             let _jpeg = surface.encode_jpeg(80).unwrap();
         });

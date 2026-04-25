@@ -60,6 +60,9 @@ pub struct Style {
     pub font_size: Option<f32>,
     pub font_weight: Option<u16>,
     pub color: Option<Color>,
+    pub box_shadow: Option<BoxShadow>,
+    pub filter_blur: Option<f32>,
+    pub background_gradient: Option<Gradient>,
 }
 
 impl Default for Style {
@@ -75,8 +78,42 @@ impl Default for Style {
             font_size: None,
             font_weight: None,
             color: None,
+            box_shadow: None,
+            filter_blur: None,
+            background_gradient: None,
         }
     }
+}
+
+/// CSS box-shadow equivalent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BoxShadow {
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub blur_radius: f32,
+    pub spread_radius: f32,
+    pub color: Color,
+}
+
+/// CSS gradient background.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum Gradient {
+    Linear {
+        angle_deg: f32,
+        stops: Vec<GradientStop>,
+    },
+    Radial {
+        stops: Vec<GradientStop>,
+    },
+}
+
+/// A single color stop within a gradient.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GradientStop {
+    /// Position along the gradient, 0.0 to 1.0.
+    pub position: f32,
+    pub color: Color,
 }
 
 /// RGBA color with 8-bit channels.
