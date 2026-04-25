@@ -405,13 +405,28 @@ export function StudioApp() {
 
       // Audio clips — waveform visualization
       if (el.tag === "audio") {
-        const audioUrl = el.src
-          ? el.src.startsWith("http")
-            ? el.src
-            : `/api/projects/${pid}/preview/${el.src}`
-          : "";
+        const previewBase = `/api/projects/${pid}/preview/`;
+        const previewIdx = el.src?.startsWith("http") ? el.src.indexOf(previewBase) : -1;
+        const srcRelative = el.src
+          ? previewIdx !== -1
+            ? decodeURIComponent(el.src.slice(previewIdx + previewBase.length))
+            : el.src.startsWith("http")
+              ? null
+              : el.src
+          : null;
+        const audioUrl = srcRelative
+          ? `/api/projects/${pid}/preview/${srcRelative}`
+          : (el.src ?? "");
+        const waveformUrl = srcRelative
+          ? `/api/projects/${pid}/waveform/${srcRelative}`
+          : undefined;
         return (
-          <AudioWaveform audioUrl={audioUrl} label={el.id || el.tag} labelColor={style.label} />
+          <AudioWaveform
+            audioUrl={audioUrl}
+            waveformUrl={waveformUrl}
+            label={el.id || el.tag}
+            labelColor={style.label}
+          />
         );
       }
 
