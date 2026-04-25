@@ -1,9 +1,29 @@
+use std::cell::RefCell;
+
 use skia_safe::{
     Canvas, ClipOp, Color4f, Font, FontMgr, FontStyle, Paint, PaintStyle, Point, RRect,
-    Rect as SkRect,
+    Rect as SkRect, Typeface,
 };
 
 use crate::scene::{Color, Element, ElementKind, Rect};
+
+thread_local! {
+    static DEFAULT_TYPEFACE: RefCell<Option<Typeface>> = const { RefCell::new(None) };
+}
+
+fn cached_typeface() -> Typeface {
+    DEFAULT_TYPEFACE.with(|cell| {
+        let mut opt = cell.borrow_mut();
+        if opt.is_none() {
+            let mgr = FontMgr::new();
+            *opt = Some(
+                mgr.legacy_make_typeface(None, FontStyle::normal())
+                    .expect("platform must provide a default typeface"),
+            );
+        }
+        opt.as_ref().unwrap().clone()
+    })
+}
 
 /// Convert a `Color` (u8 RGBA) to Skia's `Color4f` (f32 channels in 0.0..1.0).
 fn to_color4f(c: &Color) -> Color4f {
@@ -111,11 +131,7 @@ pub fn paint_element(canvas: &Canvas, element: &Element) {
     // --- Text content ---
     if let ElementKind::Text { ref content } = element.kind {
         let font_size = style.font_size.unwrap_or(16.0);
-        let mgr = FontMgr::new();
-        let typeface = mgr
-            .legacy_make_typeface(None, FontStyle::normal())
-            .expect("platform must provide a default typeface");
-        let font = Font::new(typeface, font_size);
+        let font = Font::new(&cached_typeface(), font_size);
 
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
