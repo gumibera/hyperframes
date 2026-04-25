@@ -26,6 +26,11 @@ import { bytesToMb } from "../telemetry/system.js";
 import { VERSION } from "../version.js";
 import { isDevMode } from "../utils/env.js";
 import { buildDockerRunArgs } from "../utils/dockerRunArgs.js";
+import {
+  parseRenderBackend,
+  resolveRenderBackend,
+  type RenderBackend,
+} from "../utils/nativeBackend.js";
 import type { RenderJob } from "@hyperframes/producer";
 
 const VALID_FPS = new Set([24, 30, 60]);
@@ -72,6 +77,11 @@ export default defineCommand({
       type: "string",
       description: "Output format: mp4, webm, mov (MOV/WebM render with transparency)",
       default: "mp4",
+    },
+    backend: {
+      type: "string",
+      description: "Render backend: chrome, native, or auto",
+      default: "chrome",
     },
     workers: {
       type: "string",
@@ -147,6 +157,14 @@ export default defineCommand({
     }
     const format = formatRaw as "mp4" | "webm" | "mov";
 
+    // ── Validate backend ────────────────────────────────────────────────
+    const backendRaw = args.backend ?? "chrome";
+    const backend = parseRenderBackend(backendRaw);
+    if (!backend) {
+      errorBox("Invalid backend", `Got "${backendRaw}". Must be chrome, native, or auto.`);
+      process.exit(1);
+    }
+
     // ── Validate workers ──────────────────────────────────────────────────
     let workers: number | undefined;
     if (args.workers != null && args.workers !== "auto") {
@@ -215,6 +233,21 @@ export default defineCommand({
       process.exit(1);
     }
 
+    const backendDecision = resolveRenderBackend({
+      requested: backend,
+      docker: useDocker,
+      format,
+      hdr: args.hdr ?? false,
+    });
+    if (backendDecision.kind === "unavailable") {
+      errorBox(
+        "Native renderer unavailable",
+        backendDecision.reasons.map((reason) => `- ${reason}`).join("\n"),
+        "Use --backend chrome, or --backend auto to fall back automatically.",
+      );
+      process.exit(1);
+    }
+
     // ── Print render plan ─────────────────────────────────────────────────
     const workerCount = workers ?? defaultWorkerCount();
     if (!quiet) {
@@ -229,7 +262,22 @@ export default defineCommand({
           c.accent(project.name) +
           c.dim(" \u2192 " + outputPath),
       );
-      console.log(c.dim("   " + fps + "fps \u00B7 " + quality + " \u00B7 " + workerLabel));
+      const backendLabel = formatBackendLabel(backendDecision.requested, backendDecision.kind);
+      console.log(
+        c.dim(
+          "   " +
+            fps +
+            "fps \u00B7 " +
+            quality +
+            " \u00B7 " +
+            workerLabel +
+            " \u00B7 backend " +
+            backendLabel,
+        ),
+      );
+      if (backendDecision.requested === "auto" && backendDecision.reasons.length > 0) {
+        console.log(c.dim("   Native fallback: " + backendDecision.reasons.join("; ")));
+      }
       console.log("");
     }
 
@@ -342,6 +390,10 @@ interface RenderOptions {
   videoBitrate?: string;
   quiet: boolean;
   browserPath?: string;
+}
+
+function formatBackendLabel(requested: RenderBackend, selected: "chrome"): string {
+  return requested === "auto" ? "auto \u2192 chrome" : selected;
 }
 
 const DOCKER_IMAGE_PREFIX = "hyperframes-renderer";
