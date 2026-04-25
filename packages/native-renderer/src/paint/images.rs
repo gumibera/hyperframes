@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{hash_map::DefaultHasher, HashMap};
+use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 use std::process::Command;
 
 use base64::Engine;
@@ -9,6 +11,7 @@ use skia_safe::{Data, Image};
 pub struct ImageCache {
     cache: HashMap<String, Image>,
     video_frames: HashMap<String, Image>,
+    video_inputs: HashMap<String, String>,
 }
 
 impl ImageCache {
@@ -16,6 +19,7 @@ impl ImageCache {
         Self {
             cache: HashMap::new(),
             video_frames: HashMap::new(),
+            video_inputs: HashMap::new(),
         }
     }
 
@@ -41,10 +45,19 @@ impl ImageCache {
         let time_key = (time_secs.max(0.0) * 1000.0).round() as u64;
         let key = format!("{src}#{time_key}");
         if !self.video_frames.contains_key(&key) {
-            let image = load_video_frame(src, time_secs)?;
+            let input = self.get_or_resolve_video_input(src)?;
+            let image = load_video_frame(&input, time_secs)?;
             self.video_frames.insert(key.clone(), image);
         }
         self.video_frames.get(&key)
+    }
+
+    fn get_or_resolve_video_input(&mut self, src: &str) -> Option<String> {
+        if !self.video_inputs.contains_key(src) {
+            let input = resolve_video_input(src)?;
+            self.video_inputs.insert(src.to_string(), input);
+        }
+        self.video_inputs.get(src).cloned()
     }
 }
 
@@ -106,15 +119,42 @@ fn percent_decode(input: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn ffmpeg_input(src: &str) -> String {
+fn resolve_video_input(src: &str) -> Option<String> {
+    if src.starts_with("http://") || src.starts_with("https://") {
+        return download_video_to_cache(src);
+    }
+
     src.strip_prefix("file://")
         .map(percent_decode)
-        .unwrap_or_else(|| src.to_string())
+        .or_else(|| Some(src.to_string()))
 }
 
-fn load_video_frame(src: &str, time_secs: f64) -> Option<Image> {
+fn download_video_to_cache(src: &str) -> Option<String> {
+    let path = cached_video_path(src);
+    if !path.exists() {
+        let output = Command::new("curl")
+            .args(["-fsSL", "--max-time", "120", "-o", path.to_str()?, src])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            let _ = std::fs::remove_file(&path);
+            return None;
+        }
+    }
+    Some(path.to_string_lossy().into_owned())
+}
+
+fn cached_video_path(src: &str) -> PathBuf {
+    let mut hasher = DefaultHasher::new();
+    src.hash(&mut hasher);
+    std::env::temp_dir().join(format!(
+        "hyperframes-native-video-{:016x}.mp4",
+        hasher.finish()
+    ))
+}
+
+fn load_video_frame(input: &str, time_secs: f64) -> Option<Image> {
     let time_arg = format!("{:.6}", time_secs.max(0.0));
-    let input = ffmpeg_input(src);
     let output = Command::new("ffmpeg")
         .args([
             "-v",

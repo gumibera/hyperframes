@@ -7,6 +7,14 @@ Render compositions to MP4 with `npx hyperframes render`.
 Uses Puppeteer (bundled Chromium) + system FFmpeg. Fast for iteration.
 Requires: FFmpeg installed (`brew install ffmpeg` or `apt install ffmpeg`).
 
+## Backend Selection
+
+- `--backend chrome` — Always render through Chrome CDP. This is the reference renderer.
+- `--backend native` — Render through the Rust/Skia native renderer. Unsupported browser features fail loudly with fallback reasons.
+- `--backend auto` — Use native only when the composition passes support detection; otherwise fall back to Chrome for Chrome-perfect final output.
+
+Native acceleration is a fast path for supported HyperFrames compositions, not a full Chromium replacement. SVG, canvas, iframe, unsupported CSS filters, masks, backdrop filters, vertical writing mode, and other unsupported browser surfaces use Chrome fallback in `auto` mode.
+
 ## Docker Mode (--docker)
 
 Deterministic output with exact Chrome version and fonts. For production.
@@ -20,6 +28,7 @@ Requires: Docker installed and running.
 - `--crf` — Override encoder CRF (mutually exclusive with `--video-bitrate`)
 - `--video-bitrate` — Target video bitrate such as `10M` (mutually exclusive with `--crf`)
 - `--gpu` — Use GPU encoding (NVENC, VideoToolbox, VAAPI)
+- `--backend` — `chrome`, `native`, or `auto` (default: chrome)
 - `-o, --output` — Custom output path
 
 ## Tips

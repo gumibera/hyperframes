@@ -187,18 +187,21 @@ function checkNativeRenderer(): CheckResult {
   if (!root) {
     return {
       ok: true,
-      detail: "Not bundled in this installation; Chrome backend will be used",
+      detail: "Not bundled in this installation; --backend auto will use Chrome fallback",
     };
   }
 
   try {
     const cargo = execSync("cargo --version", { encoding: "utf-8", timeout: 5000 }).trim();
-    return { ok: true, detail: `${root} \u00B7 ${cargo}` };
+    return {
+      ok: true,
+      detail: `${root} \u00B7 ${cargo} \u00B7 auto uses native only for supported compositions`,
+    };
   } catch {
     return {
       ok: false,
       detail: `${root} \u00B7 cargo not found`,
-      hint: "Install Rust from https://rustup.rs/ to use --backend native from source.",
+      hint: "Install Rust from https://rustup.rs/ to use --backend native from source; --backend auto falls back to Chrome when native is unavailable or unsupported.",
     };
   }
 }
