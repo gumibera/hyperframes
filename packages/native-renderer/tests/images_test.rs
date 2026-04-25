@@ -1,10 +1,10 @@
 use hyperframes_native_renderer::paint::{paint_element, ImageCache, RenderSurface};
-use hyperframes_native_renderer::scene::{Element, ElementKind, Rect, Style};
+use hyperframes_native_renderer::scene::{Element, ElementKind, ObjectFit, Rect, Style};
 use skia_safe::{surfaces, Color4f, EncodedImageFormat};
 
-/// Generate a solid-red 100x100 PNG at the given path using Skia.
-fn create_test_png(path: &str) {
-    let mut surface = surfaces::raster_n32_premul((100, 100)).expect("surface");
+/// Generate a solid-red PNG at the given path using Skia.
+fn create_test_png(path: &str, width: i32, height: i32) {
+    let mut surface = surfaces::raster_n32_premul((width, height)).expect("surface");
     surface.canvas().clear(Color4f::new(1.0, 0.0, 0.0, 1.0));
     let image = surface.image_snapshot();
     let data = image
@@ -16,7 +16,7 @@ fn create_test_png(path: &str) {
 #[test]
 fn paint_image_element() {
     let test_png = "/tmp/hyperframes-test-red.png";
-    create_test_png(test_png);
+    create_test_png(test_png, 100, 100);
 
     let mut surface = RenderSurface::new_raster(100, 100).expect("surface");
     surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
@@ -62,9 +62,67 @@ fn paint_image_element() {
 }
 
 #[test]
+fn paint_image_object_fit_contain_letterboxes() {
+    let test_png = "/tmp/hyperframes-test-wide-red.png";
+    create_test_png(test_png, 100, 50);
+
+    let mut surface = RenderSurface::new_raster(100, 100).expect("surface");
+    surface.clear(Color4f::new(1.0, 1.0, 1.0, 1.0));
+
+    let el = Element {
+        id: "img".into(),
+        kind: ElementKind::Image {
+            src: test_png.to_string(),
+        },
+        bounds: Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        },
+        style: Style {
+            object_fit: Some(ObjectFit::Contain),
+            ..Style::default()
+        },
+        children: vec![],
+    };
+
+    let mut images = ImageCache::new();
+    paint_element(surface.canvas(), &el, &mut images);
+
+    let pixels = surface.read_pixels_rgba().expect("should read pixels");
+    let center = (50 * 100 + 50) * 4;
+    assert!(
+        pixels[center] > 200 && pixels[center + 1] < 50,
+        "center should be red, got RGB({},{},{})",
+        pixels[center],
+        pixels[center + 1],
+        pixels[center + 2]
+    );
+
+    let top_letterbox = (10 * 100 + 50) * 4;
+    assert_eq!(
+        pixels[top_letterbox], 255,
+        "top letterbox should stay white"
+    );
+    assert_eq!(
+        pixels[top_letterbox + 1],
+        255,
+        "top letterbox should stay white"
+    );
+    assert_eq!(
+        pixels[top_letterbox + 2],
+        255,
+        "top letterbox should stay white"
+    );
+
+    std::fs::remove_file(test_png).ok();
+}
+
+#[test]
 fn image_cache_reuses() {
     let test_png = "/tmp/hyperframes-test-cache.png";
-    create_test_png(test_png);
+    create_test_png(test_png, 100, 100);
 
     let mut cache = ImageCache::new();
 

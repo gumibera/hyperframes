@@ -3,7 +3,7 @@ use hyperframes_native_renderer::paint::elements::paint_element;
 use hyperframes_native_renderer::paint::images::ImageCache;
 use hyperframes_native_renderer::paint::RenderSurface;
 use hyperframes_native_renderer::scene::{
-    BoxShadow, Color, Element, ElementKind, Gradient, GradientStop, Rect, Style,
+    BoxShadow, Color, Element, ElementKind, FilterAdjust, Gradient, GradientStop, Rect, Style,
 };
 use skia_safe::Color4f;
 
@@ -116,6 +116,49 @@ fn paint_blur_filter() {
     // Verify the JPEG encodes without errors.
     let jpeg = surface.encode_jpeg(80).expect("should encode JPEG");
     assert!(jpeg.len() > 200);
+}
+
+#[test]
+fn paint_filter_adjust_brightness() {
+    let mut surface = RenderSurface::new_raster(100, 100).expect("surface");
+    surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
+
+    let el = Element {
+        id: "bright".into(),
+        kind: ElementKind::Container,
+        bounds: Rect {
+            x: 10.0,
+            y: 10.0,
+            width: 80.0,
+            height: 80.0,
+        },
+        style: Style {
+            background_color: Some(Color {
+                r: 80,
+                g: 80,
+                b: 80,
+                a: 255,
+            }),
+            filter_adjust: Some(FilterAdjust {
+                brightness: 2.0,
+                contrast: 1.0,
+                saturate: 1.0,
+            }),
+            ..Style::default()
+        },
+        children: vec![],
+    };
+
+    let mut images = ImageCache::new();
+    paint_element(surface.canvas(), &el, &mut images);
+
+    let pixels = surface.read_pixels_rgba().expect("should read pixels");
+    let center = (50 * 100 + 50) * 4;
+    assert!(
+        pixels[center] > 120,
+        "brightness filter should increase center R, got {}",
+        pixels[center]
+    );
 }
 
 // ---------------------------------------------------------------------------

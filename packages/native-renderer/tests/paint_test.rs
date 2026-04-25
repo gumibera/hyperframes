@@ -1,5 +1,8 @@
 use hyperframes_native_renderer::paint::{paint_element, ImageCache, RenderSurface};
-use hyperframes_native_renderer::scene::{Color, Element, ElementKind, Rect, Style, Transform2D};
+use hyperframes_native_renderer::scene::{
+    Border, BorderLineStyle, ClipPath, Color, Element, ElementKind, MixBlendMode, Rect, Style,
+    Transform2D,
+};
 use skia_safe::Color4f;
 
 #[test]
@@ -213,6 +216,141 @@ fn paint_element_with_transform() {
         jpeg.len() > 200,
         "JPEG should be non-trivial, got {} bytes",
         jpeg.len()
+    );
+}
+
+#[test]
+fn paint_solid_border() {
+    let mut surface = RenderSurface::new_raster(100, 100).expect("surface");
+    surface.clear(Color4f::new(1.0, 1.0, 1.0, 1.0));
+
+    let el = Element {
+        id: "border".into(),
+        kind: ElementKind::Container,
+        bounds: Rect {
+            x: 20.0,
+            y: 20.0,
+            width: 60.0,
+            height: 60.0,
+        },
+        style: Style {
+            border: Some(Border {
+                width: 4.0,
+                color: Color {
+                    r: 255,
+                    g: 0,
+                    b: 0,
+                    a: 255,
+                },
+                style: BorderLineStyle::Solid,
+            }),
+            ..Style::default()
+        },
+        children: vec![],
+    };
+
+    paint_element(surface.canvas(), &el, &mut ImageCache::new());
+
+    let pixels = surface.read_pixels_rgba().expect("should read pixels");
+    let border_px = (50 * 100 + 22) * 4;
+    assert!(
+        pixels[border_px] > 200 && pixels[border_px + 1] < 50,
+        "left border should be red, got RGB({},{},{})",
+        pixels[border_px],
+        pixels[border_px + 1],
+        pixels[border_px + 2]
+    );
+
+    let center_px = (50 * 100 + 50) * 4;
+    assert_eq!(pixels[center_px], 255, "center should remain white");
+    assert_eq!(pixels[center_px + 1], 255, "center should remain white");
+    assert_eq!(pixels[center_px + 2], 255, "center should remain white");
+}
+
+#[test]
+fn paint_clip_path_circle() {
+    let mut surface = RenderSurface::new_raster(100, 100).expect("surface");
+    surface.clear(Color4f::new(1.0, 1.0, 1.0, 1.0));
+
+    let el = Element {
+        id: "clipped".into(),
+        kind: ElementKind::Container,
+        bounds: Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        },
+        style: Style {
+            background_color: Some(Color {
+                r: 0,
+                g: 200,
+                b: 0,
+                a: 255,
+            }),
+            clip_path: Some(ClipPath::Circle {
+                x: 50.0,
+                y: 50.0,
+                radius: 25.0,
+            }),
+            ..Style::default()
+        },
+        children: vec![],
+    };
+
+    paint_element(surface.canvas(), &el, &mut ImageCache::new());
+
+    let pixels = surface.read_pixels_rgba().expect("should read pixels");
+    let center = (50 * 100 + 50) * 4;
+    assert!(
+        pixels[center + 1] > 150,
+        "circle center should be green, got G={}",
+        pixels[center + 1]
+    );
+
+    let corner = (5 * 100 + 5) * 4;
+    assert_eq!(pixels[corner], 255, "corner should remain white");
+    assert_eq!(pixels[corner + 1], 255, "corner should remain white");
+    assert_eq!(pixels[corner + 2], 255, "corner should remain white");
+}
+
+#[test]
+fn paint_mix_blend_mode_multiply() {
+    let mut surface = RenderSurface::new_raster(80, 80).expect("surface");
+    surface.clear(Color4f::new(1.0, 0.0, 0.0, 1.0));
+
+    let el = Element {
+        id: "blend".into(),
+        kind: ElementKind::Container,
+        bounds: Rect {
+            x: 10.0,
+            y: 10.0,
+            width: 60.0,
+            height: 60.0,
+        },
+        style: Style {
+            background_color: Some(Color {
+                r: 0,
+                g: 0,
+                b: 255,
+                a: 255,
+            }),
+            mix_blend_mode: Some(MixBlendMode::Multiply),
+            ..Style::default()
+        },
+        children: vec![],
+    };
+
+    paint_element(surface.canvas(), &el, &mut ImageCache::new());
+
+    let pixels = surface.read_pixels_rgba().expect("should read pixels");
+    let center = (40 * 80 + 40) * 4;
+    assert!(
+        pixels[center] < 30 && pixels[center + 2] < 30,
+        "blue over red with multiply should be near black, got RGB({},{},{})",
+        pixels[center],
+        pixels[center + 1],
+        pixels[center + 2]
     );
 }
 

@@ -8,7 +8,53 @@
  * render time.
  */
 import type { Page } from "puppeteer-core";
-import type { BakedTimeline, BakedFrame } from "./types";
+import type { BakedTimeline, BakedFrame, BakedElementState } from "./types";
+
+// String-based evaluate avoids tsx/esbuild injecting `__name` helpers into the
+// function body that Puppeteer serializes into the browser context.
+const BAKE_FRAME_SCRIPT = `(() => {
+  function decomposeMatrix(raw) {
+    if (raw === "none") {
+      return { translate_x: 0, translate_y: 0, scale_x: 1, scale_y: 1, rotate_deg: 0 };
+    }
+    const mat = raw.match(
+      /matrix\\(\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+)\\)/,
+    );
+    if (!mat) {
+      return { translate_x: 0, translate_y: 0, scale_x: 1, scale_y: 1, rotate_deg: 0 };
+    }
+    const a = +mat[1];
+    const b = +mat[2];
+    const c = +mat[3];
+    const d = +mat[4];
+    return {
+      translate_x: +mat[5],
+      translate_y: +mat[6],
+      scale_x: Math.sqrt(a * a + b * b),
+      scale_y: Math.sqrt(c * c + d * d),
+      rotate_deg: (Math.atan2(b, a) * 180) / Math.PI,
+    };
+  }
+
+  const result = {};
+  const els = document.querySelectorAll("[id]");
+  for (const el of els) {
+    if (!(el instanceof HTMLElement)) continue;
+    const cs = getComputedStyle(el);
+    const transform = decomposeMatrix(cs.transform);
+
+    result[el.id] = {
+      opacity: parseFloat(cs.opacity) || 0,
+      translate_x: transform.translate_x,
+      translate_y: transform.translate_y,
+      scale_x: transform.scale_x,
+      scale_y: transform.scale_y,
+      rotate_deg: transform.rotate_deg,
+      visibility: cs.visibility !== "hidden" && cs.display !== "none",
+    };
+  }
+  return result;
+})()`;
 
 /**
  * Bake a composition's GSAP timeline into per-frame property snapshots.
@@ -34,70 +80,19 @@ export async function bakeTimeline(
 
     // Seek the composition to this timestamp. The guard mirrors the pattern
     // used in packages/producer/src/services/renderOrchestrator.ts.
-    await page.evaluate((t: number) => {
-      if (window.__hf && typeof window.__hf.seek === "function") {
-        window.__hf.seek(t);
-      }
-    }, time);
+    await page.evaluate(
+      `(() => {
+        const hf = window.__hf;
+        if (hf && typeof hf.seek === "function") {
+          hf.seek(${JSON.stringify(time)});
+        }
+      })()`,
+    );
 
     // Extract animated properties for all elements with IDs.
     // Everything inside page.evaluate runs in the browser context — helpers
     // must be inlined (no access to outer scope).
-    const elements = await page.evaluate(() => {
-      function _decomposeMatrix(raw: string) {
-        if (raw === "none") {
-          return { translate_x: 0, translate_y: 0, scale_x: 1, scale_y: 1, rotate_deg: 0 };
-        }
-        const mat = raw.match(
-          /matrix\(\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+)\)/,
-        );
-        if (!mat) {
-          return { translate_x: 0, translate_y: 0, scale_x: 1, scale_y: 1, rotate_deg: 0 };
-        }
-        const a = +mat[1],
-          b = +mat[2],
-          c = +mat[3],
-          d = +mat[4];
-        return {
-          translate_x: +mat[5],
-          translate_y: +mat[6],
-          scale_x: Math.sqrt(a * a + b * b),
-          scale_y: Math.sqrt(c * c + d * d),
-          rotate_deg: (Math.atan2(b, a) * 180) / Math.PI,
-        };
-      }
-
-      const result: Record<
-        string,
-        {
-          opacity: number;
-          translate_x: number;
-          translate_y: number;
-          scale_x: number;
-          scale_y: number;
-          rotate_deg: number;
-          visibility: boolean;
-        }
-      > = {};
-
-      const els = document.querySelectorAll("[id]");
-      for (const el of els) {
-        if (!(el instanceof HTMLElement)) continue;
-        const cs = getComputedStyle(el);
-        const transform = _decomposeMatrix(cs.transform);
-
-        result[el.id] = {
-          opacity: parseFloat(cs.opacity) || 0,
-          translate_x: transform.translate_x,
-          translate_y: transform.translate_y,
-          scale_x: transform.scale_x,
-          scale_y: transform.scale_y,
-          rotate_deg: transform.rotate_deg,
-          visibility: cs.visibility !== "hidden" && cs.display !== "none",
-        };
-      }
-      return result;
-    });
+    const elements: Record<string, BakedElementState> = await page.evaluate(BAKE_FRAME_SCRIPT);
 
     frames.push({ frame_index: i, time, elements });
   }

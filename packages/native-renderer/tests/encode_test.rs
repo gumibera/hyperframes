@@ -1,4 +1,6 @@
-use hyperframes_native_renderer::encode::{detect_hw_encoder, encoder_args, HwEncoder};
+use hyperframes_native_renderer::encode::{
+    detect_hw_encoder, encoder_args, raw_rgba_encoder_args, HwEncoder,
+};
 
 fn arg_after(args: &[String], flag: &str) -> String {
     let index = args
@@ -141,4 +143,17 @@ fn encoder_args_all_end_with_pix_fmt() {
             "last must be {expected} for {encoder:?}"
         );
     }
+}
+
+#[test]
+fn raw_rgba_encoder_args_use_rawvideo_input() {
+    let args = raw_rgba_encoder_args(HwEncoder::Software, 30, 80, 640, 360);
+
+    assert_eq!(arg_after(&args, "-f"), "rawvideo");
+    assert_eq!(arg_after(&args, "-pix_fmt"), "rgba");
+    assert_eq!(arg_after(&args, "-s:v"), "640x360");
+    assert_eq!(arg_after(&args, "-framerate"), "30");
+    assert!(!args.contains(&"image2pipe".to_string()));
+    assert!(!args.contains(&"mjpeg".to_string()));
+    assert!(args.contains(&"libx264".to_string()));
 }

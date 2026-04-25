@@ -1,9 +1,10 @@
 use skia_safe::{
-    gradient_shader, image_filters, BlurStyle, Canvas, Color4f, ImageFilter, MaskFilter, Paint,
-    PaintStyle, Point as SkPoint, RRect, Rect as SkRect, Shader, TileMode,
+    color_filters, gradient_shader, image_filters, BlurStyle, Canvas, Color4f, ColorFilter,
+    ColorMatrix, ImageFilter, MaskFilter, Paint, PaintStyle, Point as SkPoint, RRect,
+    Rect as SkRect, Shader, TileMode,
 };
 
-use crate::scene::{BoxShadow, Color, Gradient};
+use crate::scene::{BoxShadow, Color, FilterAdjust, Gradient};
 
 /// Convert a `Color` (u8 RGBA) to Skia's `Color4f` (f32 channels in 0..1).
 fn to_color4f(c: &Color) -> Color4f {
@@ -70,6 +71,47 @@ pub fn create_blur_image_filter(blur_radius: f32) -> Option<ImageFilter> {
     }
     let sigma = blur_radius / 2.0;
     image_filters::blur((sigma, sigma), TileMode::Clamp, None, None)
+}
+
+/// Create a Skia color filter for CSS `brightness()`, `contrast()`, and
+/// `saturate()` filter functions.
+pub fn create_filter_adjust_color_filter(adjust: &FilterAdjust) -> Option<ColorFilter> {
+    let brightness = adjust.brightness.max(0.0);
+    let contrast = adjust.contrast.max(0.0);
+    let saturate = adjust.saturate.max(0.0);
+
+    if (brightness - 1.0).abs() < f32::EPSILON
+        && (contrast - 1.0).abs() < f32::EPSILON
+        && (saturate - 1.0).abs() < f32::EPSILON
+    {
+        return None;
+    }
+
+    let mut matrix = ColorMatrix::default();
+    matrix.set_identity();
+
+    if (saturate - 1.0).abs() >= f32::EPSILON {
+        let mut saturation = ColorMatrix::default();
+        saturation.set_saturation(saturate);
+        matrix.post_concat(&saturation);
+    }
+
+    if (contrast - 1.0).abs() >= f32::EPSILON {
+        let translate = 127.5 * (1.0 - contrast);
+        let contrast_matrix = ColorMatrix::new(
+            contrast, 0.0, 0.0, 0.0, translate, 0.0, contrast, 0.0, 0.0, translate, 0.0, 0.0,
+            contrast, 0.0, translate, 0.0, 0.0, 0.0, 1.0, 0.0,
+        );
+        matrix.post_concat(&contrast_matrix);
+    }
+
+    if (brightness - 1.0).abs() >= f32::EPSILON {
+        let mut brightness_matrix = ColorMatrix::default();
+        brightness_matrix.set_scale(brightness, brightness, brightness, None);
+        matrix.post_concat(&brightness_matrix);
+    }
+
+    Some(color_filters::matrix(&matrix, None))
 }
 
 /// Create a gradient `Shader` filling `rect` according to a `Gradient` spec.

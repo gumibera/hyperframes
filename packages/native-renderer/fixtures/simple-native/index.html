@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Native Renderer Proof</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #05070d;
+        overflow: hidden;
+        font-family: Inter, Arial, sans-serif;
+      }
+
+      #main-comp {
+        position: relative;
+        width: 640px;
+        height: 360px;
+        overflow: hidden;
+        background: rgb(5, 7, 13);
+      }
+
+      #panel {
+        position: absolute;
+        left: 64px;
+        top: 72px;
+        width: 512px;
+        height: 216px;
+        border-radius: 24px;
+        overflow: hidden;
+        background: rgb(24, 36, 54);
+      }
+
+      #accent {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 14px;
+        height: 216px;
+        background: rgb(255, 214, 0);
+      }
+
+      #title {
+        position: absolute;
+        left: 40px;
+        top: 42px;
+        width: 430px;
+        height: 56px;
+        color: rgb(255, 255, 255);
+        font-size: 40px;
+        font-weight: 800;
+        opacity: 0;
+        transform: translateY(34px);
+      }
+
+      #subtitle {
+        position: absolute;
+        left: 42px;
+        top: 118px;
+        width: 380px;
+        height: 34px;
+        color: rgb(180, 205, 236);
+        font-size: 22px;
+        font-weight: 600;
+        opacity: 0;
+        transform: translateY(24px);
+      }
+
+      #badge {
+        position: absolute;
+        left: 40px;
+        top: 168px;
+        width: 168px;
+        height: 38px;
+        border-radius: 19px;
+        background: rgb(255, 214, 0);
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      #badge-text {
+        position: absolute;
+        left: 22px;
+        top: 7px;
+        width: 124px;
+        height: 24px;
+        color: rgb(8, 12, 18);
+        font-size: 18px;
+        font-weight: 800;
+      }
+    </style>
+  </head>
+  <body>
+    <main
+      id="main-comp"
+      data-composition-id="native-proof"
+      data-width="640"
+      data-height="360"
+      data-duration="1"
+    >
+      <section id="panel">
+        <div id="accent"></div>
+        <h1 id="title">Native Skia</h1>
+        <p id="subtitle">Chrome extracts once. Rust paints every frame.</p>
+        <div id="badge"><span id="badge-text">PROOF RUN</span></div>
+      </section>
+    </main>
+
+    <script>
+      const duration = 1;
+      const animated = [
+        { id: "title", delay: 0, y: 34 },
+        { id: "subtitle", delay: 0.18, y: 24 },
+        { id: "badge", delay: 0.36, y: 16 },
+      ];
+
+      function clamp01(v) {
+        return Math.max(0, Math.min(1, v));
+      }
+
+      function easeOutCubic(v) {
+        return 1 - Math.pow(1 - v, 3);
+      }
+
+      function seek(t) {
+        for (const item of animated) {
+          const el = document.getElementById(item.id);
+          const p = easeOutCubic(clamp01((t - item.delay) / 0.42));
+          el.style.opacity = String(p);
+          el.style.transform = `translateY(${(1 - p) * item.y}px)`;
+        }
+      }
+
+      window.__hf = { duration, seek };
+      seek(0);
+    </script>
+  </body>
+</html>

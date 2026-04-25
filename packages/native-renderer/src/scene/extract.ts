@@ -30,17 +30,91 @@ export interface Rect {
   height: number;
 }
 
+export interface BoxShadow {
+  offset_x: number;
+  offset_y: number;
+  blur_radius: number;
+  spread_radius: number;
+  color: SceneColor;
+}
+
+export interface Border {
+  width: number;
+  color: SceneColor;
+  style: "solid" | "dashed";
+}
+
+export type ClipPath =
+  | { type: "Polygon"; points: Array<{ x: number; y: number }> }
+  | { type: "Circle"; x: number; y: number; radius: number }
+  | { type: "Ellipse"; x: number; y: number; radius_x: number; radius_y: number };
+
+export type Gradient =
+  | { type: "Linear"; angle_deg: number; stops: GradientStop[] }
+  | { type: "Radial"; stops: GradientStop[] };
+
+export interface GradientStop {
+  position: number;
+  color: SceneColor;
+}
+
+export interface FilterAdjust {
+  brightness: number;
+  contrast: number;
+  saturate: number;
+}
+
+export interface TextStroke {
+  width: number;
+  color: SceneColor;
+}
+
+export type ObjectFit = "fill" | "contain" | "cover" | "none" | "scale_down";
+
+export interface ObjectPosition {
+  x: number;
+  y: number;
+}
+
+export type MixBlendMode =
+  | "multiply"
+  | "screen"
+  | "overlay"
+  | "darken"
+  | "lighten"
+  | "color_dodge"
+  | "color_burn"
+  | "hard_light"
+  | "soft_light"
+  | "difference"
+  | "exclusion"
+  | "hue"
+  | "saturation"
+  | "color"
+  | "luminosity";
+
 export interface ElementStyle {
   background_color: SceneColor | null;
   opacity: number;
   border_radius: [number, number, number, number];
+  border?: Border | null;
   overflow_hidden: boolean;
+  clip_path?: ClipPath | null;
   transform: Transform2D | null;
   visibility: boolean;
   font_family: string | null;
   font_size: number | null;
   font_weight: number | null;
   color: SceneColor | null;
+  text_shadow?: BoxShadow | null;
+  text_stroke?: TextStroke | null;
+  box_shadow?: BoxShadow | null;
+  filter_blur?: number | null;
+  filter_adjust?: FilterAdjust | null;
+  background_gradient?: Gradient | null;
+  object_fit?: ObjectFit | null;
+  object_position?: ObjectPosition | null;
+  mix_blend_mode?: MixBlendMode | null;
 }
 
 /**
@@ -67,6 +141,388 @@ export interface ExtractedScene {
   elements: SceneElement[];
 }
 
+// String-based evaluate avoids tsx/esbuild injecting `__name` helpers into the
+// function body that Puppeteer serializes into the browser context.
+const EXTRACT_SCENE_SCRIPT = `(() => {
+  function parseColor(cssColor) {
+    if (!cssColor || cssColor === "transparent") return null;
+    const m = cssColor.match(/rgba?\\(\\s*([\\d.]+),\\s*([\\d.]+),\\s*([\\d.]+)(?:,\\s*([\\d.]+))?\\s*\\)/);
+    if (!m) return null;
+    return {
+      r: Math.round(+m[1]),
+      g: Math.round(+m[2]),
+      b: Math.round(+m[3]),
+      a: Math.round((m[4] !== undefined ? +m[4] : 1) * 255),
+    };
+  }
+
+  function parseTransform(raw) {
+    if (raw === "none") return null;
+    let tx = 0;
+    let ty = 0;
+    let sx = 1;
+    let sy = 1;
+    let rot = 0;
+    const mat = raw.match(
+      /matrix\\(\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+),\\s*([-\\d.e]+)\\)/,
+    );
+    if (mat) {
+      const a = +mat[1];
+      const b = +mat[2];
+      const c = +mat[3];
+      const d = +mat[4];
+      tx = +mat[5];
+      ty = +mat[6];
+      sx = Math.sqrt(a * a + b * b);
+      sy = Math.sqrt(c * c + d * d);
+      rot = (Math.atan2(b, a) * 180) / Math.PI;
+    }
+    if (tx === 0 && ty === 0 && sx === 1 && sy === 1 && rot === 0) return null;
+    return { translate_x: tx, translate_y: ty, scale_x: sx, scale_y: sy, rotate_deg: rot };
+  }
+
+  function splitTopLevel(input) {
+    const parts = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < input.length; i++) {
+      const ch = input[i];
+      if (ch === "(") depth++;
+      if (ch === ")") depth--;
+      if (ch === "," && depth === 0) {
+        parts.push(input.slice(start, i).trim());
+        start = i + 1;
+      }
+    }
+    parts.push(input.slice(start).trim());
+    return parts.filter(Boolean);
+  }
+
+  function firstColorToken(raw) {
+    return raw.match(/rgba?\\([^)]*\\)/)?.[0] ?? null;
+  }
+
+  function parseShadow(raw) {
+    if (!raw || raw === "none") return null;
+    const firstShadow = splitTopLevel(raw)[0];
+    if (!firstShadow || /\\binset\\b/.test(firstShadow)) return null;
+    const colorToken = firstColorToken(firstShadow);
+    const color = colorToken ? parseColor(colorToken) : { r: 0, g: 0, b: 0, a: 255 };
+    if (!color) return null;
+    const withoutColor = colorToken ? firstShadow.replace(colorToken, "") : firstShadow;
+    const lengths = Array.from(withoutColor.matchAll(/(-?[\\d.]+)px/g)).map((m) => +m[1]);
+    if (lengths.length < 2) return null;
+    return {
+      offset_x: lengths[0] || 0,
+      offset_y: lengths[1] || 0,
+      blur_radius: lengths[2] || 0,
+      spread_radius: lengths[3] || 0,
+      color,
+    };
+  }
+
+  function parseFilterValue(raw) {
+    const value = raw.trim();
+    if (value.endsWith("%")) return (parseFloat(value) || 0) / 100;
+    return Number.isFinite(parseFloat(value)) ? parseFloat(value) : 1;
+  }
+
+  function parseFilter(raw) {
+    if (!raw || raw === "none") return { blur: null, adjust: null };
+    let blur = null;
+    let brightness = 1;
+    let contrast = 1;
+    let saturate = 1;
+
+    for (const match of raw.matchAll(/([a-z-]+)\\(([^)]*)\\)/g)) {
+      const name = match[1];
+      const value = match[2];
+      if (name === "blur") blur = parseFloat(value) || null;
+      if (name === "brightness") brightness = parseFilterValue(value);
+      if (name === "contrast") contrast = parseFilterValue(value);
+      if (name === "saturate") saturate = parseFilterValue(value);
+    }
+
+    const adjust =
+      brightness !== 1 || contrast !== 1 || saturate !== 1
+        ? { brightness, contrast, saturate }
+        : null;
+    return { blur, adjust };
+  }
+
+  function parseGradientStop(raw, index, total) {
+    const colorToken = firstColorToken(raw);
+    const color = colorToken ? parseColor(colorToken) : null;
+    if (!color) return null;
+    const withoutColor = raw.replace(colorToken, "").trim();
+    const stopMatch = withoutColor.match(/(-?[\\d.]+)%/);
+    const fallback = total <= 1 ? 0 : index / (total - 1);
+    return {
+      position: stopMatch ? Math.max(0, Math.min(1, +stopMatch[1] / 100)) : fallback,
+      color,
+    };
+  }
+
+  function parseGradient(raw) {
+    if (!raw || raw === "none") return null;
+
+    const linear = raw.match(/^linear-gradient\\((.*)\\)$/);
+    if (linear) {
+      const parts = splitTopLevel(linear[1]);
+      let angleDeg = 180;
+      let stopParts = parts;
+      const first = parts[0] || "";
+      if (/^-?[\\d.]+deg$/.test(first)) {
+        angleDeg = parseFloat(first);
+        stopParts = parts.slice(1);
+      } else if (first.startsWith("to ")) {
+        if (first.includes("right")) angleDeg = 90;
+        else if (first.includes("left")) angleDeg = 270;
+        else if (first.includes("top")) angleDeg = 0;
+        else if (first.includes("bottom")) angleDeg = 180;
+        stopParts = parts.slice(1);
+      }
+      const stops = stopParts
+        .map((part, index) => parseGradientStop(part, index, stopParts.length))
+        .filter(Boolean);
+      return stops.length >= 2 ? { type: "Linear", angle_deg: angleDeg, stops } : null;
+    }
+
+    const radial = raw.match(/^radial-gradient\\((.*)\\)$/);
+    if (radial) {
+      const parts = splitTopLevel(radial[1]);
+      const stopParts = parts.filter((part) => firstColorToken(part));
+      const stops = stopParts
+        .map((part, index) => parseGradientStop(part, index, stopParts.length))
+        .filter(Boolean);
+      return stops.length >= 2 ? { type: "Radial", stops } : null;
+    }
+
+    return null;
+  }
+
+  function parseBorder(cs) {
+    const width = parseFloat(cs.borderTopWidth) || 0;
+    const style = cs.borderTopStyle;
+    if (width <= 0 || (style !== "solid" && style !== "dashed")) return null;
+    const color = parseColor(cs.borderTopColor);
+    if (!color || color.a === 0) return null;
+    return { width, color, style };
+  }
+
+  function lengthOrPercent(token, basis) {
+    const value = token.trim();
+    if (value.endsWith("%")) return (parseFloat(value) / 100) * basis;
+    if (value.endsWith("px")) return parseFloat(value) || 0;
+    const number = parseFloat(value);
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function parseClipPath(raw, width, height) {
+    if (!raw || raw === "none") return null;
+
+    const polygon = raw.match(/^polygon\\((.*)\\)$/);
+    if (polygon) {
+      const points = splitTopLevel(polygon[1])
+        .map((pair) => pair.trim().split(/\\s+/))
+        .filter((pair) => pair.length >= 2)
+        .map(([x, y]) => ({ x: lengthOrPercent(x, width), y: lengthOrPercent(y, height) }));
+      return points.length >= 3 ? { type: "Polygon", points } : null;
+    }
+
+    const circle = raw.match(/^circle\\((.*)\\)$/);
+    if (circle) {
+      const parts = circle[1].split(/\\s+at\\s+/);
+      const radius = lengthOrPercent(parts[0] || "50%", Math.min(width, height));
+      const center = (parts[1] || "50% 50%").trim().split(/\\s+/);
+      return {
+        type: "Circle",
+        x: lengthOrPercent(center[0] || "50%", width),
+        y: lengthOrPercent(center[1] || "50%", height),
+        radius,
+      };
+    }
+
+    const ellipse = raw.match(/^ellipse\\((.*)\\)$/);
+    if (ellipse) {
+      const parts = ellipse[1].split(/\\s+at\\s+/);
+      const radii = (parts[0] || "50% 50%").trim().split(/\\s+/);
+      const center = (parts[1] || "50% 50%").trim().split(/\\s+/);
+      return {
+        type: "Ellipse",
+        x: lengthOrPercent(center[0] || "50%", width),
+        y: lengthOrPercent(center[1] || "50%", height),
+        radius_x: lengthOrPercent(radii[0] || "50%", width),
+        radius_y: lengthOrPercent(radii[1] || radii[0] || "50%", height),
+      };
+    }
+
+    return null;
+  }
+
+  function parseObjectFit(raw) {
+    if (raw === "scale-down") return "scale_down";
+    if (raw === "fill" || raw === "contain" || raw === "cover" || raw === "none") return raw;
+    return null;
+  }
+
+  function parsePositionToken(token, basis, axis) {
+    const value = token.trim();
+    if (value === "left" || value === "top") return 0;
+    if (value === "center") return 0.5;
+    if (value === "right" || value === "bottom") return 1;
+    if (value.endsWith("%")) return Math.max(0, Math.min(1, parseFloat(value) / 100));
+    if (value.endsWith("px")) return Math.max(0, Math.min(1, (parseFloat(value) || 0) / basis));
+    if (axis === "x" && value === "start") return 0;
+    if (axis === "x" && value === "end") return 1;
+    return 0.5;
+  }
+
+  function parseObjectPosition(raw, width, height) {
+    const parts = (raw || "50% 50%").trim().split(/\\s+/);
+    if (parts.length === 1) parts.push("50%");
+    return {
+      x: parsePositionToken(parts[0], width, "x"),
+      y: parsePositionToken(parts[1], height, "y"),
+    };
+  }
+
+  function parseTextStroke(cs) {
+    const width = parseFloat(cs.getPropertyValue("-webkit-text-stroke-width")) || 0;
+    if (width <= 0) return null;
+    const color = parseColor(cs.getPropertyValue("-webkit-text-stroke-color"));
+    return color ? { width, color } : null;
+  }
+
+  function parseMixBlendMode(raw) {
+    if (!raw || raw === "normal") return null;
+    const mapped = raw.replace(/-/g, "_");
+    const supported = new Set([
+      "multiply",
+      "screen",
+      "overlay",
+      "darken",
+      "lighten",
+      "color_dodge",
+      "color_burn",
+      "hard_light",
+      "soft_light",
+      "difference",
+      "exclusion",
+      "hue",
+      "saturation",
+      "color",
+      "luminosity",
+    ]);
+    return supported.has(mapped) ? mapped : null;
+  }
+
+  function extract(el, parentRect) {
+    const cs = getComputedStyle(el);
+    if (cs.display === "none") return null;
+
+    const tag = el.tagName.toLowerCase();
+    const rect = el.getBoundingClientRect();
+    const bounds = {
+      x: rect.x - parentRect.x,
+      y: rect.y - parentRect.y,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    let kind;
+    if (tag === "video") {
+      kind = {
+        type: "Video",
+        src: el.currentSrc || el.src || "",
+      };
+    } else if (tag === "img") {
+      kind = {
+        type: "Image",
+        src: el.currentSrc || el.src || "",
+      };
+    } else if (
+      el.childNodes.length > 0 &&
+      Array.from(el.childNodes).every((n) => n.nodeType === Node.TEXT_NODE) &&
+      (el.textContent?.trim() ?? "").length > 0
+    ) {
+      kind = { type: "Text", content: el.textContent.trim() };
+    } else {
+      kind = { type: "Container" };
+    }
+
+    const id =
+      el.getAttribute("data-name") ||
+      el.id ||
+      tag + "-" + Math.round(rect.x) + "-" + Math.round(rect.y);
+
+    const bgColor = parseColor(cs.backgroundColor);
+    const textColor = parseColor(cs.color);
+    const transform = parseTransform(cs.transform);
+    const opacity = parseFloat(cs.opacity) || 0;
+    const visible = cs.visibility !== "hidden" && opacity > 0;
+    const isText = kind.type === "Text";
+    const filter = parseFilter(cs.filter);
+    const backgroundGradient = parseGradient(cs.backgroundImage);
+
+    const style = {
+      background_color: bgColor,
+      opacity,
+      border_radius: [
+        parseFloat(cs.borderTopLeftRadius) || 0,
+        parseFloat(cs.borderTopRightRadius) || 0,
+        parseFloat(cs.borderBottomRightRadius) || 0,
+        parseFloat(cs.borderBottomLeftRadius) || 0,
+      ],
+      border: parseBorder(cs),
+      overflow_hidden: cs.overflow === "hidden" || cs.overflow === "clip",
+      clip_path: parseClipPath(cs.clipPath, rect.width, rect.height),
+      transform,
+      visibility: visible,
+      font_family: isText
+        ? cs.fontFamily.replace(/['"]/g, "").split(",")[0].trim() || null
+        : null,
+      font_size: isText ? parseFloat(cs.fontSize) || null : null,
+      font_weight: isText ? parseInt(cs.fontWeight, 10) || null : null,
+      color: isText ? textColor : null,
+      text_shadow: isText ? parseShadow(cs.textShadow) : null,
+      text_stroke: isText ? parseTextStroke(cs) : null,
+      box_shadow: parseShadow(cs.boxShadow),
+      filter_blur: filter.blur,
+      filter_adjust: filter.adjust,
+      background_gradient: backgroundGradient,
+      object_fit: kind.type === "Image" || kind.type === "Video" ? parseObjectFit(cs.objectFit) : null,
+      object_position:
+        kind.type === "Image" || kind.type === "Video"
+          ? parseObjectPosition(cs.objectPosition, rect.width, rect.height)
+          : null,
+      mix_blend_mode: parseMixBlendMode(cs.mixBlendMode),
+    };
+
+    const children = [];
+    if (kind.type === "Container") {
+      for (const child of Array.from(el.children)) {
+        const extracted = extract(child, rect);
+        if (extracted) children.push(extracted);
+      }
+    }
+
+    return {
+      id,
+      kind,
+      bounds,
+      style,
+      children,
+    };
+  }
+
+  const root = document.querySelector("[data-composition-id]") ?? document.body;
+  const rootRect = root.getBoundingClientRect();
+
+  const extractedRoot = extract(root, { x: 0, y: 0 });
+  return extractedRoot ? [extractedRoot] : [];
+})()`;
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -85,163 +541,7 @@ export async function extractScene(
 ): Promise<ExtractedScene> {
   await page.setViewport({ width, height });
 
-  const elements = await page.evaluate(() => {
-    // These helpers must be inlined — page.evaluate serializes the function
-    // body and runs it in the browser context with no access to outer scope.
-
-    function _parseColor(cssColor: string): { r: number; g: number; b: number; a: number } | null {
-      const m = cssColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-      if (!m) return null;
-      return {
-        r: +m[1],
-        g: +m[2],
-        b: +m[3],
-        a: Math.round((m[4] !== undefined ? +m[4] : 1) * 255),
-      };
-    }
-
-    function _parseTransform(raw: string) {
-      if (raw === "none") return null;
-      let tx = 0,
-        ty = 0,
-        sx = 1,
-        sy = 1,
-        rot = 0;
-      const mat = raw.match(
-        /matrix\(\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+),\s*([-\d.e]+)\)/,
-      );
-      if (mat) {
-        const a = +mat[1],
-          b = +mat[2],
-          c = +mat[3],
-          d = +mat[4];
-        tx = +mat[5];
-        ty = +mat[6];
-        sx = Math.sqrt(a * a + b * b);
-        sy = Math.sqrt(c * c + d * d);
-        rot = (Math.atan2(b, a) * 180) / Math.PI;
-      }
-      if (tx === 0 && ty === 0 && sx === 1 && sy === 1 && rot === 0) return null;
-      return { translate_x: tx, translate_y: ty, scale_x: sx, scale_y: sy, rotate_deg: rot };
-    }
-
-    type _Kind =
-      | { type: "Container" }
-      | { type: "Text"; content: string }
-      | { type: "Image"; src: string }
-      | { type: "Video"; src: string };
-
-    interface _El {
-      id: string;
-      kind: _Kind;
-      bounds: { x: number; y: number; width: number; height: number };
-      style: {
-        background_color: { r: number; g: number; b: number; a: number } | null;
-        opacity: number;
-        border_radius: [number, number, number, number];
-        overflow_hidden: boolean;
-        transform: {
-          translate_x: number;
-          translate_y: number;
-          scale_x: number;
-          scale_y: number;
-          rotate_deg: number;
-        } | null;
-        visibility: boolean;
-        font_family: string | null;
-        font_size: number | null;
-        font_weight: number | null;
-        color: { r: number; g: number; b: number; a: number } | null;
-      };
-      children: _El[];
-    }
-
-    function _extract(el: HTMLElement): _El | null {
-      const cs = getComputedStyle(el);
-      if (cs.display === "none") return null;
-
-      const tag = el.tagName.toLowerCase();
-      const rect = el.getBoundingClientRect();
-
-      let kind: _Kind;
-      if (tag === "video") {
-        kind = {
-          type: "Video",
-          src: (el as HTMLVideoElement).currentSrc || (el as HTMLVideoElement).src || "",
-        };
-      } else if (tag === "img") {
-        kind = {
-          type: "Image",
-          src: (el as HTMLImageElement).currentSrc || (el as HTMLImageElement).src || "",
-        };
-      } else if (
-        el.childNodes.length > 0 &&
-        Array.from(el.childNodes).every((n) => n.nodeType === Node.TEXT_NODE) &&
-        (el.textContent?.trim() ?? "").length > 0
-      ) {
-        kind = { type: "Text", content: el.textContent!.trim() };
-      } else {
-        kind = { type: "Container" };
-      }
-
-      const id =
-        el.getAttribute("data-name") ||
-        el.id ||
-        `${tag}-${Math.round(rect.x)}-${Math.round(rect.y)}`;
-
-      const bgColor = _parseColor(cs.backgroundColor);
-      const textColor = _parseColor(cs.color);
-      const transform = _parseTransform(cs.transform);
-      const opacity = parseFloat(cs.opacity) || 0;
-      const visible = cs.visibility !== "hidden" && opacity > 0;
-      const isText = kind.type === "Text";
-
-      const style = {
-        background_color: bgColor,
-        opacity,
-        border_radius: [
-          parseFloat(cs.borderTopLeftRadius) || 0,
-          parseFloat(cs.borderTopRightRadius) || 0,
-          parseFloat(cs.borderBottomRightRadius) || 0,
-          parseFloat(cs.borderBottomLeftRadius) || 0,
-        ] as [number, number, number, number],
-        overflow_hidden: cs.overflow === "hidden" || cs.overflow === "clip",
-        transform,
-        visibility: visible,
-        font_family: isText
-          ? cs.fontFamily.replace(/['"]/g, "").split(",")[0].trim() || null
-          : null,
-        font_size: isText ? parseFloat(cs.fontSize) || null : null,
-        font_weight: isText ? parseInt(cs.fontWeight, 10) || null : null,
-        color: isText ? textColor : null,
-      };
-
-      const children: _El[] = [];
-      if (kind.type === "Container") {
-        for (const child of Array.from(el.children) as HTMLElement[]) {
-          const extracted = _extract(child);
-          if (extracted) children.push(extracted);
-        }
-      }
-
-      return {
-        id,
-        kind,
-        bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
-        style,
-        children,
-      };
-    }
-
-    const root = document.querySelector<HTMLElement>("[data-composition-id]") ?? document.body;
-
-    const results: _El[] = [];
-    for (const child of Array.from(root.children) as HTMLElement[]) {
-      const extracted = _extract(child);
-      if (extracted) results.push(extracted);
-    }
-    return results;
-  });
+  const elements: SceneElement[] = await page.evaluate(EXTRACT_SCENE_SCRIPT);
 
   return { width, height, elements };
 }

@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0a0f1c;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      [data-composition-id] {
+        position: relative;
+        width: 640px;
+        height: 360px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgb(9, 18, 35) 0%, rgb(38, 79, 95) 100%);
+      }
+
+      .orb {
+        position: absolute;
+        left: 390px;
+        top: 42px;
+        width: 170px;
+        height: 170px;
+        border-radius: 85px;
+        background: radial-gradient(circle, rgb(255, 214, 102) 0%, rgb(42, 154, 128) 82%);
+        filter: blur(10px) saturate(1.2);
+        opacity: 0.72;
+      }
+
+      .card {
+        position: absolute;
+        left: 72px;
+        top: 66px;
+        width: 420px;
+        height: 210px;
+        overflow: hidden;
+        border-radius: 24px;
+        border: 3px dashed rgba(255, 255, 255, 0.5);
+        background: linear-gradient(115deg, rgb(19, 31, 53) 0%, rgb(87, 121, 116) 100%);
+        box-shadow: rgba(0, 0, 0, 0.38) 0 16px 40px 4px;
+        filter: brightness(1.08) contrast(1.04);
+      }
+
+      .slash {
+        position: absolute;
+        left: 230px;
+        top: -12px;
+        width: 170px;
+        height: 240px;
+        clip-path: polygon(34% 0%, 100% 0%, 66% 100%, 0% 100%);
+        background: linear-gradient(180deg, rgb(255, 188, 92) 0%, rgb(224, 80, 78) 100%);
+        mix-blend-mode: screen;
+        opacity: 0.78;
+      }
+
+      .title {
+        position: absolute;
+        left: 34px;
+        top: 42px;
+        color: rgb(248, 250, 252);
+        font-size: 38px;
+        font-weight: 800;
+        line-height: 1;
+        text-shadow: rgba(0, 0, 0, 0.42) 3px 4px 8px;
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.35);
+      }
+
+      .subtitle {
+        position: absolute;
+        left: 36px;
+        top: 104px;
+        width: 320px;
+        color: rgb(210, 244, 236);
+        font-size: 18px;
+        font-weight: 520;
+      }
+
+      .pill {
+        position: absolute;
+        left: 36px;
+        top: 154px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.56);
+        color: rgb(13, 24, 40);
+        background: radial-gradient(circle, rgb(255, 247, 177) 0%, rgb(85, 214, 173) 100%);
+        font-size: 14px;
+        font-weight: 760;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-composition-id="tier2-native" data-width="640" data-height="360" data-duration="1">
+      <div class="orb" data-name="orb"></div>
+      <div class="card" data-name="card">
+        <div class="slash" data-name="slash"></div>
+        <div class="title" data-name="title">Native Tier 2</div>
+        <div class="subtitle" data-name="subtitle">Gradients, shadows, blur, borders, clip-path, blend mode.</div>
+        <div class="pill" data-name="pill">Skia path</div>
+      </div>
+    </div>
+    <script>
+      window.__hf = {
+        duration: 1,
+        seek(time) {
+          const root = document.querySelector("[data-composition-id]");
+          root.style.transform = "translateX(" + Math.round(time * 8) + "px)";
+        },
+      };
+    </script>
+  </body>
+</html>

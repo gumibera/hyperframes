@@ -65,7 +65,6 @@ pub fn detect_hw_encoder() -> HwEncoder {
 /// encoder-specific codec and quality flags, and a compatible pixel format.
 /// The caller must append the output path.
 pub fn encoder_args(encoder: HwEncoder, fps: u32, quality: u32) -> Vec<String> {
-    let codec_q = codec_quality(quality);
     let mut args: Vec<String> = vec![
         "-y".into(),
         "-f".into(),
@@ -79,6 +78,43 @@ pub fn encoder_args(encoder: HwEncoder, fps: u32, quality: u32) -> Vec<String> {
         "-threads".into(),
         "0".into(),
     ];
+    append_codec_args(&mut args, encoder, quality);
+    args
+}
+
+/// Build FFmpeg CLI arguments for raw RGBA frames written to stdin.
+///
+/// This avoids the intermediate JPEG encode/decode round-trip used by the
+/// compatibility pipe and is the current fastest non-zero-copy transfer path.
+/// The caller must append the output path.
+pub fn raw_rgba_encoder_args(
+    encoder: HwEncoder,
+    fps: u32,
+    quality: u32,
+    width: u32,
+    height: u32,
+) -> Vec<String> {
+    let mut args: Vec<String> = vec![
+        "-y".into(),
+        "-f".into(),
+        "rawvideo".into(),
+        "-pix_fmt".into(),
+        "rgba".into(),
+        "-s:v".into(),
+        format!("{width}x{height}"),
+        "-framerate".into(),
+        fps.to_string(),
+        "-i".into(),
+        "-".into(),
+        "-threads".into(),
+        "0".into(),
+    ];
+    append_codec_args(&mut args, encoder, quality);
+    args
+}
+
+fn append_codec_args(args: &mut Vec<String>, encoder: HwEncoder, quality: u32) {
+    let codec_q = codec_quality(quality);
 
     match encoder {
         HwEncoder::VideoToolbox => {
@@ -132,5 +168,4 @@ pub fn encoder_args(encoder: HwEncoder, fps: u32, quality: u32) -> Vec<String> {
         HwEncoder::VideoToolbox | HwEncoder::Nvenc | HwEncoder::Software => "yuv420p",
     };
     args.extend(["-pix_fmt".into(), pix_fmt.into()]);
-    args
 }

@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use skia_safe::Color4f;
 
-use crate::encode::{detect_hw_encoder, encoder_args, HwEncoder};
+use crate::encode::{detect_hw_encoder, encoder_args, raw_rgba_encoder_args, HwEncoder};
 use crate::paint::{paint_element, ImageCache, RenderSurface};
 use crate::scene::{BakedElementState, BakedFrame, BakedTimeline, Element, Scene, Transform2D};
 
@@ -71,8 +71,10 @@ fn finish_ffmpeg(child: Child) -> Result<(), String> {
     Ok(())
 }
 
-fn spawn_ffmpeg_writer(
+fn spawn_raw_rgba_ffmpeg_writer(
     config: &RenderConfig,
+    width: u32,
+    height: u32,
 ) -> Result<
     (
         SyncSender<Vec<u8>>,
@@ -81,7 +83,18 @@ fn spawn_ffmpeg_writer(
     ),
     String,
 > {
-    let (mut child, encoder) = spawn_ffmpeg(config)?;
+    let encoder = detect_hw_encoder();
+    let mut args = raw_rgba_encoder_args(encoder, config.fps, config.quality, width, height);
+    args.push(config.output_path.clone());
+
+    let mut child = Command::new("ffmpeg")
+        .args(&args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("failed to spawn ffmpeg: {e}"))?;
+
     let mut stdin = child.stdin.take().ok_or("failed to open ffmpeg stdin")?;
     let (tx, rx) = sync_channel::<Vec<u8>>(2);
 
@@ -89,7 +102,7 @@ fn spawn_ffmpeg_writer(
         for frame in rx {
             stdin
                 .write_all(&frame)
-                .map_err(|e| format!("failed to write frame to ffmpeg: {e}"))?;
+                .map_err(|e| format!("failed to write raw frame to ffmpeg: {e}"))?;
         }
         drop(stdin);
         Ok(child)
@@ -247,12 +260,12 @@ fn apply_deltas_recursive(
 // ── GPU Pipeline (macOS Metal) ─────────────────────────────────────────────
 
 /// Render an animated scene on the GPU with double-buffered surfaces and
-/// a background FFmpeg pipe writer.
+/// a background raw-RGBA FFmpeg pipe writer.
 ///
 /// Two Metal-backed surfaces alternate while a bounded writer thread feeds
-/// encoded JPEG frames into FFmpeg. This overlaps frame painting with pipe
-/// writes, while still using the current MJPEG transfer path. True zero-copy
-/// IOSurface/VideoToolbox handoff remains a later production step.
+/// raw frame bytes into FFmpeg. This avoids the MJPEG encode/decode round-trip
+/// while still using CPU-visible readback. True zero-copy IOSurface/VideoToolbox
+/// handoff remains a later production step.
 ///
 /// Uses hardware encoding when available.
 #[cfg(target_os = "macos")]
@@ -274,7 +287,8 @@ pub fn render_animated_gpu(
     let mut surface_b = RenderSurface::new_metal_gpu(width, height)?;
     let mut image_cache = ImageCache::new();
 
-    let (frame_tx, writer, _encoder) = spawn_ffmpeg_writer(config)?;
+    let (frame_tx, writer, _encoder) =
+        spawn_raw_rgba_ffmpeg_writer(config, scene.width, scene.height)?;
 
     let start = Instant::now();
     let mut paint_total_ms: f64 = 0.0;
@@ -297,11 +311,11 @@ pub fn render_animated_gpu(
         surface.flush_and_submit();
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 
-        let jpeg = surface
-            .encode_jpeg(config.quality)
-            .ok_or("failed to encode GPU frame as JPEG")?;
+        let rgba = surface
+            .read_pixels_rgba()
+            .ok_or("failed to read GPU frame pixels")?;
         frame_tx
-            .send(jpeg)
+            .send(rgba)
             .map_err(|e| format!("failed to queue GPU frame for ffmpeg: {e}"))?;
     }
 

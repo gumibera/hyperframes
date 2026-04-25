@@ -53,16 +53,24 @@ pub struct Style {
     pub background_color: Option<Color>,
     pub opacity: f32,
     pub border_radius: [f32; 4],
+    pub border: Option<Border>,
     pub overflow_hidden: bool,
+    pub clip_path: Option<ClipPath>,
     pub transform: Option<Transform2D>,
     pub visibility: bool,
     pub font_family: Option<String>,
     pub font_size: Option<f32>,
     pub font_weight: Option<u16>,
     pub color: Option<Color>,
+    pub text_shadow: Option<BoxShadow>,
+    pub text_stroke: Option<TextStroke>,
     pub box_shadow: Option<BoxShadow>,
     pub filter_blur: Option<f32>,
+    pub filter_adjust: Option<FilterAdjust>,
     pub background_gradient: Option<Gradient>,
+    pub object_fit: Option<ObjectFit>,
+    pub object_position: Option<ObjectPosition>,
+    pub mix_blend_mode: Option<MixBlendMode>,
 }
 
 impl Default for Style {
@@ -71,18 +79,69 @@ impl Default for Style {
             background_color: None,
             opacity: 1.0,
             border_radius: [0.0; 4],
+            border: None,
             overflow_hidden: false,
+            clip_path: None,
             transform: None,
             visibility: true,
             font_family: None,
             font_size: None,
             font_weight: None,
             color: None,
+            text_shadow: None,
+            text_stroke: None,
             box_shadow: None,
             filter_blur: None,
+            filter_adjust: None,
             background_gradient: None,
+            object_fit: None,
+            object_position: None,
+            mix_blend_mode: None,
         }
     }
+}
+
+/// CSS border shorthand currently supports solid and dashed line styles.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Border {
+    pub width: f32,
+    pub color: Color,
+    #[serde(default)]
+    pub style: BorderLineStyle,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BorderLineStyle {
+    #[default]
+    Solid,
+    Dashed,
+}
+
+/// CSS clip-path primitives.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum ClipPath {
+    Polygon {
+        points: Vec<Point2D>,
+    },
+    Circle {
+        x: f32,
+        y: f32,
+        radius: f32,
+    },
+    Ellipse {
+        x: f32,
+        y: f32,
+        radius_x: f32,
+        radius_y: f32,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct Point2D {
+    pub x: f32,
+    pub y: f32,
 }
 
 /// CSS box-shadow equivalent.
@@ -114,6 +173,63 @@ pub struct GradientStop {
     /// Position along the gradient, 0.0 to 1.0.
     pub position: f32,
     pub color: Color,
+}
+
+/// CSS filter color-adjust functions.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct FilterAdjust {
+    #[serde(default = "one")]
+    pub brightness: f32,
+    #[serde(default = "one")]
+    pub contrast: f32,
+    #[serde(default = "one")]
+    pub saturate: f32,
+}
+
+/// CSS text stroke equivalent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TextStroke {
+    pub width: f32,
+    pub color: Color,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ObjectFit {
+    Fill,
+    Contain,
+    Cover,
+    None,
+    ScaleDown,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ObjectPosition {
+    /// Horizontal position normalized from 0.0 (left) to 1.0 (right).
+    pub x: f32,
+    /// Vertical position normalized from 0.0 (top) to 1.0 (bottom).
+    pub y: f32,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MixBlendMode {
+    Normal,
+    Multiply,
+    Screen,
+    Overlay,
+    Darken,
+    Lighten,
+    ColorDodge,
+    ColorBurn,
+    HardLight,
+    SoftLight,
+    Difference,
+    Exclusion,
+    Hue,
+    Saturation,
+    Color,
+    Luminosity,
 }
 
 /// RGBA color with 8-bit channels.
