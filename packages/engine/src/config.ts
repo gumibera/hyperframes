@@ -133,10 +133,10 @@ export const DEFAULT_CONFIG: EngineConfig = {
   coresPerWorker: 2,
   minParallelFrames: 120,
   largeRenderThreshold: 1000,
-  useMultiPageCapture: true,
+  useMultiPageCapture: false,
 
   disableGpu: false,
-  gpuBackend: "hardware",
+  gpuBackend: "swiftshader",
   enableBrowserPool: false,
   browserTimeout: 120_000,
   protocolTimeout: 300_000,
@@ -144,7 +144,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
 
   enableChunkedEncode: false,
   chunkSizeFrames: 360,
-  enableStreamingEncode: true,
+  enableStreamingEncode: false,
 
   ffmpegEncodeTimeout: 600_000,
   ffmpegProcessTimeout: 300_000,
