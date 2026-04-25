@@ -1,10 +1,12 @@
 use std::cell::RefCell;
 
 use skia_safe::{
-    canvas::SrcRectConstraint, Canvas, ClipOp, Color4f, Font, FontMgr, FontStyle, Paint,
-    PaintStyle, Point, RRect, Rect as SkRect, Typeface,
+    canvas::{SaveLayerRec, SrcRectConstraint},
+    Canvas, ClipOp, Color4f, Font, FontMgr, FontStyle, Paint, PaintStyle, Point, RRect,
+    Rect as SkRect, Typeface,
 };
 
+use crate::paint::effects;
 use crate::paint::images::ImageCache;
 use crate::scene::{Color, Element, ElementKind, Rect};
 
@@ -65,11 +67,13 @@ fn radii_are_zero(radii: &[f32; 4]) -> bool {
 /// The painting order follows the CSS box model:
 /// 1. Position (translate to element bounds)
 /// 2. Transform (rotate, scale around center)
-/// 3. Opacity (layer alpha)
-/// 4. Clip (overflow hidden)
-/// 5. Background
-/// 6. Content (text)
-/// 7. Children (recursion)
+/// 3. Box shadow (painted before element content)
+/// 4. Opacity (layer alpha)
+/// 5. Blur filter (save layer with ImageFilter)
+/// 6. Clip (overflow hidden)
+/// 7. Background (gradient takes priority over solid color)
+/// 8. Content (text, image)
+/// 9. Children (recursion)
 pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache) {
     let style = &element.style;
 
@@ -94,6 +98,14 @@ pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache
         canvas.translate((t.translate_x, t.translate_y));
     }
 
+    let local_rect = to_sk_rect(&element.bounds);
+    let has_radii = !radii_are_zero(&style.border_radius);
+
+    // --- Box shadow (painted before opacity/blur so it sits behind the element) ---
+    if let Some(ref shadow) = style.box_shadow {
+        effects::paint_box_shadow(canvas, &local_rect, &style.border_radius, shadow);
+    }
+
     // --- Opacity (save layer) ---
     let has_partial_opacity = style.opacity < 1.0;
     if has_partial_opacity {
@@ -101,8 +113,16 @@ pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache
         canvas.save_layer_alpha(None, alpha);
     }
 
-    let local_rect = to_sk_rect(&element.bounds);
-    let has_radii = !radii_are_zero(&style.border_radius);
+    // --- Blur filter (save layer with ImageFilter applied on restore) ---
+    let has_blur = style.filter_blur.is_some_and(|b| b > 0.0);
+    if has_blur {
+        if let Some(filter) = effects::create_blur_image_filter(style.filter_blur.unwrap()) {
+            let mut layer_paint = Paint::default();
+            layer_paint.set_image_filter(filter);
+            let rec = SaveLayerRec::default().paint(&layer_paint);
+            canvas.save_layer(&rec);
+        }
+    }
 
     // --- Clip (overflow hidden) ---
     if style.overflow_hidden {
@@ -114,8 +134,22 @@ pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache
         }
     }
 
-    // --- Background ---
-    if let Some(ref bg) = style.background_color {
+    // --- Background (gradient takes priority over solid color) ---
+    if let Some(ref gradient) = style.background_gradient {
+        if let Some(shader) = effects::create_gradient_shader(&local_rect, gradient) {
+            let mut paint = Paint::default();
+            paint.set_anti_alias(true);
+            paint.set_style(PaintStyle::Fill);
+            paint.set_shader(shader);
+
+            if has_radii {
+                let rrect = make_rrect(&local_rect, &style.border_radius);
+                canvas.draw_rrect(rrect, &paint);
+            } else {
+                canvas.draw_rect(local_rect, &paint);
+            }
+        }
+    } else if let Some(ref bg) = style.background_color {
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
         paint.set_style(PaintStyle::Fill);

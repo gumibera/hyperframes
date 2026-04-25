@@ -143,3 +143,35 @@ pub struct Transform2D {
 fn one() -> f32 {
     1.0
 }
+
+// ── Baked Timeline Types ────────────────────────────────────────────────────
+
+/// A pre-baked timeline: every frame carries the fully-resolved state of
+/// every animated element, so the renderer does zero interpolation at paint time.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BakedTimeline {
+    pub fps: u32,
+    pub duration: f64,
+    pub total_frames: u32,
+    pub frames: Vec<BakedFrame>,
+}
+
+/// Per-frame snapshot of animated element states, keyed by element id.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BakedFrame {
+    pub frame_index: u32,
+    pub time: f64,
+    pub elements: std::collections::HashMap<String, BakedElementState>,
+}
+
+/// Resolved visual state for a single element at a single frame.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BakedElementState {
+    pub opacity: f32,
+    pub translate_x: f32,
+    pub translate_y: f32,
+    pub scale_x: f32,
+    pub scale_y: f32,
+    pub rotate_deg: f32,
+    pub visibility: bool,
+}
