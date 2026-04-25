@@ -3,6 +3,12 @@
  *
  * Coordinates parallel frame capture across multiple Puppeteer sessions.
  * Auto-detects optimal worker count based on CPU/memory.
+ *
+ * Two modes:
+ *   - Multi-page (default for screenshot mode): one browser, N pages.
+ *     Eliminates N-1 Chrome startup costs and shares the GPU process.
+ *   - Multi-browser (BeginFrame or explicit opt-out): N browsers, 1 page each.
+ *     Required for BeginFrame mode (atomic compositor control is per-browser).
  */
 
 import { cpus, freemem, totalmem } from "os";
@@ -12,6 +18,7 @@ import { join } from "path";
 
 import {
   createCaptureSession,
+  createCaptureSessionInBrowser,
   initializeSession,
   closeCaptureSession,
   captureFrame,
@@ -22,6 +29,12 @@ import {
   type CapturePerfSummary,
   type BeforeCaptureHook,
 } from "./frameCapture.js";
+import {
+  acquireBrowser,
+  buildChromeArgs,
+  resolveHeadlessShellPath,
+  type CaptureMode,
+} from "./browserManager.js";
 import { DEFAULT_CONFIG, type EngineConfig } from "../config.js";
 
 export interface WorkerTask {
@@ -50,9 +63,9 @@ export interface ParallelProgress {
 
 const MEMORY_PER_WORKER_MB = 256;
 const MIN_WORKERS = 1;
-const ABSOLUTE_MAX_WORKERS = 10;
-const DEFAULT_SAFE_MAX_WORKERS = 6;
-const MIN_FRAMES_PER_WORKER = 30;
+const ABSOLUTE_MAX_WORKERS = 12;
+const DEFAULT_SAFE_MAX_WORKERS = 8;
+const MIN_FRAMES_PER_WORKER = 24;
 
 export function calculateOptimalWorkers(
   totalFrames: number,
@@ -64,7 +77,6 @@ export function calculateOptimalWorkers(
     >
   >,
 ): number {
-  // Resolve effective values: config overrides → DEFAULT_CONFIG fallback.
   const effectiveMaxWorkers = (() => {
     const concurrency = config?.concurrency ?? DEFAULT_CONFIG.concurrency;
     if (concurrency !== "auto") {
@@ -84,11 +96,8 @@ export function calculateOptimalWorkers(
   if (totalFrames < MIN_FRAMES_PER_WORKER * 2) return 1;
 
   const cpuCount = cpus().length;
-  const cpuBasedWorkers = Math.max(1, cpuCount - 2);
+  const cpuBasedWorkers = Math.max(1, cpuCount - 1);
 
-  // Use total memory instead of free memory — macOS reports misleadingly low
-  // freemem() because it aggressively caches files in "inactive" memory that
-  // is immediately reclaimable.
   const totalMemoryMB = Math.round(totalmem() / (1024 * 1024));
   const memoryBasedWorkers = Math.max(1, Math.floor((totalMemoryMB * 0.5) / MEMORY_PER_WORKER_MB));
 
@@ -98,11 +107,6 @@ export function calculateOptimalWorkers(
   const minWorkersForJob = totalFrames >= effectiveMinParallelFrames ? 2 : MIN_WORKERS;
   let finalWorkers = Math.max(minWorkersForJob, Math.min(effectiveMaxWorkers, optimal));
 
-  // Adaptive scaling: cap workers for large renders to prevent CPU contention.
-  // Each Chrome process (with SwiftShader) is CPU-heavy; too many on a long
-  // render causes protocol timeouts from compositor starvation.
-  // Scale proportionally to CPU count: ~3 cores per worker (benchmarked).
-  // 8 cores → 2 workers, 16 cores → 5 workers, 32 cores → 10 workers.
   if (totalFrames >= effectiveLargeRenderThreshold) {
     const cpuScaledMax = Math.max(2, Math.floor(cpuCount / effectiveCoresPerWorker));
     if (finalWorkers > cpuScaledMax) {
@@ -146,6 +150,7 @@ async function executeWorkerTask(
   onFrameCaptured?: (workerId: number, frameIndex: number) => void,
   onFrameBuffer?: (frameIndex: number, buffer: Buffer) => Promise<void>,
   config?: Partial<EngineConfig>,
+  sharedBrowser?: { browser: import("puppeteer-core").Browser; captureMode: CaptureMode },
 ): Promise<WorkerResult> {
   const startTime = Date.now();
   let framesCaptured = 0;
@@ -156,13 +161,25 @@ async function executeWorkerTask(
   let perf: CapturePerfSummary | undefined;
 
   try {
-    session = await createCaptureSession(
-      serverUrl,
-      task.outputDir,
-      captureOptions,
-      createBeforeCaptureHook(),
-      config,
-    );
+    if (sharedBrowser) {
+      session = await createCaptureSessionInBrowser(
+        sharedBrowser.browser,
+        sharedBrowser.captureMode,
+        serverUrl,
+        task.outputDir,
+        captureOptions,
+        createBeforeCaptureHook(),
+        config,
+      );
+    } else {
+      session = await createCaptureSession(
+        serverUrl,
+        task.outputDir,
+        captureOptions,
+        createBeforeCaptureHook(),
+        config,
+      );
+    }
     await initializeSession(session);
 
     for (let i = task.startFrame; i < task.endFrame; i++) {
@@ -172,11 +189,9 @@ async function executeWorkerTask(
       const time = i / captureOptions.fps;
 
       if (onFrameBuffer) {
-        // Streaming mode: capture to buffer and invoke callback
         const { buffer } = await captureFrameToBuffer(session, i, time);
         await onFrameBuffer(i, buffer);
       } else {
-        // Disk mode: capture to file
         await captureFrame(session, i, time);
       }
       framesCaptured++;
@@ -207,6 +222,26 @@ async function executeWorkerTask(
   } finally {
     if (session) await closeCaptureSession(session).catch(() => {});
   }
+}
+
+/**
+ * Determine whether to use multi-page mode (shared browser).
+ * Multi-page requires screenshot mode (BeginFrame is per-browser).
+ */
+function shouldUseMultiPage(config?: Partial<EngineConfig>): {
+  multiPage: boolean;
+  captureMode: CaptureMode;
+} {
+  const useMultiPage = config?.useMultiPageCapture ?? DEFAULT_CONFIG.useMultiPageCapture;
+  const headlessShell = resolveHeadlessShellPath(config);
+  const isLinux = process.platform === "linux";
+  const forceScreenshot = config?.forceScreenshot ?? DEFAULT_CONFIG.forceScreenshot;
+
+  const wouldBeginFrame = headlessShell && isLinux && !forceScreenshot;
+  if (wouldBeginFrame) {
+    return { multiPage: false, captureMode: "beginframe" };
+  }
+  return { multiPage: useMultiPage, captureMode: "screenshot" };
 }
 
 export async function executeParallelCapture(
@@ -240,6 +275,52 @@ export async function executeParallelCapture(
     }
   };
 
+  const { multiPage, captureMode } = shouldUseMultiPage(config);
+
+  if (multiPage && tasks.length > 1) {
+    // ── Multi-page mode: 1 browser, N pages ──────────────────────────────
+    // Launch a single browser and share it across all workers. Each worker
+    // gets its own page (separate renderer process, independent DOM/JS context).
+    const chromeArgs = buildChromeArgs(
+      { width: captureOptions.width, height: captureOptions.height, captureMode },
+      config,
+    );
+    const { browser, captureMode: actualMode } = await acquireBrowser(chromeArgs, {
+      ...config,
+      enableBrowserPool: false,
+    });
+    const shared = { browser, captureMode: actualMode };
+
+    try {
+      const results = await Promise.all(
+        tasks.map((task) =>
+          executeWorkerTask(
+            task,
+            serverUrl,
+            captureOptions,
+            createBeforeCaptureHook,
+            signal,
+            onFrameCaptured,
+            onFrameBuffer,
+            config,
+            shared,
+          ),
+        ),
+      );
+
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
+        const errorMessages = errors.map((e) => `Worker ${e.workerId}: ${e.error}`).join("; ");
+        throw new Error(`[Parallel] Capture failed: ${errorMessages}`);
+      }
+
+      return results;
+    } finally {
+      await browser.close().catch(() => {});
+    }
+  }
+
+  // ── Multi-browser mode: N browsers, 1 page each ─────────────────────
   const results = await Promise.all(
     tasks.map((task) =>
       executeWorkerTask(

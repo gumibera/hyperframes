@@ -59,6 +59,7 @@ export {
 // ── Frame capture pipeline ──────────────────────────────────────────────────────
 export {
   createCaptureSession,
+  createCaptureSessionInBrowser,
   initializeSession,
   closeCaptureSession,
   captureFrame,

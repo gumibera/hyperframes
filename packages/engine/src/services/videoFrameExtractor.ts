@@ -226,9 +226,11 @@ export async function extractVideoFramesRange(
   const isHdr = isHdrColorSpaceUtil(metadata.colorSpace);
   const isMacOS = process.platform === "darwin";
 
-  const args: string[] = [];
+  const args: string[] = ["-threads", "0"];
   if (isHdr && isMacOS) {
     args.push("-hwaccel", "videotoolbox");
+  } else if (!isHdr && metadata.videoCodec === "h264") {
+    args.push("-hwaccel", "auto");
   }
   if (metadata.hasAlpha && metadata.videoCodec === "vp9") {
     args.push("-c:v", "libvpx-vp9");
@@ -244,7 +246,8 @@ export async function extractVideoFramesRange(
   args.push("-vf", vfFilters.join(","));
 
   args.push("-q:v", format === "jpg" ? String(Math.ceil((100 - quality) / 3)) : "0");
-  if (format === "png") args.push("-compression_level", "6");
+  // Lower compression = faster writes. These are temp files cleaned up after render.
+  if (format === "png") args.push("-compression_level", "1");
   args.push("-y", outputPattern);
 
   return new Promise((resolve, reject) => {

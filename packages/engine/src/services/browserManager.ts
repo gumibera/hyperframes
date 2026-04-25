@@ -242,12 +242,9 @@ export interface BuildChromeArgsOptions {
 
 export function buildChromeArgs(
   options: BuildChromeArgsOptions,
-  config?: Partial<Pick<EngineConfig, "disableGpu" | "chromePath">>,
+  config?: Partial<Pick<EngineConfig, "disableGpu" | "chromePath" | "gpuBackend">>,
 ): string[] {
-  // Chrome flags tuned for headless rendering performance. The set below is a
-  // fairly standard "headless-for-capture" configuration — similar profiles
-  // appear in Puppeteer's defaults, Playwright, Remotion, and Chrome's own
-  // headless-shell guidance.
+  const gpuBackend = config?.gpuBackend ?? DEFAULT_CONFIG.gpuBackend;
   const chromeArgs = [
     "--no-sandbox",
     "--disable-setuid-sandbox",
@@ -255,7 +252,17 @@ export function buildChromeArgs(
     "--enable-webgl",
     "--ignore-gpu-blocklist",
     "--use-gl=angle",
-    "--use-angle=swiftshader",
+    ...(gpuBackend === "hardware"
+      ? [
+          // Let Chrome pick the best available GPU backend (Metal on macOS,
+          // Vulkan on Linux). Falls back to SwiftShader automatically when
+          // no hardware GPU is available (Docker, CI).
+          "--use-angle=default",
+          "--enable-gpu-rasterization",
+          "--enable-zero-copy",
+          "--enable-features=VaapiVideoDecoder,Vulkan",
+        ]
+      : ["--use-angle=swiftshader"]),
     "--font-render-hinting=none",
     "--force-color-profile=srgb",
     `--window-size=${options.width},${options.height}`,

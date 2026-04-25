@@ -1504,31 +1504,29 @@ export async function executeRenderJob(
       );
     }
 
-    // ── Stage 3: Audio processing ───────────────────────────────────────
+    // ── Stage 3: Audio processing (launched async, overlaps with capture) ──
     const stage3Start = Date.now();
     updateJobStatus(job, "preprocessing", "Processing audio tracks", 20, onProgress);
 
     const audioOutputPath = join(workDir, "audio.aac");
     let hasAudio = false;
 
-    if (composition.audios.length > 0) {
-      const audioResult = await processCompositionAudio(
-        composition.audios,
-        projectDir,
-        join(workDir, "audio-work"),
-        audioOutputPath,
-        job.duration,
-        abortSignal,
-        undefined,
-        compiledDir,
-      );
-      assertNotAborted();
-
-      hasAudio = audioResult.success;
-      perfStages.audioProcessMs = Date.now() - stage3Start;
-    } else {
-      perfStages.audioProcessMs = Date.now() - stage3Start;
-    }
+    // Launch audio processing without awaiting — it runs on separate FFmpeg
+    // processes and doesn't compete with Chrome for CPU. We collect the result
+    // before the mux stage where the audio file is needed.
+    const audioPromise =
+      composition.audios.length > 0
+        ? processCompositionAudio(
+            composition.audios,
+            projectDir,
+            join(workDir, "audio-work"),
+            audioOutputPath,
+            job.duration,
+            abortSignal,
+            undefined,
+            compiledDir,
+          )
+        : null;
 
     // ── Stage 4: Frame capture ──────────────────────────────────────────
     const stage4Start = Date.now();
@@ -1548,12 +1546,20 @@ export async function executeRenderJob(
     const framesDir = join(workDir, "captured-frames");
     if (!existsSync(framesDir)) mkdirSync(framesDir, { recursive: true });
 
+    // When streaming to FFmpeg, intermediate JPEG quality can be lower — the
+    // frames are re-encoded so quality loss is invisible in the final output.
+    // Smaller JPEG buffers transfer faster over CDP, cutting per-frame time.
+    const captureJpegQuality = (() => {
+      if (needsAlpha) return undefined;
+      if (enableStreamingEncode) return cfg.streamingJpegQuality ?? 55;
+      return job.config.quality === "draft" ? 80 : 95;
+    })();
     const captureOptions: CaptureOptions = {
       width,
       height,
       fps: job.config.fps,
       format: needsAlpha ? "png" : "jpeg",
-      quality: needsAlpha ? undefined : job.config.quality === "draft" ? 80 : 95,
+      quality: captureJpegQuality,
     };
 
     // Native HDR videos (e.g. HEVC) may be undecodable by Chrome on the current
@@ -2607,6 +2613,16 @@ export async function executeRenderJob(
     // Stop file server
     fileServer.close();
     fileServer = null;
+
+    // ── Collect overlapped audio result ────────────────────────────────
+    if (audioPromise) {
+      const audioResult = await audioPromise;
+      assertNotAborted();
+      hasAudio = audioResult.success;
+      perfStages.audioProcessMs = Date.now() - stage3Start;
+    } else {
+      perfStages.audioProcessMs = 0;
+    }
 
     // ── Stage 6: Assemble ───────────────────────────────────────────────
     const stage6Start = Date.now();

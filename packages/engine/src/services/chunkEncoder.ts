@@ -105,7 +105,7 @@ export function buildEncoderArgs(
     options = { ...options, hdr: undefined };
   }
 
-  const args: string[] = [...inputArgs, "-r", String(fps)];
+  const args: string[] = ["-threads", "0", ...inputArgs, "-r", String(fps)];
   const shouldUseGpu = useGpu && gpuEncoder !== null;
 
   if (codec === "h264" || codec === "h265") {

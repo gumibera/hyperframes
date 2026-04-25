@@ -47,6 +47,12 @@ export interface CaptureSession {
   // browser-pool semantics (see the function body for the full invariant).
   pageReleased?: boolean;
   browserReleased?: boolean;
+  /**
+   * When true, this session owns the browser and will close it in
+   * closeCaptureSession. When false (multi-page mode), only the page is
+   * closed — the caller manages the shared browser lifecycle.
+   */
+  ownsBrowser: boolean;
   browserConsoleBuffer: string[];
   capturePerf: {
     frames: number;
@@ -69,64 +75,21 @@ export interface CaptureSession {
 // Complex compositions produce 100+ messages; 50 was too small to capture relevant errors.
 const BROWSER_CONSOLE_BUFFER_SIZE = 200;
 
-export async function createCaptureSession(
-  serverUrl: string,
-  outputDir: string,
+async function setupPage(
+  browser: Browser,
   options: CaptureOptions,
-  onBeforeCapture: BeforeCaptureHook | null = null,
   config?: Partial<EngineConfig>,
-): Promise<CaptureSession> {
-  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-
-  // Determine capture mode before building args — BeginFrame flags only apply on Linux
-  const headlessShell = resolveHeadlessShellPath(config);
-  const isLinux = process.platform === "linux";
-  const forceScreenshot = config?.forceScreenshot ?? DEFAULT_CONFIG.forceScreenshot;
-  const preMode: CaptureMode =
-    headlessShell && isLinux && !forceScreenshot ? "beginframe" : "screenshot";
-  const chromeArgs = buildChromeArgs(
-    { width: options.width, height: options.height, captureMode: preMode },
-    config,
-  );
-
-  const { browser, captureMode } = await acquireBrowser(chromeArgs, config);
-
+): Promise<Page> {
   const page = await browser.newPage();
-  // Polyfill esbuild's keepNames helper inside the page.
-  //
-  // The engine is published as raw TypeScript (`packages/engine/package.json`
-  // points `main`/`exports` at `./src/index.ts`) and downstream consumers
-  // execute it through transpilers that may inject `__name(fn, "name")`
-  // wrappers around named functions. Empirically, this happens with:
-  //   - tsx (its esbuild loader runs with keepNames=true), used by the
-  //     producer's parity-harness, ad-hoc dev scripts, and the
-  //     `bun run --filter @hyperframes/engine test` Vitest path.
-  //   - any tsup/esbuild build that explicitly enables keepNames.
-  //
-  // The HeyGen CLI (`packages/cli`) bundles this engine via tsup with
-  // keepNames left at its default (false) — verified by grepping
-  // `packages/cli/dist/cli.js`, where `__name(...)` call sites are absent.
-  // Bun's TS loader also does not currently inject `__name`. Even so,
-  // anything that calls `page.evaluate(fn)` with a nested named function
-  // under tsx (most local development and tests) will serialize bodies
-  // like `__name(nested,"nested")` and crash with `__name is not defined`
-  // in the browser. The shim makes such calls a no-op.
-  //
-  // An alternative is to load browser-side code as raw text and inject it
-  // via `page.addScriptTag({ content: ... })` — see
-  // `packages/cli/src/commands/contrast-audit.browser.js` for that pattern.
-  // Until every `page.evaluate(fn)` call site migrates, this polyfill is
-  // the single line of defense. The companion regression test in
-  // `frameCapture-namePolyfill.test.ts` verifies the shim stays wired up.
   await page.evaluateOnNewDocument(() => {
     const w = window as unknown as { __name?: <T>(fn: T, _name: string) => T };
     if (typeof w.__name !== "function") {
       w.__name = <T>(fn: T, _name: string): T => fn;
     }
   });
-  const browserVersion = await browser.version();
   const expectedMajor = config?.expectedChromiumMajor;
   if (Number.isFinite(expectedMajor)) {
+    const browserVersion = await browser.version();
     const actualChromiumMajor = Number.parseInt(
       (browserVersion.match(/(\d+)\./) || [])[1] || "",
       10,
@@ -144,16 +107,26 @@ export async function createCaptureSession(
   };
   await page.setViewport(viewport);
 
-  // For PNG capture (used by WebM/transparency), make the page background transparent
-  // so Chrome's screenshot captures alpha channel data. Must use the same CDP session
-  // that the screenshot service uses (getCdpSession caches per page).
   if (options.format === "png") {
     const cdp = await getCdpSession(page);
     await cdp.send("Emulation.setDefaultBackgroundColorOverride", {
       color: { r: 0, g: 0, b: 0, a: 0 },
     });
   }
+  return page;
+}
 
+function buildSession(
+  browser: Browser,
+  page: Page,
+  serverUrl: string,
+  outputDir: string,
+  options: CaptureOptions,
+  captureMode: CaptureMode,
+  onBeforeCapture: BeforeCaptureHook | null,
+  ownsBrowser: boolean,
+  config?: Partial<EngineConfig>,
+): CaptureSession {
   return {
     browser,
     page,
@@ -162,6 +135,7 @@ export async function createCaptureSession(
     outputDir,
     onBeforeCapture,
     isInitialized: false,
+    ownsBrowser,
     browserConsoleBuffer: [],
     capturePerf: {
       frames: 0,
@@ -177,6 +151,70 @@ export async function createCaptureSession(
     beginFrameNoDamageCount: 0,
     config,
   };
+}
+
+export async function createCaptureSession(
+  serverUrl: string,
+  outputDir: string,
+  options: CaptureOptions,
+  onBeforeCapture: BeforeCaptureHook | null = null,
+  config?: Partial<EngineConfig>,
+): Promise<CaptureSession> {
+  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+
+  const headlessShell = resolveHeadlessShellPath(config);
+  const isLinux = process.platform === "linux";
+  const forceScreenshot = config?.forceScreenshot ?? DEFAULT_CONFIG.forceScreenshot;
+  const preMode: CaptureMode =
+    headlessShell && isLinux && !forceScreenshot ? "beginframe" : "screenshot";
+  const chromeArgs = buildChromeArgs(
+    { width: options.width, height: options.height, captureMode: preMode },
+    config,
+  );
+
+  const { browser, captureMode } = await acquireBrowser(chromeArgs, config);
+  const page = await setupPage(browser, options, config);
+
+  return buildSession(
+    browser,
+    page,
+    serverUrl,
+    outputDir,
+    options,
+    captureMode,
+    onBeforeCapture,
+    true,
+    config,
+  );
+}
+
+/**
+ * Create a capture session that uses a page in an already-running browser.
+ * The session does NOT own the browser — closeCaptureSession will only close
+ * the page, leaving the shared browser alive for other workers.
+ */
+export async function createCaptureSessionInBrowser(
+  browser: Browser,
+  captureMode: CaptureMode,
+  serverUrl: string,
+  outputDir: string,
+  options: CaptureOptions,
+  onBeforeCapture: BeforeCaptureHook | null = null,
+  config?: Partial<EngineConfig>,
+): Promise<CaptureSession> {
+  if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+  const page = await setupPage(browser, options, config);
+  return buildSession(
+    browser,
+    page,
+    serverUrl,
+    outputDir,
+    options,
+    captureMode,
+    onBeforeCapture,
+    false,
+    config,
+  );
 }
 
 /**
@@ -448,13 +486,10 @@ async function prepareFrameForCapture(
   const quantizedTime = quantizeTimeToFrame(time, options.fps);
 
   const seekStart = Date.now();
-  // Seek via the __hf protocol. The page's seek() implementation handles
-  // all framework-specific logic (GSAP stepping, CSS animation sync, etc.)
-  await page.evaluate((t: number) => {
-    if (window.__hf && typeof window.__hf.seek === "function") {
-      window.__hf.seek(t);
-    }
-  }, quantizedTime);
+  // String eval is faster than function serialization — skips Puppeteer's
+  // serialize-args-to-JSON + Runtime.callFunctionOn overhead. The guard is
+  // unnecessary here: initializeSession already verified window.__hf.seek exists.
+  await page.evaluate(`void(window.__hf.seek(${quantizedTime}))`);
   const seekMs = Date.now() - seekStart;
 
   // Before-capture hook (e.g. video frame injection)
@@ -583,8 +618,11 @@ export async function closeCaptureSession(session: CaptureSession): Promise<void
     await session.page.close().catch(() => {});
     session.pageReleased = true;
   }
-  if (!session.browserReleased && session.browser) {
+  if (session.ownsBrowser && !session.browserReleased && session.browser) {
     await releaseBrowser(session.browser, session.config);
+    session.browserReleased = true;
+  }
+  if (!session.ownsBrowser) {
     session.browserReleased = true;
   }
   session.isInitialized = false;
@@ -614,9 +652,7 @@ export function prepareCaptureSessionForReuse(
 export async function getCompositionDuration(session: CaptureSession): Promise<number> {
   if (!session.isInitialized) throw new Error("[FrameCapture] Session not initialized");
 
-  return session.page.evaluate(() => {
-    return window.__hf?.duration ?? 0;
-  });
+  return session.page.evaluate(`window.__hf?.duration ?? 0`) as Promise<number>;
 }
 
 export function getCapturePerfSummary(session: CaptureSession): CapturePerfSummary {

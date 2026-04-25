@@ -17,6 +17,13 @@ export interface EngineConfig {
   quality: "draft" | "standard" | "high";
   format: "jpeg" | "png";
   jpegQuality: number;
+  /**
+   * JPEG quality for the streaming encode pipeline. Lower than jpegQuality
+   * because frames are re-encoded by FFmpeg — intermediate quality loss is
+   * invisible in the final output. Smaller JPEG buffers transfer faster over
+   * CDP, directly reducing per-frame capture time.
+   */
+  streamingJpegQuality: number;
 
   // ── Parallelism ──────────────────────────────────────────────────────
   /** Max worker count. "auto" uses CPU-based heuristic. */
@@ -27,10 +34,24 @@ export interface EngineConfig {
   minParallelFrames: number;
   /** Frame count threshold for "large render" heuristics. */
   largeRenderThreshold: number;
+  /**
+   * Use a single browser with multiple pages instead of separate browser
+   * processes per worker. Eliminates N-1 Chrome startup costs and shares
+   * the GPU process. Only applies in screenshot capture mode (not BeginFrame).
+   */
+  useMultiPageCapture: boolean;
 
   // ── Browser ──────────────────────────────────────────────────────────
   chromePath?: string;
   disableGpu: boolean;
+  /**
+   * GPU backend for Chrome's rendering.
+   * - "swiftshader": Software renderer. Deterministic, cross-platform, slow.
+   * - "hardware": Native GPU (Metal on macOS, Vulkan/VAAPI on Linux). Fast
+   *   but output may differ across hardware. Falls back to SwiftShader if
+   *   no GPU is available (Docker, CI).
+   */
+  gpuBackend: "swiftshader" | "hardware";
   enableBrowserPool: boolean;
   browserTimeout: number;
   protocolTimeout: number;
@@ -106,13 +127,16 @@ export const DEFAULT_CONFIG: EngineConfig = {
   quality: "standard",
   format: "jpeg",
   jpegQuality: 80,
+  streamingJpegQuality: 55,
 
   concurrency: "auto",
-  coresPerWorker: 2.5,
+  coresPerWorker: 2,
   minParallelFrames: 120,
   largeRenderThreshold: 1000,
+  useMultiPageCapture: true,
 
   disableGpu: false,
+  gpuBackend: "hardware",
   enableBrowserPool: false,
   browserTimeout: 120_000,
   protocolTimeout: 300_000,
@@ -120,7 +144,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
 
   enableChunkedEncode: false,
   chunkSizeFrames: 360,
-  enableStreamingEncode: false,
+  enableStreamingEncode: true,
 
   ffmpegEncodeTimeout: 600_000,
   ffmpegProcessTimeout: 300_000,
@@ -171,6 +195,11 @@ export function resolveConfig(overrides?: Partial<EngineConfig>): EngineConfig {
 
     chromePath: env("PRODUCER_HEADLESS_SHELL_PATH"),
     disableGpu: envBool("PRODUCER_DISABLE_GPU", DEFAULT_CONFIG.disableGpu),
+    gpuBackend: (env("PRODUCER_GPU_BACKEND") === "swiftshader"
+      ? "swiftshader"
+      : env("PRODUCER_GPU_BACKEND") === "hardware"
+        ? "hardware"
+        : DEFAULT_CONFIG.gpuBackend) as "swiftshader" | "hardware",
     enableBrowserPool: envBool("PRODUCER_ENABLE_BROWSER_POOL", DEFAULT_CONFIG.enableBrowserPool),
     browserTimeout: envNum("PRODUCER_PUPPETEER_LAUNCH_TIMEOUT_MS", DEFAULT_CONFIG.browserTimeout),
     protocolTimeout: envNum(
@@ -182,6 +211,15 @@ export function resolveConfig(overrides?: Partial<EngineConfig>): EngineConfig {
       : undefined,
 
     forceScreenshot: envBool("PRODUCER_FORCE_SCREENSHOT", DEFAULT_CONFIG.forceScreenshot),
+
+    streamingJpegQuality: envNum(
+      "PRODUCER_STREAMING_JPEG_QUALITY",
+      DEFAULT_CONFIG.streamingJpegQuality,
+    ),
+    useMultiPageCapture: envBool(
+      "PRODUCER_USE_MULTI_PAGE_CAPTURE",
+      DEFAULT_CONFIG.useMultiPageCapture,
+    ),
 
     enableChunkedEncode: envBool(
       "PRODUCER_ENABLE_CHUNKED_ENCODE",

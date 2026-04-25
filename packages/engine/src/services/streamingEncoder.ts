@@ -151,8 +151,12 @@ export function buildStreamingArgs(
     imageFormat = "jpeg",
   } = options;
 
-  // Input args: pipe from stdin
   const args: string[] = [];
+
+  // Multi-threaded decoding + encoding. 0 = auto-detect from CPU count.
+  args.push("-threads", "0");
+
+  // Input args: pipe from stdin
   if (options.rawInputFormat) {
     // Raw pixel input (HLG/PQ-encoded rgb48le from FFmpeg extraction).
     // Tag the input with the correct color space so FFmpeg uses the right
