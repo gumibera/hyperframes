@@ -116,5 +116,38 @@ fn bench_paint_frame(c: &mut Criterion) {
     });
 }
 
+#[cfg(target_os = "macos")]
+fn bench_gpu_paint_frame(c: &mut Criterion) {
+    let scene = build_test_scene();
+    let mut surface = RenderSurface::new_metal_gpu(1920, 1080)
+        .expect("Metal GPU surface required for this benchmark");
+
+    c.bench_function("gpu_paint_1080p_20_elements", |b| {
+        let mut images = ImageCache::new();
+        b.iter(|| {
+            surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
+            for element in &scene.elements {
+                paint_element(surface.canvas(), element, &mut images);
+            }
+            surface.flush_and_submit();
+        });
+    });
+
+    c.bench_function("gpu_paint_and_readback_1080p", |b| {
+        let mut images = ImageCache::new();
+        b.iter(|| {
+            surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
+            for element in &scene.elements {
+                paint_element(surface.canvas(), element, &mut images);
+            }
+            surface.flush_and_submit();
+            let _pixels = surface.read_pixels_rgba();
+        });
+    });
+}
+
+#[cfg(target_os = "macos")]
+criterion_group!(benches, bench_paint_frame, bench_gpu_paint_frame);
+#[cfg(not(target_os = "macos"))]
 criterion_group!(benches, bench_paint_frame);
 criterion_main!(benches);
