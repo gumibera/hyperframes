@@ -1,6 +1,10 @@
 use hyperframes_native_renderer::paint::{paint_element, ImageCache, RenderSurface};
-use hyperframes_native_renderer::scene::{Element, ElementKind, ObjectFit, Rect, Style};
+use hyperframes_native_renderer::scene::{
+    BackgroundImage, BackgroundImageFit, Element, ElementKind, ObjectFit, ObjectPosition, Rect,
+    Style,
+};
 use skia_safe::{surfaces, Color4f, EncodedImageFormat};
+use std::process::Command;
 
 /// Generate a solid-red PNG at the given path using Skia.
 fn create_test_png(path: &str, width: i32, height: i32) {
@@ -11,6 +15,27 @@ fn create_test_png(path: &str, width: i32, height: i32) {
         .encode(None, EncodedImageFormat::PNG, 100)
         .expect("encode PNG");
     std::fs::write(path, data.as_bytes()).expect("write test PNG");
+}
+
+fn create_test_mp4(path: &str) {
+    let status = Command::new("ffmpeg")
+        .args([
+            "-y",
+            "-v",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=blue:s=64x64:d=0.2:r=5",
+            "-frames:v",
+            "1",
+            "-pix_fmt",
+            "yuv420p",
+            path,
+        ])
+        .status()
+        .expect("run ffmpeg");
+    assert!(status.success(), "ffmpeg should create test video");
 }
 
 #[test]
@@ -117,6 +142,92 @@ fn paint_image_object_fit_contain_letterboxes() {
     );
 
     std::fs::remove_file(test_png).ok();
+}
+
+#[test]
+fn paint_background_image_from_file_url() {
+    let test_png = "/tmp/hyperframes-test-bg-red.png";
+    create_test_png(test_png, 100, 100);
+
+    let mut surface = RenderSurface::new_raster(100, 100).expect("surface");
+    surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
+
+    let el = Element {
+        id: "bg".into(),
+        kind: ElementKind::Container,
+        bounds: Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        },
+        style: Style {
+            background_image: Some(BackgroundImage {
+                src: format!("file://{test_png}"),
+                fit: BackgroundImageFit::Cover,
+                position: ObjectPosition::default(),
+            }),
+            ..Style::default()
+        },
+        children: vec![],
+    };
+
+    let mut images = ImageCache::new();
+    paint_element(surface.canvas(), &el, &mut images);
+
+    let pixels = surface.read_pixels_rgba().expect("should read pixels");
+    let center = (50 * 100 + 50) * 4;
+    assert!(
+        pixels[center] > 200 && pixels[center + 1] < 50,
+        "background image should paint red, got RGB({},{},{})",
+        pixels[center],
+        pixels[center + 1],
+        pixels[center + 2]
+    );
+
+    std::fs::remove_file(test_png).ok();
+}
+
+#[test]
+fn paint_video_element_uses_ffmpeg_frame() {
+    let test_mp4 = "/tmp/hyperframes-native-video-blue.mp4";
+    create_test_mp4(test_mp4);
+
+    let mut surface = RenderSurface::new_raster(64, 64).expect("surface");
+    surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
+
+    let el = Element {
+        id: "video".into(),
+        kind: ElementKind::Video {
+            src: test_mp4.to_string(),
+        },
+        bounds: Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 64.0,
+            height: 64.0,
+        },
+        style: Style {
+            object_fit: Some(ObjectFit::Fill),
+            ..Style::default()
+        },
+        children: vec![],
+    };
+
+    let mut images = ImageCache::new();
+    paint_element(surface.canvas(), &el, &mut images);
+
+    let pixels = surface.read_pixels_rgba().expect("should read pixels");
+    let center = (32 * 64 + 32) * 4;
+    assert!(
+        pixels[center + 2] > 120,
+        "video frame should paint blue, got RGB({},{},{})",
+        pixels[center],
+        pixels[center + 1],
+        pixels[center + 2]
+    );
+
+    std::fs::remove_file(test_mp4).ok();
 }
 
 #[test]

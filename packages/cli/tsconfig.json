@@ -5,7 +5,8 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@hyperframes/producer": ["../producer/src/index.ts"]
+      "@hyperframes/producer": ["../producer/src/index.ts"],
+      "puppeteer-core": ["node_modules/puppeteer-core"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,

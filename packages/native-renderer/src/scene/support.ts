@@ -81,8 +81,8 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
     const tag = el.tagName.toLowerCase();
     const cs = getComputedStyle(el);
 
-    if (tag === "video") {
-      add(el, "video", el.currentSrc || el.src || "", "video frame compositing is not wired into the Rust painter yet");
+    if (tag === "video" && !(el.currentSrc || el.src)) {
+      add(el, "video", "", "video element has no resolved source");
     }
     if (tag === "canvas" || tag === "svg" || tag === "iframe") {
       add(el, tag, tag, "embedded dynamic/vector surfaces require Chrome fallback");
@@ -92,8 +92,11 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
       const layers = splitTopLevel(cs.backgroundImage);
       if (layers.length > 1) {
         add(el, "background-image", cs.backgroundImage, "multiple background layers are not supported");
-      } else if (!/^(linear-gradient|radial-gradient)\\(/.test(layers[0])) {
-        add(el, "background-image", cs.backgroundImage, "background image URLs are not decoded by the native renderer yet");
+      } else if (
+        !/^(linear-gradient|radial-gradient|url)\\(/.test(layers[0]) ||
+        (layers[0].startsWith("url(") && cs.backgroundRepeat !== "no-repeat")
+      ) {
+        add(el, "background-image", cs.backgroundImage, "only gradients and non-repeating URL backgrounds are supported");
       }
     }
 
@@ -162,6 +165,6 @@ export async function detectNativeSupport(
   height: number,
 ): Promise<NativeSupportReport> {
   await page.setViewport({ width, height });
-  const reasons: NativeUnsupportedReason[] = await page.evaluate(DETECT_NATIVE_SUPPORT_SCRIPT);
+  const reasons = (await page.evaluate(DETECT_NATIVE_SUPPORT_SCRIPT)) as NativeUnsupportedReason[];
   return { supported: reasons.length === 0, reasons };
 }

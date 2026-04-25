@@ -8,6 +8,11 @@ export type RenderBackendDecision =
       reasons: string[];
     }
   | {
+      kind: "native";
+      requested: "native" | "auto";
+      reasons: [];
+    }
+  | {
       kind: "unavailable";
       requested: "native";
       reasons: string[];
@@ -24,6 +29,7 @@ export function resolveRenderBackend(options: {
   docker: boolean;
   format: RenderFormat;
   hdr: boolean;
+  nativeRuntimeAvailable?: boolean;
 }): RenderBackendDecision {
   if (options.requested === "chrome") {
     return { kind: "chrome", requested: "chrome", reasons: [] };
@@ -39,15 +45,17 @@ export function resolveRenderBackend(options: {
   if (options.hdr) {
     reasons.push("native renderer HDR parity is not implemented yet");
   }
-
-  // The Rust prototype exists in this branch, but the published CLI has no
-  // napi-rs/binary handoff yet. Auto mode must be safe, and explicit native
-  // mode should fail loudly instead of silently rendering through Chrome.
-  reasons.push("native renderer bindings are not bundled yet");
-
-  if (options.requested === "native") {
-    return { kind: "unavailable", requested: "native", reasons };
+  if (options.nativeRuntimeAvailable === false) {
+    reasons.push("native renderer binary source is not available in this installation");
   }
 
-  return { kind: "chrome", requested: "auto", reasons };
+  if (options.requested === "native") {
+    return reasons.length === 0
+      ? { kind: "native", requested: "native", reasons: [] }
+      : { kind: "unavailable", requested: "native", reasons };
+  }
+
+  return reasons.length === 0
+    ? { kind: "native", requested: "auto", reasons: [] }
+    : { kind: "chrome", requested: "auto", reasons };
 }

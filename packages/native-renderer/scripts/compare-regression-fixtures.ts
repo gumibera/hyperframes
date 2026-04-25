@@ -225,9 +225,8 @@ function collectSceneWarnings(scene: ExtractedScene): string[] {
   const warnings = new Set<string>();
 
   function visit(element: SceneElement): void {
-    if (element.kind.type === "Video") warnings.add("video elements are extracted but not painted");
-    if (element.kind.type === "Image" && /^https?:\/\//.test(element.kind.src)) {
-      warnings.add("remote image URLs are not decoded by native renderer");
+    if (element.kind.type === "Video" && !element.kind.src) {
+      warnings.add("video element has no resolved source");
     }
     if (element.style.background_gradient) warnings.add("gradient extraction is partial");
     for (const child of element.children) visit(child);
@@ -255,8 +254,11 @@ function rewriteLocalImageSources(
   }
 
   function visit(element: SceneElement): void {
-    if (element.kind.type === "Image") {
+    if (element.kind.type === "Image" || element.kind.type === "Video") {
       element.kind.src = mapSrc(element.kind.src);
+    }
+    if (element.style.background_image) {
+      element.style.background_image.src = mapSrc(element.style.background_image.src);
     }
     for (const child of element.children) visit(child);
   }

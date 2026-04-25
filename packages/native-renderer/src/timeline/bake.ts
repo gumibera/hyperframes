@@ -92,7 +92,7 @@ export async function bakeTimeline(
     // Extract animated properties for all elements with IDs.
     // Everything inside page.evaluate runs in the browser context — helpers
     // must be inlined (no access to outer scope).
-    const elements: Record<string, BakedElementState> = await page.evaluate(BAKE_FRAME_SCRIPT);
+    const elements = (await page.evaluate(BAKE_FRAME_SCRIPT)) as Record<string, BakedElementState>;
 
     frames.push({ frame_index: i, time, elements });
   }

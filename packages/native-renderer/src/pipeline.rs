@@ -7,7 +7,7 @@ use std::time::Instant;
 use skia_safe::Color4f;
 
 use crate::encode::{detect_hw_encoder, encoder_args, raw_rgba_encoder_args, HwEncoder};
-use crate::paint::{paint_element, ImageCache, RenderSurface};
+use crate::paint::{paint_element, paint_element_at_time, ImageCache, RenderSurface};
 use crate::scene::{BakedElementState, BakedFrame, BakedTimeline, Element, Scene, Transform2D};
 
 /// Configuration for a render pass.
@@ -203,7 +203,7 @@ pub fn render_animated(
         let paint_start = Instant::now();
         surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
         for element in &animated_scene.elements {
-            paint_element(surface.canvas(), element, &mut image_cache);
+            paint_element_at_time(surface.canvas(), element, &mut image_cache, frame.time);
         }
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 
@@ -306,7 +306,7 @@ pub fn render_animated_gpu(
         let paint_start = Instant::now();
         surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
         for element in &animated_scene.elements {
-            paint_element(surface.canvas(), element, &mut image_cache);
+            paint_element_at_time(surface.canvas(), element, &mut image_cache, frame.time);
         }
         surface.flush_and_submit();
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;

@@ -26,16 +26,43 @@ describe("resolveRenderBackend", () => {
     expect(decision.reasons).toEqual([]);
   });
 
-  it("falls back to chrome in auto mode until native bindings are shipped", () => {
+  it("selects native in auto mode when local constraints allow it", () => {
     const decision = resolveRenderBackend({
       requested: "auto",
       docker: false,
       format: "mp4",
       hdr: false,
+      nativeRuntimeAvailable: true,
+    });
+
+    expect(decision).toEqual({ kind: "native", requested: "auto", reasons: [] });
+  });
+
+  it("selects native when explicitly requested and available", () => {
+    const decision = resolveRenderBackend({
+      requested: "native",
+      docker: false,
+      format: "mp4",
+      hdr: false,
+      nativeRuntimeAvailable: true,
+    });
+
+    expect(decision).toEqual({ kind: "native", requested: "native", reasons: [] });
+  });
+
+  it("falls back to chrome in auto mode when native runtime is unavailable", () => {
+    const decision = resolveRenderBackend({
+      requested: "auto",
+      docker: false,
+      format: "mp4",
+      hdr: false,
+      nativeRuntimeAvailable: false,
     });
 
     expect(decision.kind).toBe("chrome");
-    expect(decision.reasons).toContain("native renderer bindings are not bundled yet");
+    expect(decision.reasons).toContain(
+      "native renderer binary source is not available in this installation",
+    );
   });
 
   it("blocks explicit native backend when container or format constraints cannot be met", () => {
@@ -44,6 +71,7 @@ describe("resolveRenderBackend", () => {
       docker: true,
       format: "webm",
       hdr: true,
+      nativeRuntimeAvailable: false,
     });
 
     expect(decision.kind).toBe("unavailable");
@@ -51,7 +79,7 @@ describe("resolveRenderBackend", () => {
       "native renderer is only available for local renders",
       "native renderer currently outputs mp4 only",
       "native renderer HDR parity is not implemented yet",
-      "native renderer bindings are not bundled yet",
+      "native renderer binary source is not available in this installation",
     ]);
   });
 });

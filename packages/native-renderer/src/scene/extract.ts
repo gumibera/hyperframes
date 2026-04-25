@@ -71,9 +71,17 @@ export interface TextStroke {
 
 export type ObjectFit = "fill" | "contain" | "cover" | "none" | "scale_down";
 
+export type BackgroundImageFit = "fill" | "contain" | "cover" | "none";
+
 export interface ObjectPosition {
   x: number;
   y: number;
+}
+
+export interface BackgroundImage {
+  src: string;
+  fit: BackgroundImageFit;
+  position: ObjectPosition;
 }
 
 export type MixBlendMode =
@@ -111,6 +119,7 @@ export interface ElementStyle {
   box_shadow?: BoxShadow | null;
   filter_blur?: number | null;
   filter_adjust?: FilterAdjust | null;
+  background_image?: BackgroundImage | null;
   background_gradient?: Gradient | null;
   object_fit?: ObjectFit | null;
   object_position?: ObjectPosition | null;
@@ -301,6 +310,40 @@ const EXTRACT_SCENE_SCRIPT = `(() => {
     return null;
   }
 
+  function parseCssUrl(raw) {
+    const firstLayer = splitTopLevel(raw || "")[0];
+    const match = firstLayer?.match(/^url\\((.*)\\)$/);
+    if (!match) return null;
+    const unquoted = match[1].trim().replace(/^['"]|['"]$/g, "");
+    try {
+      const url = new URL(unquoted, document.baseURI);
+      if (url.protocol === "file:") return decodeURIComponent(url.pathname);
+      return url.href;
+    } catch {
+      return unquoted || null;
+    }
+  }
+
+  function parseBackgroundSize(raw) {
+    const first = splitTopLevel(raw || "")[0] || "cover";
+    if (first === "cover" || first === "contain") return first;
+    if (first === "auto") return "none";
+    if (first === "100% 100%" || first === "100%") return "fill";
+    return "cover";
+  }
+
+  function parseBackgroundImage(cs, width, height) {
+    if (!cs.backgroundImage || cs.backgroundImage === "none") return null;
+    if (/^(linear-gradient|radial-gradient)\\(/.test(cs.backgroundImage)) return null;
+    const src = parseCssUrl(cs.backgroundImage);
+    if (!src) return null;
+    return {
+      src,
+      fit: parseBackgroundSize(cs.backgroundSize),
+      position: parseObjectPosition(cs.backgroundPosition, width, height),
+    };
+  }
+
   function parseBorder(cs) {
     const width = parseFloat(cs.borderTopWidth) || 0;
     const style = cs.borderTopStyle;
@@ -464,6 +507,7 @@ const EXTRACT_SCENE_SCRIPT = `(() => {
     const isText = kind.type === "Text";
     const filter = parseFilter(cs.filter);
     const backgroundGradient = parseGradient(cs.backgroundImage);
+    const backgroundImage = parseBackgroundImage(cs, rect.width, rect.height);
 
     const style = {
       background_color: bgColor,
@@ -490,6 +534,7 @@ const EXTRACT_SCENE_SCRIPT = `(() => {
       box_shadow: parseShadow(cs.boxShadow),
       filter_blur: filter.blur,
       filter_adjust: filter.adjust,
+      background_image: backgroundImage,
       background_gradient: backgroundGradient,
       object_fit: kind.type === "Image" || kind.type === "Video" ? parseObjectFit(cs.objectFit) : null,
       object_position:
@@ -541,7 +586,7 @@ export async function extractScene(
 ): Promise<ExtractedScene> {
   await page.setViewport({ width, height });
 
-  const elements: SceneElement[] = await page.evaluate(EXTRACT_SCENE_SCRIPT);
+  const elements = (await page.evaluate(EXTRACT_SCENE_SCRIPT)) as SceneElement[];
 
   return { width, height, elements };
 }

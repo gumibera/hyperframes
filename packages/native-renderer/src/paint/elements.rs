@@ -11,8 +11,8 @@ use skia_safe::{
 use crate::paint::effects;
 use crate::paint::images::ImageCache;
 use crate::scene::{
-    BorderLineStyle, ClipPath, Color, Element, ElementKind, MixBlendMode, ObjectFit,
-    ObjectPosition, Rect,
+    BackgroundImageFit, BorderLineStyle, ClipPath, Color, Element, ElementKind, MixBlendMode,
+    ObjectFit, ObjectPosition, Rect,
 };
 
 thread_local! {
@@ -242,6 +242,40 @@ fn compute_image_rects(
     }
 }
 
+fn background_fit_to_object_fit(fit: BackgroundImageFit) -> ObjectFit {
+    match fit {
+        BackgroundImageFit::Fill => ObjectFit::Fill,
+        BackgroundImageFit::Contain => ObjectFit::Contain,
+        BackgroundImageFit::Cover => ObjectFit::Cover,
+        BackgroundImageFit::None => ObjectFit::None,
+    }
+}
+
+fn draw_image(
+    canvas: &Canvas,
+    image: &skia_safe::Image,
+    dest_rect: &SkRect,
+    fit: ObjectFit,
+    position: ObjectPosition,
+) {
+    let mut paint = Paint::default();
+    paint.set_anti_alias(true);
+
+    let src_w = image.width() as f32;
+    let src_h = image.height() as f32;
+    let (src_rect, target_rect) = compute_image_rects(src_w, src_h, dest_rect, fit, position);
+
+    let image_save_count = canvas.save();
+    canvas.clip_rect(*dest_rect, ClipOp::Intersect, true);
+    canvas.draw_image_rect(
+        image,
+        Some((&src_rect, SrcRectConstraint::Strict)),
+        target_rect,
+        &paint,
+    );
+    canvas.restore_to_count(image_save_count);
+}
+
 /// Recursively paint an `Element` and its children onto a Skia `Canvas`.
 ///
 /// The painting order follows the CSS box model:
@@ -256,6 +290,17 @@ fn compute_image_rects(
 /// 9. Content (text, image)
 /// 10. Children (recursion)
 pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache) {
+    paint_element_at_time(canvas, element, images, 0.0);
+}
+
+/// Recursively paint an `Element` at a timeline time. `time_secs` is used for
+/// video frame compositing.
+pub fn paint_element_at_time(
+    canvas: &Canvas,
+    element: &Element,
+    images: &mut ImageCache,
+    time_secs: f64,
+) {
     let style = &element.style;
 
     // Skip invisible elements entirely.
@@ -360,7 +405,21 @@ pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache
         }
     }
 
-    // --- Background (gradient takes priority over solid color) ---
+    // --- Background (CSS order: color, image/gradient) ---
+    if let Some(ref bg) = style.background_color {
+        let mut paint = Paint::default();
+        paint.set_anti_alias(true);
+        paint.set_style(PaintStyle::Fill);
+        paint.set_color4f(to_color4f(bg), None);
+
+        if has_radii {
+            let rrect = make_rrect(&local_rect, &style.border_radius);
+            canvas.draw_rrect(rrect, &paint);
+        } else {
+            canvas.draw_rect(local_rect, &paint);
+        }
+    }
+
     if let Some(ref gradient) = style.background_gradient {
         if let Some(shader) = effects::create_gradient_shader(&local_rect, gradient) {
             let mut paint = Paint::default();
@@ -375,17 +434,15 @@ pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache
                 canvas.draw_rect(local_rect, &paint);
             }
         }
-    } else if let Some(ref bg) = style.background_color {
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_style(PaintStyle::Fill);
-        paint.set_color4f(to_color4f(bg), None);
-
-        if has_radii {
-            let rrect = make_rrect(&local_rect, &style.border_radius);
-            canvas.draw_rrect(rrect, &paint);
-        } else {
-            canvas.draw_rect(local_rect, &paint);
+    } else if let Some(ref background_image) = style.background_image {
+        if let Some(image) = images.get_or_load(&background_image.src).cloned() {
+            draw_image(
+                canvas,
+                &image,
+                &local_rect,
+                background_fit_to_object_fit(background_image.fit),
+                background_image.position,
+            );
         }
     }
 
@@ -459,38 +516,37 @@ pub fn paint_element(canvas: &Canvas, element: &Element, images: &mut ImageCache
 
     // --- Image content ---
     if let ElementKind::Image { ref src } = element.kind {
-        if let Some(image) = images.get_or_load(src) {
-            let image = image.clone();
+        if let Some(image) = images.get_or_load(src).cloned() {
             let dest_rect = to_sk_rect(&element.bounds);
-            let mut paint = Paint::default();
-            paint.set_anti_alias(true);
-
-            let src_w = image.width() as f32;
-            let src_h = image.height() as f32;
             let position = object_position_or_center(style.object_position);
-            let (src_rect, target_rect) = compute_image_rects(
-                src_w,
-                src_h,
+            draw_image(
+                canvas,
+                &image,
                 &dest_rect,
                 style.object_fit.unwrap_or(ObjectFit::Cover),
                 position,
             );
+        }
+    }
 
-            let image_save_count = canvas.save();
-            canvas.clip_rect(dest_rect, ClipOp::Intersect, true);
-            canvas.draw_image_rect(
+    // --- Video content ---
+    if let ElementKind::Video { ref src } = element.kind {
+        if let Some(image) = images.get_or_load_video_frame(src, time_secs).cloned() {
+            let dest_rect = to_sk_rect(&element.bounds);
+            let position = object_position_or_center(style.object_position);
+            draw_image(
+                canvas,
                 &image,
-                Some((&src_rect, SrcRectConstraint::Strict)),
-                target_rect,
-                &paint,
+                &dest_rect,
+                style.object_fit.unwrap_or(ObjectFit::Cover),
+                position,
             );
-            canvas.restore_to_count(image_save_count);
         }
     }
 
     // --- Children ---
     for child in &element.children {
-        paint_element(canvas, child, images);
+        paint_element_at_time(canvas, child, images, time_secs);
     }
 
     canvas.restore_to_count(save_count);

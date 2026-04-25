@@ -67,6 +67,7 @@ pub struct Style {
     pub box_shadow: Option<BoxShadow>,
     pub filter_blur: Option<f32>,
     pub filter_adjust: Option<FilterAdjust>,
+    pub background_image: Option<BackgroundImage>,
     pub background_gradient: Option<Gradient>,
     pub object_fit: Option<ObjectFit>,
     pub object_position: Option<ObjectPosition>,
@@ -93,6 +94,7 @@ impl Default for Style {
             box_shadow: None,
             filter_blur: None,
             filter_adjust: None,
+            background_image: None,
             background_gradient: None,
             object_fit: None,
             object_position: None,
@@ -154,6 +156,26 @@ pub struct BoxShadow {
     pub color: Color,
 }
 
+/// CSS background-image URL layer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BackgroundImage {
+    pub src: String,
+    #[serde(default)]
+    pub fit: BackgroundImageFit,
+    #[serde(default)]
+    pub position: ObjectPosition,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BackgroundImageFit {
+    Fill,
+    Contain,
+    #[default]
+    Cover,
+    None,
+}
+
 /// CSS gradient background.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
@@ -209,6 +231,12 @@ pub struct ObjectPosition {
     pub x: f32,
     /// Vertical position normalized from 0.0 (top) to 1.0 (bottom).
     pub y: f32,
+}
+
+impl Default for ObjectPosition {
+    fn default() -> Self {
+        Self { x: 0.5, y: 0.5 }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

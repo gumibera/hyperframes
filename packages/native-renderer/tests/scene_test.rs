@@ -1,4 +1,6 @@
-use hyperframes_native_renderer::scene::{parse_scene_json, Color, ElementKind};
+use hyperframes_native_renderer::scene::{
+    parse_scene_json, BackgroundImageFit, Color, ElementKind,
+};
 
 #[test]
 fn parse_minimal_scene() {
@@ -151,6 +153,39 @@ fn parse_image_and_video_elements() {
     assert_eq!(clip.style.opacity, 0.8);
     assert!(clip.style.overflow_hidden);
     assert_eq!(clip.style.border_radius, [12.0, 12.0, 12.0, 12.0]);
+}
+
+#[test]
+fn parse_background_image_layer() {
+    let json = r#"{
+        "width": 640,
+        "height": 360,
+        "elements": [{
+            "id": "poster",
+            "kind": { "type": "Container" },
+            "bounds": { "x": 0, "y": 0, "width": 640, "height": 360 },
+            "style": {
+                "background_image": {
+                    "src": "file:///tmp/poster.png",
+                    "fit": "contain",
+                    "position": { "x": 0.25, "y": 0.75 }
+                }
+            },
+            "children": []
+        }]
+    }"#;
+
+    let scene = parse_scene_json(json).expect("should parse");
+    let background_image = scene.elements[0]
+        .style
+        .background_image
+        .as_ref()
+        .expect("should parse background image");
+
+    assert_eq!(background_image.src, "file:///tmp/poster.png");
+    assert_eq!(background_image.fit, BackgroundImageFit::Contain);
+    assert_eq!(background_image.position.x, 0.25);
+    assert_eq!(background_image.position.y, 0.75);
 }
 
 #[test]

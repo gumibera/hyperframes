@@ -146,6 +146,39 @@ describe("ExtractedScene types", () => {
     expect(parsed.elements[1].style.border_radius).toEqual([12, 12, 12, 12]);
   });
 
+  it("serializes background-image URL metadata", () => {
+    const el: SceneElement = {
+      id: "poster",
+      kind: { type: "Container" },
+      bounds: { x: 0, y: 0, width: 640, height: 360 },
+      style: {
+        background_color: null,
+        opacity: 1,
+        border_radius: [0, 0, 0, 0],
+        overflow_hidden: false,
+        transform: null,
+        visibility: true,
+        font_family: null,
+        font_size: null,
+        font_weight: null,
+        color: null,
+        background_image: {
+          src: "file:///tmp/poster.png",
+          fit: "contain",
+          position: { x: 0.25, y: 0.75 },
+        },
+      },
+      children: [],
+    };
+
+    const parsed = JSON.parse(JSON.stringify(el));
+    expect(parsed.style.background_image).toEqual({
+      src: "file:///tmp/poster.png",
+      fit: "contain",
+      position: { x: 0.25, y: 0.75 },
+    });
+  });
+
   it("serializes Transform2D correctly", () => {
     const el: SceneElement = {
       id: "box",

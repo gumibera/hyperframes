@@ -10,6 +10,7 @@ import { findFFmpeg, getFFmpegInstallHint } from "../browser/ffmpeg.js";
 import { VERSION } from "../version.js";
 import { getUpdateMeta } from "../utils/updateCheck.js";
 import { getSystemMeta, getShmSizeMb, getFreeDiskMb, bytesToMb } from "../telemetry/system.js";
+import { findNativeRendererRoot } from "../utils/nativeRender.js";
 
 interface Check {
   name: string;
@@ -181,6 +182,27 @@ function checkEnvironment(): CheckResult {
   return { ok: true, detail: parts.join(" \u00B7 ") };
 }
 
+function checkNativeRenderer(): CheckResult {
+  const root = findNativeRendererRoot();
+  if (!root) {
+    return {
+      ok: true,
+      detail: "Not bundled in this installation; Chrome backend will be used",
+    };
+  }
+
+  try {
+    const cargo = execSync("cargo --version", { encoding: "utf-8", timeout: 5000 }).trim();
+    return { ok: true, detail: `${root} \u00B7 ${cargo}` };
+  } catch {
+    return {
+      ok: false,
+      detail: `${root} \u00B7 cargo not found`,
+      hint: "Install Rust from https://rustup.rs/ to use --backend native from source.",
+    };
+  }
+}
+
 export default defineCommand({
   meta: { name: "doctor", description: "Check system dependencies and environment" },
   args: {},
@@ -207,6 +229,7 @@ export default defineCommand({
       { name: "FFmpeg", run: checkFFmpeg },
       { name: "FFprobe", run: checkFFprobe },
       { name: "Chrome", run: checkChrome },
+      { name: "Native renderer", run: checkNativeRenderer },
       { name: "Docker", run: checkDocker },
       { name: "Docker running", run: checkDockerRunning },
     );

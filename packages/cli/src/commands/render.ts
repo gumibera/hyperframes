@@ -31,6 +31,12 @@ import {
   resolveRenderBackend,
   type RenderBackend,
 } from "../utils/nativeBackend.js";
+import {
+  formatUnsupportedNativeFeatures,
+  isNativeRendererAvailable,
+  renderNativeProject,
+  type NativeRenderResult,
+} from "../utils/nativeRender.js";
 import type { RenderJob } from "@hyperframes/producer";
 
 const VALID_FPS = new Set([24, 30, 60]);
@@ -238,6 +244,7 @@ export default defineCommand({
       docker: useDocker,
       format,
       hdr: args.hdr ?? false,
+      nativeRuntimeAvailable: isNativeRendererAvailable(),
     });
     if (backendDecision.kind === "unavailable") {
       errorBox(
@@ -350,31 +357,80 @@ export default defineCommand({
     }
 
     // ── Render ────────────────────────────────────────────────────────────
+    const renderOptions: RenderOptions = {
+      fps,
+      quality,
+      format,
+      workers: workerCount,
+      gpu: useGpu,
+      hdr: args.hdr ?? false,
+      crf,
+      videoBitrate,
+      quiet,
+      browserPath,
+    };
+
     if (useDocker) {
-      await renderDocker(project.dir, outputPath, {
+      await renderDocker(project.dir, outputPath, renderOptions);
+    } else if (backendDecision.kind === "native") {
+      const nativeStart = Date.now();
+      const nativeResult = await renderNativeProject(project.dir, outputPath, {
         fps,
         quality,
-        format,
-        workers: workerCount,
-        gpu: useGpu,
-        hdr: args.hdr ?? false,
-        crf,
-        videoBitrate,
-        quiet,
-      });
-    } else {
-      await renderLocal(project.dir, outputPath, {
-        fps,
-        quality,
-        format,
-        workers: workerCount,
-        gpu: useGpu,
-        hdr: args.hdr ?? false,
-        crf,
-        videoBitrate,
-        quiet,
         browserPath,
-      });
+        quiet,
+      }).catch((error: unknown) =>
+        handleRenderError(
+          error,
+          renderOptions,
+          nativeStart,
+          false,
+          "Use --backend chrome to render through the Chrome pipeline",
+        ),
+      );
+
+      if (nativeResult.kind === "rendered") {
+        trackNativeRenderMetrics(nativeResult, renderOptions);
+        printRenderComplete(outputPath, nativeResult.elapsedMs, quiet);
+        return;
+      }
+
+      if (nativeResult.kind === "unsupported") {
+        const reasons = formatUnsupportedNativeFeatures(nativeResult.support.reasons);
+        if (backendDecision.requested === "auto") {
+          if (!quiet) {
+            console.log(c.dim("   Native fallback:\n" + reasons));
+            console.log("");
+          }
+          await renderLocal(project.dir, outputPath, renderOptions);
+          return;
+        }
+
+        errorBox(
+          "Native renderer fallback required",
+          reasons,
+          "Use --backend auto or --backend chrome for this composition.",
+        );
+        process.exit(1);
+      }
+
+      if (backendDecision.requested === "auto") {
+        if (!quiet) {
+          console.log(c.dim("   Native fallback: " + nativeResult.reasons.join("; ")));
+          console.log("");
+        }
+        await renderLocal(project.dir, outputPath, renderOptions);
+        return;
+      }
+
+      errorBox(
+        "Native renderer unavailable",
+        nativeResult.reasons.map((reason) => `- ${reason}`).join("\n"),
+        "Use --backend chrome, or install the native renderer toolchain.",
+      );
+      process.exit(1);
+    } else {
+      await renderLocal(project.dir, outputPath, renderOptions);
     }
   },
 });
@@ -392,8 +448,8 @@ interface RenderOptions {
   browserPath?: string;
 }
 
-function formatBackendLabel(requested: RenderBackend, selected: "chrome"): string {
-  return requested === "auto" ? "auto \u2192 chrome" : selected;
+function formatBackendLabel(requested: RenderBackend, selected: "chrome" | "native"): string {
+  return requested === "auto" ? `auto \u2192 ${selected}` : selected;
 }
 
 const DOCKER_IMAGE_PREFIX = "hyperframes-renderer";
@@ -628,6 +684,33 @@ function handleRenderError(
   });
   errorBox("Render failed", message, hint);
   process.exit(1);
+}
+
+function trackNativeRenderMetrics(
+  result: Extract<NativeRenderResult, { kind: "rendered" }>,
+  options: RenderOptions,
+): void {
+  const compositionDurationMs = Math.round(result.duration * 1000);
+  const speedRatio =
+    compositionDurationMs > 0 && result.elapsedMs > 0
+      ? Math.round((compositionDurationMs / result.elapsedMs) * 100) / 100
+      : undefined;
+
+  trackRenderComplete({
+    durationMs: result.elapsedMs,
+    fps: options.fps,
+    quality: options.quality,
+    workers: options.workers,
+    docker: false,
+    gpu: true,
+    compositionDurationMs,
+    compositionWidth: result.width,
+    compositionHeight: result.height,
+    totalFrames: result.totalFrames,
+    speedRatio,
+    captureAvgMs: result.renderer.avgPaintMs,
+    ...getMemorySnapshot(),
+  });
 }
 
 /**
