@@ -33,7 +33,12 @@ fn parse_minimal_scene() {
     assert_eq!(el.bounds.width, 1920.0);
     assert_eq!(
         el.style.background_color,
-        Some(Color { r: 30, g: 30, b: 30, a: 255 })
+        Some(Color {
+            r: 30,
+            g: 30,
+            b: 30,
+            a: 255
+        })
     );
     assert_eq!(el.style.opacity, 1.0);
     assert!(el.style.visibility);
@@ -88,7 +93,12 @@ fn parse_nested_children_with_text() {
     assert_eq!(title.style.font_weight, Some(700));
     assert_eq!(
         title.style.color,
-        Some(Color { r: 255, g: 255, b: 255, a: 255 })
+        Some(Color {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 255
+        })
     );
 
     let subtitle = &root.children[1];
@@ -166,7 +176,11 @@ fn parse_transform() {
     }"#;
 
     let scene = parse_scene_json(json).expect("should parse");
-    let t = scene.elements[0].style.transform.as_ref().expect("should have transform");
+    let t = scene.elements[0]
+        .style
+        .transform
+        .as_ref()
+        .expect("should have transform");
     assert_eq!(t.translate_x, 50.0);
     assert_eq!(t.translate_y, -30.0);
     assert_eq!(t.scale_x, 1.5);

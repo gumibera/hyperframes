@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+#[cfg(target_os = "macos")]
+use hyperframes_native_renderer::pipeline::render_animated_gpu;
 use hyperframes_native_renderer::pipeline::{render_animated, RenderConfig};
 use hyperframes_native_renderer::scene::{
     BakedElementState, BakedFrame, BakedTimeline, Color, Element, ElementKind, Rect, Scene, Style,
@@ -116,10 +118,33 @@ fn render_animated_scene_to_mp4() {
     assert!(path.exists(), "output MP4 must exist");
 
     let size = std::fs::metadata(output_path).unwrap().len();
-    assert!(
-        size > 1000,
-        "MP4 should be non-trivial, got {size} bytes"
-    );
+    assert!(size > 1000, "MP4 should be non-trivial, got {size} bytes");
+
+    std::fs::remove_file(output_path).ok();
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn render_animated_gpu_scene_to_mp4() {
+    let scene = make_animated_scene();
+    let timeline = make_fade_in_timeline();
+    let output_path = "/tmp/hyperframes-animated-gpu-test.mp4";
+
+    let config = RenderConfig {
+        fps: 30,
+        duration_secs: 1.0,
+        quality: 80,
+        output_path: output_path.to_string(),
+    };
+
+    let result = render_animated_gpu(&scene, &timeline, &config).unwrap();
+
+    assert_eq!(result.total_frames, 30);
+    assert!(result.avg_paint_ms > 0.0);
+    assert_eq!(result.output_path, output_path);
+
+    let size = std::fs::metadata(output_path).unwrap().len();
+    assert!(size > 1000, "MP4 should be non-trivial, got {size} bytes");
 
     std::fs::remove_file(output_path).ok();
 }

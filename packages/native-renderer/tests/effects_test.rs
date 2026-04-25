@@ -1,7 +1,7 @@
-use hyperframes_native_renderer::paint::RenderSurface;
 use hyperframes_native_renderer::paint::effects;
 use hyperframes_native_renderer::paint::elements::paint_element;
 use hyperframes_native_renderer::paint::images::ImageCache;
+use hyperframes_native_renderer::paint::RenderSurface;
 use hyperframes_native_renderer::scene::{
     BoxShadow, Color, Element, ElementKind, Gradient, GradientStop, Rect, Style,
 };

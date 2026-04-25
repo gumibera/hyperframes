@@ -88,14 +88,8 @@ pub fn create_gradient_shader(rect: &SkRect, gradient: &Gradient) -> Option<Shad
             let half_w = rect.width() / 2.0;
             let half_h = rect.height() / 2.0;
 
-            let start = SkPoint::new(
-                cx - half_w * angle_rad.sin(),
-                cy + half_h * angle_rad.cos(),
-            );
-            let end = SkPoint::new(
-                cx + half_w * angle_rad.sin(),
-                cy - half_h * angle_rad.cos(),
-            );
+            let start = SkPoint::new(cx - half_w * angle_rad.sin(), cy + half_h * angle_rad.cos());
+            let end = SkPoint::new(cx + half_w * angle_rad.sin(), cy - half_h * angle_rad.cos());
 
             let colors: Vec<Color4f> = stops.iter().map(|s| to_color4f(&s.color)).collect();
             let positions: Vec<f32> = stops.iter().map(|s| s.position).collect();

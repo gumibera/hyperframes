@@ -1,7 +1,11 @@
+use std::collections::HashMap;
+
 use criterion::{criterion_group, criterion_main, Criterion};
 use hyperframes_native_renderer::paint::elements::paint_element;
 use hyperframes_native_renderer::paint::{ImageCache, RenderSurface};
-use hyperframes_native_renderer::scene::{Color, Element, ElementKind, Rect, Scene, Style};
+use hyperframes_native_renderer::scene::{
+    BakedElementState, BakedFrame, BakedTimeline, Color, Element, ElementKind, Rect, Scene, Style,
+};
 use skia_safe::Color4f;
 
 /// Build a realistic 1080p scene: dark background root with 20 overlapping
@@ -146,8 +150,76 @@ fn bench_gpu_paint_frame(c: &mut Criterion) {
     });
 }
 
+/// Build a 30-frame timeline that slides all 20 cards upward with a fade-in.
+/// Animates every card to stress the delta-apply + paint path realistically.
+fn build_30_frame_timeline() -> BakedTimeline {
+    let frames = (0..30)
+        .map(|i| {
+            let progress = i as f32 / 29.0;
+            let mut elements = HashMap::new();
+            for c in 0..20u8 {
+                elements.insert(
+                    format!("card-{c}"),
+                    BakedElementState {
+                        opacity: progress,
+                        translate_x: 0.0,
+                        translate_y: 40.0 * (1.0 - progress),
+                        scale_x: 1.0,
+                        scale_y: 1.0,
+                        rotate_deg: 0.0,
+                        visibility: true,
+                    },
+                );
+            }
+            BakedFrame {
+                frame_index: i,
+                time: i as f64 / 30.0,
+                elements,
+            }
+        })
+        .collect();
+
+    BakedTimeline {
+        fps: 30,
+        duration: 1.0,
+        total_frames: 30,
+        frames,
+    }
+}
+
+/// End-to-end benchmark: GPU paint + JPEG encode + FFmpeg write for 30 frames.
+///
+/// This measures the complete `render_animated_gpu` pipeline on a realistic
+/// 1080p scene so we can track total per-frame cost including encode and I/O.
 #[cfg(target_os = "macos")]
-criterion_group!(benches, bench_paint_frame, bench_gpu_paint_frame);
+fn bench_e2e_gpu_30_frames(c: &mut Criterion) {
+    use hyperframes_native_renderer::pipeline::{render_animated_gpu, RenderConfig};
+
+    let scene = build_test_scene();
+    let timeline = build_30_frame_timeline();
+
+    c.bench_function("e2e_gpu_30_frames_1080p", |b| {
+        b.iter(|| {
+            let config = RenderConfig {
+                fps: 30,
+                duration_secs: 1.0,
+                quality: 80,
+                output_path: "/tmp/hyperframes-bench-e2e.mp4".to_string(),
+            };
+            let result = render_animated_gpu(&scene, &timeline, &config)
+                .expect("render_animated_gpu must succeed");
+            assert_eq!(result.total_frames, 30);
+        });
+    });
+}
+
+#[cfg(target_os = "macos")]
+criterion_group!(
+    benches,
+    bench_paint_frame,
+    bench_gpu_paint_frame,
+    bench_e2e_gpu_30_frames
+);
 #[cfg(not(target_os = "macos"))]
 criterion_group!(benches, bench_paint_frame);
 criterion_main!(benches);

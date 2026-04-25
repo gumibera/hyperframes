@@ -81,6 +81,8 @@ fn image_cache_reuses() {
 #[test]
 fn image_cache_missing_file_returns_none() {
     let mut cache = ImageCache::new();
-    assert!(cache.get_or_load("/tmp/nonexistent-hyperframes-image.png").is_none());
+    assert!(cache
+        .get_or_load("/tmp/nonexistent-hyperframes-image.png")
+        .is_none());
     assert_eq!(cache.len(), 0);
 }

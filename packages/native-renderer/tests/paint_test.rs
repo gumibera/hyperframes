@@ -23,7 +23,11 @@ fn encode_jpeg_produces_bytes() {
     surface.clear(Color4f::new(0.0, 0.0, 1.0, 1.0));
 
     let jpeg = surface.encode_jpeg(80).expect("should encode JPEG");
-    assert!(jpeg.len() > 100, "JPEG should be non-trivial, got {} bytes", jpeg.len());
+    assert!(
+        jpeg.len() > 100,
+        "JPEG should be non-trivial, got {} bytes",
+        jpeg.len()
+    );
     // JPEG magic bytes: 0xFF 0xD8
     assert_eq!(jpeg[0], 0xFF, "JPEG SOI byte 0");
     assert_eq!(jpeg[1], 0xD8, "JPEG SOI byte 1");
@@ -35,7 +39,11 @@ fn encode_png_produces_bytes() {
     surface.clear(Color4f::new(0.0, 1.0, 0.0, 1.0));
 
     let png = surface.encode_png().expect("should encode PNG");
-    assert!(png.len() > 100, "PNG should be non-trivial, got {} bytes", png.len());
+    assert!(
+        png.len() > 100,
+        "PNG should be non-trivial, got {} bytes",
+        png.len()
+    );
     // PNG magic bytes: 0x89 0x50 0x4E 0x47
     assert_eq!(png[0], 0x89, "PNG signature byte 0");
     assert_eq!(png[1], 0x50, "PNG signature byte 1");
@@ -62,17 +70,39 @@ fn paint_scene_with_background_and_text() {
     let container = Element {
         id: "bg".into(),
         kind: ElementKind::Container,
-        bounds: Rect { x: 0.0, y: 0.0, width: 200.0, height: 100.0 },
+        bounds: Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 200.0,
+            height: 100.0,
+        },
         style: Style {
-            background_color: Some(Color { r: 0, g: 0, b: 255, a: 255 }),
+            background_color: Some(Color {
+                r: 0,
+                g: 0,
+                b: 255,
+                a: 255,
+            }),
             ..Style::default()
         },
         children: vec![Element {
             id: "label".into(),
-            kind: ElementKind::Text { content: "Hello".into() },
-            bounds: Rect { x: 10.0, y: 10.0, width: 180.0, height: 30.0 },
+            kind: ElementKind::Text {
+                content: "Hello".into(),
+            },
+            bounds: Rect {
+                x: 10.0,
+                y: 10.0,
+                width: 180.0,
+                height: 30.0,
+            },
             style: Style {
-                color: Some(Color { r: 255, g: 255, b: 255, a: 255 }),
+                color: Some(Color {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                    a: 255,
+                }),
                 font_size: Some(24.0),
                 ..Style::default()
             },
@@ -83,7 +113,11 @@ fn paint_scene_with_background_and_text() {
     paint_element(surface.canvas(), &container, &mut ImageCache::new());
 
     let jpeg = surface.encode_jpeg(80).expect("should encode JPEG");
-    assert!(jpeg.len() > 200, "JPEG should be non-trivial, got {} bytes", jpeg.len());
+    assert!(
+        jpeg.len() > 200,
+        "JPEG should be non-trivial, got {} bytes",
+        jpeg.len()
+    );
     assert_eq!(jpeg[0], 0xFF);
     assert_eq!(jpeg[1], 0xD8);
 }
@@ -97,9 +131,19 @@ fn paint_element_with_border_radius_and_opacity() {
     let card = Element {
         id: "card".into(),
         kind: ElementKind::Container,
-        bounds: Rect { x: 20.0, y: 20.0, width: 160.0, height: 160.0 },
+        bounds: Rect {
+            x: 20.0,
+            y: 20.0,
+            width: 160.0,
+            height: 160.0,
+        },
         style: Style {
-            background_color: Some(Color { r: 255, g: 0, b: 0, a: 255 }),
+            background_color: Some(Color {
+                r: 255,
+                g: 0,
+                b: 0,
+                a: 255,
+            }),
             border_radius: [12.0; 4],
             opacity: 0.5,
             ..Style::default()
@@ -135,9 +179,19 @@ fn paint_element_with_transform() {
     let el = Element {
         id: "transformed".into(),
         kind: ElementKind::Container,
-        bounds: Rect { x: 50.0, y: 50.0, width: 100.0, height: 100.0 },
+        bounds: Rect {
+            x: 50.0,
+            y: 50.0,
+            width: 100.0,
+            height: 100.0,
+        },
         style: Style {
-            background_color: Some(Color { r: 0, g: 255, b: 0, a: 255 }),
+            background_color: Some(Color {
+                r: 0,
+                g: 255,
+                b: 0,
+                a: 255,
+            }),
             transform: Some(Transform2D {
                 translate_x: 0.0,
                 translate_y: 0.0,
@@ -155,7 +209,11 @@ fn paint_element_with_transform() {
     // Hard to assert pixel-perfect results for rotated/scaled content.
     // Verify it produces a valid JPEG without crashing.
     let jpeg = surface.encode_jpeg(80).expect("should encode JPEG");
-    assert!(jpeg.len() > 200, "JPEG should be non-trivial, got {} bytes", jpeg.len());
+    assert!(
+        jpeg.len() > 200,
+        "JPEG should be non-trivial, got {} bytes",
+        jpeg.len()
+    );
 }
 
 #[test]
@@ -167,9 +225,19 @@ fn paint_invisible_element_skipped() {
     let el = Element {
         id: "hidden".into(),
         kind: ElementKind::Container,
-        bounds: Rect { x: 0.0, y: 0.0, width: 100.0, height: 100.0 },
+        bounds: Rect {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        },
         style: Style {
-            background_color: Some(Color { r: 0, g: 255, b: 0, a: 255 }),
+            background_color: Some(Color {
+                r: 0,
+                g: 255,
+                b: 0,
+                a: 255,
+            }),
             visibility: false,
             ..Style::default()
         },

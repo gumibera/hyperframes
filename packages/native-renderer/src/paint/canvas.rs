@@ -1,5 +1,6 @@
 use skia_safe::{
-    surfaces, AlphaType, Canvas, Color4f, ColorType, EncodedImageFormat, ImageInfo, Surface,
+    images, surfaces, AlphaType, Canvas, Color4f, ColorType, Data, EncodedImageFormat, ImageInfo,
+    Surface,
 };
 
 #[cfg(target_os = "macos")]
@@ -45,8 +46,7 @@ impl RenderSurface {
     pub fn new_metal_gpu(width: i32, height: i32) -> Result<Self, String> {
         use metal::foreign_types::ForeignType;
 
-        let device = metal::Device::system_default()
-            .ok_or("no Metal GPU device found")?;
+        let device = metal::Device::system_default().ok_or("no Metal GPU device found")?;
         let queue = device.new_command_queue();
 
         let backend = unsafe {
@@ -70,11 +70,11 @@ impl RenderSurface {
             &mut context,
             gpu::Budgeted::Yes,
             &image_info,
-            None,                       // sample count
+            None, // sample count
             gpu::SurfaceOrigin::TopLeft,
-            None,                       // surface props
-            false,                      // mipmaps
-            false,                      // protected
+            None,  // surface props
+            false, // mipmaps
+            false, // protected
         )
         .ok_or("failed to create Metal GPU surface")?;
 
@@ -105,12 +105,7 @@ impl RenderSurface {
             None,
         );
 
-        let ok = self.surface.read_pixels(
-            &info,
-            &mut dst,
-            row_bytes,
-            (0, 0),
-        );
+        let ok = self.surface.read_pixels(&info, &mut dst, row_bytes, (0, 0));
 
         if ok {
             Some(dst)
@@ -121,15 +116,35 @@ impl RenderSurface {
 
     /// Encode the surface contents as JPEG bytes at the given quality (1-100).
     pub fn encode_jpeg(&mut self, quality: u32) -> Option<Vec<u8>> {
-        let image = self.surface.image_snapshot();
-        let data = image.encode(None, EncodedImageFormat::JPEG, quality)?;
-        Some(data.as_bytes().to_vec())
+        self.encode_image(EncodedImageFormat::JPEG, quality)
     }
 
     /// Encode the surface contents as PNG bytes.
     pub fn encode_png(&mut self) -> Option<Vec<u8>> {
+        self.encode_image(EncodedImageFormat::PNG, 100)
+    }
+
+    fn encode_image(&mut self, format: EncodedImageFormat, quality: u32) -> Option<Vec<u8>> {
+        #[cfg(target_os = "macos")]
+        self.flush_and_submit();
+
         let image = self.surface.image_snapshot();
-        let data = image.encode(None, EncodedImageFormat::PNG, 100)?;
+        if let Some(data) = image.encode(None, format, quality) {
+            return Some(data.as_bytes().to_vec());
+        }
+
+        let width = self.surface.width();
+        let height = self.surface.height();
+        let row_bytes = width as usize * 4;
+        let pixels = self.read_pixels_rgba()?;
+        let info = ImageInfo::new(
+            (width, height),
+            ColorType::RGBA8888,
+            AlphaType::Premul,
+            None,
+        );
+        let image = images::raster_from_data(&info, Data::new_copy(&pixels), row_bytes)?;
+        let data = image.encode(None, format, quality)?;
         Some(data.as_bytes().to_vec())
     }
 
