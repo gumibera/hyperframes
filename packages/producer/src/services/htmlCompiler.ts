@@ -73,6 +73,10 @@ function dedupeElementsById<T extends { id: string }>(elements: T[]): T[] {
   return Array.from(deduped.values());
 }
 
+const externalScriptCache = new Map<
+  string,
+  { fetcher: typeof globalThis.fetch; promise: Promise<string> }
+>();
 const INLINE_SCRIPT_PATTERN = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const COMPILER_MOUNT_BLOCK_START = "/* __HF_COMPILER_MOUNT_START__ */";
 const COMPILER_MOUNT_BLOCK_END = "/* __HF_COMPILER_MOUNT_END__ */";
@@ -553,6 +557,65 @@ function coalesceHeadStylesAndBodyScripts(html: string): string {
   return document.toString();
 }
 
+function parseDeclaredDurationFromCompositionHtml(
+  html: string,
+  compositionId: string | null | undefined,
+): number | null {
+  let { document } = parseHTML(html);
+  let root = findCompositionRoot(document, compositionId);
+  if (!root) {
+    const template = document.querySelector("template");
+    if (template) {
+      document = parseHTML(template.innerHTML || "").document;
+      root = findCompositionRoot(document, compositionId);
+    }
+  }
+  if (!root) return null;
+
+  const duration = Number.parseFloat(root.getAttribute("data-duration") ?? "");
+  if (Number.isFinite(duration) && duration > 0) return duration;
+
+  const start = Number.parseFloat(root.getAttribute("data-start") ?? "0") || 0;
+  const end = Number.parseFloat(root.getAttribute("data-end") ?? "");
+  if (Number.isFinite(end) && end > start) return end - start;
+
+  return null;
+}
+
+function findCompositionRoot(
+  document: Document,
+  compositionId: string | null | undefined,
+): Element | null {
+  const roots = Array.from(document.querySelectorAll("[data-composition-id]")) as Element[];
+  if (compositionId) {
+    const exactMatch = roots.find(
+      (root) => root.getAttribute("data-composition-id") === compositionId,
+    );
+    if (exactMatch) return exactMatch;
+  }
+  return roots[0] ?? null;
+}
+
+function resolveStaticCompositionDurations(
+  unresolvedCompositions: UnresolvedElement[],
+  subCompositions: Map<string, string>,
+): ResolvedDuration[] {
+  const resolutions: ResolvedDuration[] = [];
+
+  for (const unresolved of unresolvedCompositions) {
+    const src = unresolved.compositionSrc;
+    if (!src) continue;
+    const subHtml = subCompositions.get(src);
+    if (!subHtml) continue;
+
+    const declaredDuration = parseDeclaredDurationFromCompositionHtml(subHtml, unresolved.id);
+    if (declaredDuration == null) continue;
+    resolutions.push({ id: unresolved.id, duration: declaredDuration });
+  }
+
+  return resolutions;
+}
+
 /**
  * Inline sub-composition HTML into the main document, mirroring what the
  * bundler's step 6 does.  For each host element with `data-composition-src`:
@@ -828,13 +891,7 @@ export async function inlineExternalScripts(html: string): Promise<string> {
   if (externalScripts.length === 0) return html;
 
   const downloads = await Promise.allSettled(
-    externalScripts.map(async ({ src }) => {
-      const response = await fetch(src, {
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status} for ${src}`);
-      return { src, text: await response.text() };
-    }),
+    externalScripts.map(async ({ src }) => ({ src, text: await fetchExternalScriptText(src) })),
   );
 
   for (let i = 0; i < downloads.length; i++) {
@@ -863,6 +920,30 @@ export async function inlineExternalScripts(html: string): Promise<string> {
   }
 
   return wrappedFragment ? document.body.innerHTML || "" : document.toString();
+}
+
+async function fetchExternalScriptText(src: string): Promise<string> {
+  const cached = externalScriptCache.get(src);
+  if (cached && cached.fetcher === globalThis.fetch) return cached.promise;
+
+  const download = (async () => {
+    const response = await fetch(src, {
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status} for ${src}`);
+    return response.text();
+  })();
+
+  externalScriptCache.set(src, { fetcher: globalThis.fetch, promise: download });
+  try {
+    return await download;
+  } catch (error) {
+    const current = externalScriptCache.get(src);
+    if (current?.promise === download) {
+      externalScriptCache.delete(src);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -964,7 +1045,7 @@ export async function compileForRender(
   downloadDir: string,
 ): Promise<CompiledComposition> {
   const rawHtml = readFileSync(htmlPath, "utf-8");
-  const { html: compiledHtml, unresolvedCompositions } = await compileHtmlFile(
+  let { html: compiledHtml, unresolvedCompositions } = await compileHtmlFile(
     rawHtml,
     projectDir,
     downloadDir,
@@ -977,6 +1058,18 @@ export async function compileForRender(
     images: subImages,
     subCompositions,
   } = await parseSubCompositions(compiledHtml, projectDir, downloadDir);
+
+  const staticCompositionResolutions = resolveStaticCompositionDurations(
+    unresolvedCompositions,
+    subCompositions,
+  );
+  if (staticCompositionResolutions.length > 0) {
+    compiledHtml = injectDurations(compiledHtml, staticCompositionResolutions);
+    const resolvedIds = new Set(staticCompositionResolutions.map((resolution) => resolution.id));
+    unresolvedCompositions = unresolvedCompositions.filter(
+      (composition) => !resolvedIds.has(composition.id),
+    );
+  }
 
   // Ensure the HTML is a full document before inlining sub-compositions.
   // When index.html is a fragment (no <html>/<head>/<body>), linkedom.parseHTML()

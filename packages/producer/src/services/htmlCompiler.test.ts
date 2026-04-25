@@ -284,14 +284,78 @@ describe("inlineExternalScripts", () => {
         <script src="https://cdn.example.com/gsap.min.js"></script>
       </body></html>`;
       const result = await inlineExternalScripts(html);
-      // Both identical script tags should be fetched and replaced independently.
-      expect(fetchCount).toBe(2);
+      // Both identical script tags are replaced, but the network fetch is shared.
+      expect(fetchCount).toBe(1);
       expect(
         result.match(/\/\* inlined: https:\/\/cdn\.example\.com\/gsap\.min\.js \*\//g)?.length,
       ).toBe(2);
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe("static sub-composition duration resolution", () => {
+  it("resolves host duration from a declared sub-composition root without a browser probe", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "hf-static-sub-duration-"));
+    const compositionsDir = join(projectDir, "compositions");
+    mkdirSync(compositionsDir, { recursive: true });
+
+    writeFileSync(
+      join(projectDir, "index.html"),
+      `<!DOCTYPE html>
+<html><body>
+  <div id="root" data-composition-id="root" data-width="640" data-height="360" data-duration="8">
+    <div id="scene-host" data-composition-src="compositions/scene.html" data-start="2"></div>
+  </div>
+</body></html>`,
+    );
+    writeFileSync(
+      join(compositionsDir, "scene.html"),
+      `<template>
+  <div data-composition-id="scene" data-width="640" data-height="360" data-duration="3">
+    <p>Hello</p>
+  </div>
+</template>`,
+    );
+
+    const result = await compileForRender(projectDir, join(projectDir, "index.html"), projectDir);
+
+    expect(result.unresolvedCompositions).toEqual([]);
+    expect(result.html).toContain('id="scene-host"');
+    expect(result.html).toContain('data-duration="3"');
+    expect(result.html).toContain('data-end="5"');
+  });
+
+  it("matches unusual composition ids without selector string escaping", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "hf-static-sub-duration-"));
+    const compositionsDir = join(projectDir, "compositions");
+    const compositionId = 'scene"\\\\host';
+    mkdirSync(compositionsDir, { recursive: true });
+
+    writeFileSync(
+      join(projectDir, "index.html"),
+      `<!DOCTYPE html>
+<html><body>
+  <div id="root" data-composition-id="root" data-width="640" data-height="360" data-duration="8">
+    <div id='${compositionId}' data-composition-src="compositions/scene.html" data-start="1"></div>
+  </div>
+</body></html>`,
+    );
+    writeFileSync(
+      join(compositionsDir, "scene.html"),
+      `<template>
+  <div data-composition-id='${compositionId}' data-width="640" data-height="360" data-duration="2">
+    <p>Hello</p>
+  </div>
+</template>`,
+    );
+
+    const result = await compileForRender(projectDir, join(projectDir, "index.html"), projectDir);
+
+    expect(result.unresolvedCompositions).toEqual([]);
+    expect(result.html).toContain('data-duration="2"');
+    expect(result.html).toContain('data-end="3"');
   });
 });
 

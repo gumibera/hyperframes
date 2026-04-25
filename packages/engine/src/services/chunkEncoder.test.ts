@@ -14,8 +14,8 @@ describe("ENCODER_PRESETS", () => {
     expect(ENCODER_PRESETS.draft.codec).toBe("h264");
   });
 
-  it("high uses slow preset with low CRF for better quality", () => {
-    expect(ENCODER_PRESETS.high.preset).toBe("slow");
+  it("high keeps low CRF while using the standard-speed preset", () => {
+    expect(ENCODER_PRESETS.high.preset).toBe("medium");
     expect(ENCODER_PRESETS.high.quality).toBeLessThan(ENCODER_PRESETS.standard.quality);
     expect(ENCODER_PRESETS.high.codec).toBe("h264");
   });
@@ -180,14 +180,14 @@ describe("buildEncoderArgs GPU preset mapping", () => {
     expect(presetArg(args)).toBe("p4");
   });
 
-  it("translates the high slow preset to NVENC p5", () => {
+  it("translates the high medium preset to NVENC p4", () => {
     const args = buildEncoderArgs(
-      { ...baseOptions, codec: "h264", preset: "slow", quality: 15, useGpu: true },
+      { ...baseOptions, codec: "h264", preset: "medium", quality: 15, useGpu: true },
       inputArgs,
       "out.mp4",
       "nvenc",
     );
-    expect(presetArg(args)).toBe("p5");
+    expect(presetArg(args)).toBe("p4");
   });
 
   // hevc_nvenc uses the same p1..p7 preset vocabulary as h264_nvenc, so the
