@@ -144,7 +144,6 @@ describe("getTimelineScrollLeftForZoomTransition", () => {
     expect(getTimelineScrollLeftForZoomTransition("manual", "manual", 480)).toBe(480);
   });
 });
-
 describe("getTimelinePlayheadLeft", () => {
   it("converts time to a pixel offset from the gutter", () => {
     expect(getTimelinePlayheadLeft(4, 20)).toBe(112);
