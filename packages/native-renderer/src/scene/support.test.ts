@@ -47,6 +47,16 @@ describe("detectNativeSupport", () => {
     ["iframe", '<iframe id="frame" srcdoc="<p>embedded</p>"></iframe>', "iframe"],
     ["unresolved video", '<video id="clip"></video>', "video"],
     [
+      "resolved video",
+      '<video id="clip" src="file:///tmp/hyperframes-native-test.mp4"></video>',
+      "video",
+    ],
+    [
+      "animated element without stable id",
+      '<span style="display:block;transform:translateY(20px);opacity:.5">Animated</span>',
+      "element-id",
+    ],
+    [
       "backdrop filter",
       '<div id="glass" style="width:100px;height:80px;backdrop-filter:blur(4px)"></div>',
       "backdrop-filter",
@@ -96,6 +106,17 @@ describe("detectNativeSupport", () => {
     await setComposition(
       page,
       '<div id="card" style="width:120px;height:80px;background:linear-gradient(red,blue);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.25);filter:brightness(1.1)"></div>',
+    );
+
+    const report = await detectNativeSupport(page, 320, 180);
+
+    expect(report).toEqual({ supported: true, reasons: [] });
+  });
+
+  it("allows animated elements when they have a stable id", async () => {
+    await setComposition(
+      page,
+      '<span id="animated" style="display:block;transform:translateY(20px);opacity:.5">Animated</span>',
     );
 
     const report = await detectNativeSupport(page, 320, 180);

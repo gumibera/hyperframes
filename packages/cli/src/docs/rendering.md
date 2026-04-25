@@ -13,7 +13,7 @@ Requires: FFmpeg installed (`brew install ffmpeg` or `apt install ffmpeg`).
 - `--backend native` — Render through the Rust/Skia native renderer. Unsupported browser features fail loudly with fallback reasons.
 - `--backend auto` — Use native only when the composition passes support detection; otherwise fall back to Chrome for Chrome-perfect final output.
 
-Native acceleration is a fast path for supported HyperFrames compositions, not a full Chromium replacement. SVG, canvas, iframe, unsupported CSS filters, masks, backdrop filters, vertical writing mode, and other unsupported browser surfaces use Chrome fallback in `auto` mode.
+Native acceleration is a fast path for supported HyperFrames compositions, not a full Chromium replacement. SVG, canvas, iframe, video, unsupported CSS filters, masks, backdrop filters, vertical writing mode, animated elements without stable IDs, and other unsupported browser surfaces use Chrome fallback in `auto` mode.
 
 ## Docker Mode (--docker)
 

@@ -81,11 +81,32 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
     const tag = el.tagName.toLowerCase();
     const cs = getComputedStyle(el);
 
-    if (tag === "video" && !(el.currentSrc || el.src)) {
-      add(el, "video", "", "video element has no resolved source");
+    if (tag === "video") {
+      const src = el.currentSrc || el.src;
+      if (!src) {
+        add(el, "video", "", "video element has no resolved source");
+      } else {
+        add(el, "video", src, "video compositing is still under visual parity review");
+      }
     }
     if (tag === "canvas" || tag === "svg" || tag === "iframe") {
       add(el, tag, tag, "embedded dynamic/vector surfaces require Chrome fallback");
+    }
+
+    if (!el.id && !el.getAttribute("data-name")) {
+      const opacity = parseFloat(cs.opacity);
+      const hasAnimatedState =
+        (cs.transform && cs.transform !== "none") ||
+        (Number.isFinite(opacity) && opacity !== 1) ||
+        cs.visibility === "hidden";
+      if (hasAnimatedState) {
+        add(
+          el,
+          "element-id",
+          tag,
+          "animated or transformed elements need a stable id or data-name for native timeline baking",
+        );
+      }
     }
 
     if (cs.backgroundImage && cs.backgroundImage !== "none") {
@@ -166,5 +187,13 @@ export async function detectNativeSupport(
 ): Promise<NativeSupportReport> {
   await page.setViewport({ width, height });
   const reasons = (await page.evaluate(DETECT_NATIVE_SUPPORT_SCRIPT)) as NativeUnsupportedReason[];
-  return { supported: reasons.length === 0, reasons };
+  const uniqueReasons = Array.from(
+    new Map(
+      reasons.map((reason) => [
+        `${reason.elementId}\u0000${reason.property}\u0000${reason.value}\u0000${reason.reason}`,
+        reason,
+      ]),
+    ).values(),
+  );
+  return { supported: uniqueReasons.length === 0, reasons: uniqueReasons };
 }
