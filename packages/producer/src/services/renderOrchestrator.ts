@@ -1783,7 +1783,7 @@ export async function executeRenderJob(
         execFileSync("cargo", ["build", "--release", "--bin", "render_native"], {
           cwd: nativeRoot,
           stdio: "pipe",
-          timeout: 600_000,
+          timeout: 3_600_000,
         });
       }
 
@@ -1805,7 +1805,7 @@ export async function executeRenderJob(
           "--quality",
           String(qualityNum),
         ],
-        { timeout: 600_000, encoding: "utf-8" },
+        { timeout: 3_600_000, encoding: "utf-8" },
       );
 
       log.info("Native render complete", { result: nativeResult.trim() });

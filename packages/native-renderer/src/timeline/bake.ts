@@ -1,16 +1,17 @@
 /**
  * Pre-baked timeline extraction — evaluates a GSAP timeline at every frame
- * timestamp via Chrome CDP and extracts per-frame property values for all
- * animated elements.
+ * timestamp via Chrome CDP and extracts per-frame property values.
  *
- * Captures the FULL visual state per element per frame — not just transform
- * and opacity, but also bounds, colors, border-radius, and clip-path.
- * This maximizes PSNR by giving the Rust renderer complete per-frame data.
+ * Batches multiple frames per CDP call to reduce round-trip overhead.
+ * A 141s video at 30fps (4,230 frames) would need 8,460 CDP calls at 1 per
+ * frame. Batching 10 frames per call reduces this to 423 calls.
  */
 import type { Page } from "puppeteer-core";
 import type { BakedTimeline, BakedFrame, BakedElementState } from "./types";
 
-const BAKE_FRAME_SCRIPT = `(() => {
+const BATCH_SIZE = 10;
+
+const BAKE_BATCH_SCRIPT = `(frameTimes) => {
   function decomposeMatrix(raw) {
     if (!raw || raw === "none") {
       return { translate_x: 0, translate_y: 0, scale_x: 1, scale_y: 1, rotate_deg: 0 };
@@ -38,38 +39,47 @@ const BAKE_FRAME_SCRIPT = `(() => {
     return { r: +m[1], g: +m[2], b: +m[3], a: Math.round((m[4] !== undefined ? +m[4] : 1) * 255) };
   }
 
-  const result = {};
-  const els = document.querySelectorAll("[id]");
-  for (const el of els) {
-    if (!(el instanceof HTMLElement)) continue;
-    const cs = getComputedStyle(el);
-    const transform = decomposeMatrix(cs.transform);
-    const rect = el.getBoundingClientRect();
-
-    result[el.id] = {
-      opacity: parseFloat(cs.opacity) || 0,
-      translate_x: transform.translate_x,
-      translate_y: transform.translate_y,
-      scale_x: transform.scale_x,
-      scale_y: transform.scale_y,
-      rotate_deg: transform.rotate_deg,
-      visibility: cs.visibility !== "hidden" && cs.display !== "none",
-      bounds_x: rect.left,
-      bounds_y: rect.top,
-      bounds_w: rect.width,
-      bounds_h: rect.height,
-      background_color: parseColor(cs.backgroundColor),
-      color: parseColor(cs.color),
-      border_radius: [
-        parseFloat(cs.borderTopLeftRadius) || 0,
-        parseFloat(cs.borderTopRightRadius) || 0,
-        parseFloat(cs.borderBottomRightRadius) || 0,
-        parseFloat(cs.borderBottomLeftRadius) || 0,
-      ],
-    };
+  function extractFrame() {
+    const result = {};
+    const els = document.querySelectorAll("[id]");
+    for (const el of els) {
+      if (!(el instanceof HTMLElement)) continue;
+      const cs = getComputedStyle(el);
+      const transform = decomposeMatrix(cs.transform);
+      const rect = el.getBoundingClientRect();
+      result[el.id] = {
+        opacity: parseFloat(cs.opacity) || 0,
+        translate_x: transform.translate_x,
+        translate_y: transform.translate_y,
+        scale_x: transform.scale_x,
+        scale_y: transform.scale_y,
+        rotate_deg: transform.rotate_deg,
+        visibility: cs.visibility !== "hidden" && cs.display !== "none",
+        bounds_x: rect.left,
+        bounds_y: rect.top,
+        bounds_w: rect.width,
+        bounds_h: rect.height,
+        background_color: parseColor(cs.backgroundColor),
+        color: parseColor(cs.color),
+        border_radius: [
+          parseFloat(cs.borderTopLeftRadius) || 0,
+          parseFloat(cs.borderTopRightRadius) || 0,
+          parseFloat(cs.borderBottomRightRadius) || 0,
+          parseFloat(cs.borderBottomLeftRadius) || 0,
+        ],
+      };
+    }
+    return result;
   }
-  return result;
-})()`;
+
+  const results = [];
+  const hf = window.__hf;
+  for (const t of frameTimes) {
+    if (hf && typeof hf.seek === "function") hf.seek(t);
+    results.push(extractFrame());
+  }
+  return results;
+}`;
 
 export async function bakeTimeline(
   page: Page,
@@ -79,20 +89,25 @@ export async function bakeTimeline(
   const totalFrames = Math.ceil(fps * duration);
   const frames: BakedFrame[] = [];
 
-  for (let i = 0; i < totalFrames; i++) {
-    const time = i / fps;
+  for (let batchStart = 0; batchStart < totalFrames; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, totalFrames);
+    const frameTimes: number[] = [];
+    for (let i = batchStart; i < batchEnd; i++) {
+      frameTimes.push(i / fps);
+    }
 
-    await page.evaluate(
-      `(() => {
-        const hf = window.__hf;
-        if (hf && typeof hf.seek === "function") {
-          hf.seek(${JSON.stringify(time)});
-        }
-      })()`,
-    );
+    const batchResults = (await page.evaluate(BAKE_BATCH_SCRIPT, frameTimes)) as Array<
+      Record<string, BakedElementState>
+    >;
 
-    const elements = (await page.evaluate(BAKE_FRAME_SCRIPT)) as Record<string, BakedElementState>;
-    frames.push({ frame_index: i, time, elements });
+    for (let j = 0; j < batchResults.length; j++) {
+      const i = batchStart + j;
+      frames.push({
+        frame_index: i,
+        time: frameTimes[j],
+        elements: batchResults[j],
+      });
+    }
   }
 
   return { fps, duration, total_frames: totalFrames, frames };
