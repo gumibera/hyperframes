@@ -102,16 +102,11 @@ async function captureSnapshots(
   // 1. Bundle
   let html = await bundleToSingleHtml(projectDir);
 
-  // Inject local runtime if available
-  const runtimePath = resolve(
-    __dirname,
-    "..",
-    "..",
-    "..",
-    "core",
-    "dist",
-    "hyperframe.runtime.iife.js",
-  );
+  // Inject local runtime if available.
+  // The runtime IIFE is copied into the CLI dist during build (build:runtime),
+  // so it lives alongside cli.js. The old ../../../core/dist/ path only worked
+  // in the monorepo dev layout and broke for published/npx installs.
+  const runtimePath = resolve(__dirname, "hyperframe.runtime.iife.js");
   if (existsSync(runtimePath)) {
     const runtimeSource = readFileSync(runtimePath, "utf-8");
     html = html.replace(
