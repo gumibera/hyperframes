@@ -173,7 +173,60 @@ pub fn render_static(scene: &Scene, config: &RenderConfig) -> Result<RenderResul
     })
 }
 
-// ── Animated Pipeline ───────────────────────────────────────────────────────
+// ── Native Pipeline (no FFmpeg) ─────────────────────────────────────────────
+
+/// Render an animated scene entirely in Rust — no FFmpeg subprocess.
+/// Uses openh264 for H.264 encoding and minimp4 for MP4 muxing.
+/// This is the fastest path: no pipe, no subprocess startup, no serialization.
+pub fn render_animated_native(
+    scene: &Scene,
+    timeline: &BakedTimeline,
+    config: &RenderConfig,
+) -> Result<RenderResult, String> {
+    use crate::native_encode::NativeEncoder;
+
+    let total_frames = timeline.total_frames;
+    if total_frames == 0 {
+        return Err("timeline has zero frames".into());
+    }
+
+    let w = scene.width;
+    let h = scene.height;
+    let mut encoder = NativeEncoder::new(w, h, config.fps)?;
+    let mut surface = RenderSurface::new_raster(w as i32, h as i32)?;
+    let mut images = ImageCache::new();
+
+    let start = Instant::now();
+    let mut paint_total_ms: f64 = 0.0;
+
+    for frame in &timeline.frames {
+        let animated_scene = apply_frame_deltas(scene, frame);
+
+        let paint_start = Instant::now();
+        surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
+        for element in &animated_scene.elements {
+            paint_element_at_time(surface.canvas(), element, &mut images, frame.time);
+        }
+        paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
+
+        let bgra = surface
+            .read_pixels_bgra()
+            .ok_or("failed to read pixels")?;
+        encoder.encode_bgra_frame(&bgra)?;
+    }
+
+    encoder.finish_to_mp4(&config.output_path)?;
+
+    let total_ms = start.elapsed().as_millis() as u64;
+    Ok(RenderResult {
+        total_frames,
+        total_ms,
+        avg_paint_ms: paint_total_ms / total_frames as f64,
+        output_path: config.output_path.clone(),
+    })
+}
+
+// ── Animated Pipeline (FFmpeg) ──────────────────────────────────────────────
 
 /// Render an animated scene driven by a pre-baked timeline.
 ///

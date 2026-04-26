@@ -198,6 +198,28 @@ fn build_30_frame_timeline() -> BakedTimeline {
     }
 }
 
+/// End-to-end NATIVE: CPU raster + openh264 + minimp4, NO FFmpeg.
+fn bench_e2e_native_30_frames(c: &mut Criterion) {
+    use hyperframes_native_renderer::pipeline::{render_animated_native, RenderConfig};
+
+    let scene = build_test_scene();
+    let timeline = build_30_frame_timeline();
+
+    c.bench_function("e2e_native_30_frames_1080p", |b| {
+        b.iter(|| {
+            let config = RenderConfig {
+                fps: 30,
+                duration_secs: 1.0,
+                quality: 80,
+                output_path: "/tmp/hyperframes-bench-native.mp4".to_string(),
+            };
+            let result = render_animated_native(&scene, &timeline, &config)
+                .expect("render_animated_native must succeed");
+            assert_eq!(result.total_frames, 30);
+        });
+    });
+}
+
 /// End-to-end: CPU raster + JPEG encode + FFmpeg MJPEG pipe for 30 frames.
 fn bench_e2e_gpu_jpeg_30_frames(c: &mut Criterion) {
     use hyperframes_native_renderer::pipeline::{render_animated, RenderConfig};
@@ -246,6 +268,7 @@ criterion_group!(
     benches,
     bench_paint_frame,
     bench_gpu_paint_frame,
+    bench_e2e_native_30_frames,
     bench_e2e_gpu_jpeg_30_frames,
     bench_e2e_gpu_30_frames
 );
