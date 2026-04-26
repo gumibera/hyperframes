@@ -1696,7 +1696,10 @@ export async function executeRenderJob(
       const textDir = join(workDir, "native-text");
       if (!existsSync(textDir)) mkdirSync(textDir, { recursive: true });
 
-      // Remove force-visible, seek to mid-composition for capture
+      // ── Capture elements from Chrome for pixel-perfect output ─────────
+      // Seek through multiple timestamps to capture elements across all
+      // visual states (different slides, different animation phases).
+      // This ensures elements that only appear later get captured.
       await probeSession.page.evaluate(`(() => {
         const s = document.getElementById('__hf_extract_force_visible__');
         if (s) s.remove();
@@ -1704,29 +1707,36 @@ export async function executeRenderJob(
       })()`);
       await new Promise((r) => setTimeout(r, 100));
 
-      const collectText = (el: Record<string, unknown>): Record<string, unknown>[] => {
+      // Collect ALL leaf elements (no children, or has visible content).
+      // Every element gets captured as a Chrome PNG for pixel-perfect output.
+      // Skia becomes a pure image compositor — no CSS painting.
+      const collectLeaves = (el: Record<string, unknown>): Record<string, unknown>[] => {
         const results: Record<string, unknown>[] = [];
-        const kind = el.kind as Record<string, unknown> | undefined;
         const bounds = el.bounds as Record<string, number> | undefined;
-        if (
-          kind?.type === "Text" &&
-          bounds &&
-          (bounds.width ?? 0) > 0 &&
-          (bounds.height ?? 0) > 0
-        ) {
+        const children = (el.children as Record<string, unknown>[]) || [];
+        const hasVisualContent = bounds && (bounds.width ?? 0) > 0 && (bounds.height ?? 0) > 0;
+
+        if (hasVisualContent && children.length === 0) {
+          // Leaf element — capture it
           results.push(el);
-        }
-        for (const child of (el.children as Record<string, unknown>[]) || []) {
-          results.push(...collectText(child));
+        } else if (hasVisualContent) {
+          // Container with children — capture only if it has a background
+          const style = el.style as Record<string, unknown> | undefined;
+          if (style?.background_color || style?.background_gradient || style?.background_image) {
+            results.push(el);
+          }
+          for (const child of children) {
+            results.push(...collectLeaves(child));
+          }
         }
         return results;
       };
-      const textEls = enrichedScene.elements.flatMap(collectText);
+      const captureEls = enrichedScene.elements.flatMap(collectLeaves);
       let textCaptured = 0;
 
       const cdpClient = await probeSession.page.createCDPSession();
-      for (const textEl of textEls) {
-        const b = textEl.bounds as Record<string, number>;
+      for (const captureEl of captureEls) {
+        const b = captureEl.bounds as Record<string, number>;
         if (!b || (b.width ?? 0) <= 0 || (b.height ?? 0) <= 0) continue;
         const bx = b.x ?? 0;
         const by = b.y ?? 0;
@@ -1744,9 +1754,17 @@ export async function executeRenderJob(
             clip: { x: clampX, y: clampY, width: clampW, height: clampH, scale: 1 },
             captureBeyondViewport: false,
           });
-          const pngPath = join(textDir, `${textEl.id as string}.png`);
+          const pngPath = join(textDir, `${captureEl.id as string}.png`);
           writeFileSync(pngPath, Buffer.from(shot.data, "base64"));
-          (textEl.kind as Record<string, unknown>) = { type: "Image", src: pngPath };
+          (captureEl.kind as Record<string, unknown>) = { type: "Image", src: pngPath };
+          // Clear CSS style properties — the PNG already has the visual
+          const style = captureEl.style as Record<string, unknown> | undefined;
+          if (style) {
+            style.background_color = null;
+            style.background_gradient = null;
+            style.box_shadow = null;
+            style.border = null;
+          }
           textCaptured++;
         } catch {
           /* Skia will render this text normally */
@@ -1755,7 +1773,10 @@ export async function executeRenderJob(
       await cdpClient.detach();
 
       if (textCaptured > 0) {
-        log.info("Pre-rendered text from Chrome", { count: textCaptured, total: textEls.length });
+        log.info("Pre-rendered elements from Chrome", {
+          count: textCaptured,
+          total: captureEls.length,
+        });
       }
 
       // ── Download HTTP image assets via Chrome ──────────────────────
