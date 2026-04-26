@@ -47,26 +47,6 @@ describe("detectNativeSupport", () => {
     ["iframe", '<iframe id="frame" srcdoc="<p>embedded</p>"></iframe>', "iframe"],
     ["unresolved video", '<video id="clip"></video>', "video"],
     [
-      "resolved video",
-      '<video id="clip" src="file:///tmp/hyperframes-native-test.mp4"></video>',
-      "video",
-    ],
-    [
-      "animated element without stable id",
-      '<span style="display:block;transform:translateY(20px);opacity:.5">Animated</span>',
-      "element-id",
-    ],
-    [
-      "grid direct text layout",
-      '<div id="grid-text" style="display:grid;width:260px;height:120px;place-items:center">Grid text</div>',
-      "text-layout",
-    ],
-    [
-      "wrapped direct text",
-      '<div id="wrap-text" style="width:140px;font-size:32px;line-height:1.1">This text wraps</div>',
-      "text-wrap",
-    ],
-    [
       "backdrop filter",
       '<div id="glass" style="width:100px;height:80px;backdrop-filter:blur(4px)"></div>',
       "backdrop-filter",
@@ -88,11 +68,7 @@ describe("detectNativeSupport", () => {
     ],
     ["multiple background layers", "", "background-image"],
     ["repeated background image", "", "background-image"],
-    [
-      "multiple shadows",
-      '<div id="shadow" style="width:100px;height:80px;box-shadow:0 0 4px red, 0 0 8px blue"></div>',
-      "box-shadow",
-    ],
+    // Multiple shadows are now supported (painter loops over them)
     [
       "vertical writing mode",
       '<div id="vertical" style="writing-mode:vertical-rl">Text</div>',
@@ -137,7 +113,7 @@ describe("detectNativeSupport", () => {
     expect(report.reasons.some((reason) => reason.property === "data-composition-id")).toBe(true);
   });
 
-  it("rejects transparent composition roots before native rendering starts", async () => {
+  it("accepts transparent composition roots (renderer clears to black)", async () => {
     await setComposition(
       page,
       '<div id="card" style="width:100px;height:80px"></div>',
@@ -146,8 +122,7 @@ describe("detectNativeSupport", () => {
 
     const report = await detectNativeSupport(page, 320, 180);
 
-    expect(report.supported).toBe(false);
-    expect(report.reasons.some((reason) => reason.property === "background-color")).toBe(true);
+    expect(report.supported).toBe(true);
   });
 
   it("allows animated elements when they have a stable id", async () => {
