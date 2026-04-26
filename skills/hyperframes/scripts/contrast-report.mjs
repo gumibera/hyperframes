@@ -18,19 +18,20 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-
-import sharp from "sharp";
+import { importPackagesOrBootstrap } from "./package-loader.mjs";
 
 // Use the producer's file server — it auto-injects the HyperFrames runtime
 // and render-seek bridge, so raw authoring HTML works without a build step.
-import {
+const packages = await importPackagesOrBootstrap(["@hyperframes/producer", "sharp"]);
+const sharp = packages.sharp.default;
+const {
   createFileServer,
   createCaptureSession,
   initializeSession,
   closeCaptureSession,
   captureFrameToBuffer,
   getCompositionDuration,
-} from "@hyperframes/producer";
+} = packages["@hyperframes/producer"];
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────
 
