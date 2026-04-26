@@ -1768,8 +1768,9 @@ export async function executeRenderJob(
       // This is the CDP approach but with openh264+minimp4 instead of FFmpeg.
       // Speed gain comes from: no FFmpeg subprocess, no base64→pipe overhead
       // for encoding (screenshots still go through CDP base64 but encode is native).
-      const hasVideo = composition.videos.length > 0;
-      const numStates = hasVideo ? totalFrames : Math.min(Math.max(10, Math.ceil(dur / 5)), 60);
+      // Always use state capture (~30 states) for 11x speed.
+      // For video compositions, overlay extracted video frames on top.
+      const numStates = Math.min(Math.max(10, Math.ceil(dur / 5)), 60);
       const stateTimes: number[] = [];
       if (numStates === totalFrames) {
         // Every frame — use exact frame timestamps
@@ -1784,10 +1785,54 @@ export async function executeRenderJob(
       }
       log.info("Multi-state capture", { numStates, times: stateTimes.map((t) => +t.toFixed(1)) });
 
+      // Save video element metadata before state capture + scene replacement.
+      interface VideoOverlay {
+        id: string;
+        bounds: Record<string, number>;
+        dataStart: number;
+        dataEnd: number;
+        framesDir: string;
+        fps: number;
+        mediaStart: number;
+      }
+      const videoOverlays: VideoOverlay[] = [];
+      const collectVideoOverlays = (els: Record<string, unknown>[]) => {
+        for (const el of els) {
+          const kind = el.kind as Record<string, unknown> | undefined;
+          const style = el.style as Record<string, unknown> | undefined;
+          if (kind?.type === "Video" && style?.video_frames_dir) {
+            const bounds = el.bounds as Record<string, number>;
+            videoOverlays.push({
+              id: el.id as string,
+              bounds: { ...bounds },
+              dataStart: (style.data_start as number) ?? 0,
+              dataEnd: (style.data_end as number) ?? dur,
+              framesDir: style.video_frames_dir as string,
+              fps: (style.video_fps as number) ?? job.config.fps,
+              mediaStart: (style.video_media_start as number) ?? 0,
+            });
+          }
+          collectVideoOverlays((el.children as Record<string, unknown>[]) || []);
+        }
+      };
+      collectVideoOverlays(enrichedScene.elements);
+      log.info("Video overlays", {
+        count: videoOverlays.length,
+        ids: videoOverlays.map((v) => v.id),
+      });
+
       // For each state timestamp, take a FULL FRAME screenshot from Chrome.
-      // This is the simplest approach that guarantees pixel-perfect output.
       const cdpClient = await probeSession.page.createCDPSession();
       const stateFramePaths: string[] = [];
+
+      // Hide video elements so state frames capture clean backgrounds.
+      // Video content overlays from pre-extracted FFmpeg frames.
+      if (videoOverlays.length > 0) {
+        const ids = videoOverlays.map((v) => JSON.stringify(v.id)).join(",");
+        await probeSession.page.evaluate(
+          `[${ids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.setProperty("visibility","hidden","important")})`,
+        );
+      }
 
       for (let si = 0; si < stateTimes.length; si++) {
         const t = stateTimes[si];
@@ -1817,9 +1862,7 @@ export async function executeRenderJob(
 
       log.info("Captured Chrome states", { count: stateFramePaths.length });
 
-      // Build scene: state frames as background layers + video elements on top.
-      // State frames provide pixel-perfect non-video content (text, backgrounds).
-      // Video elements overlay with pre-extracted per-frame JPEGs for pixel-perfect video.
+      // Build scene: state frames + video overlays.
       const stateChildren = stateFramePaths.map((path, i) => ({
         id: `state-${i}`,
         kind: { type: "Image", src: path } as Record<string, unknown>,
@@ -1829,6 +1872,25 @@ export async function executeRenderJob(
           visibility: true,
           data_start: i === 0 ? 0 : stateTimes[i]! - dur / numStates / 2,
           data_end: i === numStates - 1 ? dur + 1 : stateTimes[i]! + dur / numStates / 2,
+        } as Record<string, unknown>,
+        children: [] as Record<string, unknown>[],
+      }));
+
+      // Video overlay elements: positioned on top of state frames,
+      // using pre-extracted per-frame JPEGs from FFmpeg.
+      const videoOverlayChildren = videoOverlays.map((v) => ({
+        id: v.id,
+        kind: { type: "Image", src: "" } as Record<string, unknown>,
+        bounds: v.bounds,
+        style: {
+          opacity: 1.0,
+          visibility: true,
+          overflow_hidden: true,
+          video_frames_dir: v.framesDir,
+          video_fps: v.fps,
+          video_media_start: v.mediaStart,
+          data_start: v.dataStart,
+          data_end: v.dataEnd,
         } as Record<string, unknown>,
         children: [] as Record<string, unknown>[],
       }));
@@ -1843,7 +1905,7 @@ export async function executeRenderJob(
             visibility: true,
             background_color: null,
           } as Record<string, unknown>,
-          children: stateChildren,
+          children: [...stateChildren, ...videoOverlayChildren],
         },
       ] as Record<string, unknown>[];
 
