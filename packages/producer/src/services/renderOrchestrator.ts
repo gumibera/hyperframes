@@ -1764,50 +1764,35 @@ export async function executeRenderJob(
       const imgDir = join(workDir, "native-images");
       if (!existsSync(imgDir)) mkdirSync(imgDir, { recursive: true });
 
-      const httpImages: Array<{ kind: Record<string, unknown>; src: string }> = [];
-      const findHttpImages = (el: Record<string, unknown>): void => {
+      // Replace ALL http://localhost:* URLs with local file paths.
+      // The file server serves from projectDir — strip the origin to get
+      // the relative path, then resolve against projectDir.
+      const resolveHttpSrc = (src: string): string => {
+        if (!src.startsWith("http://") && !src.startsWith("https://")) return src;
+        try {
+          const url = new URL(src);
+          const relPath = decodeURIComponent(url.pathname).replace(/^\//, "");
+          const localPath = join(projectDir, relPath);
+          if (existsSync(localPath)) return localPath;
+          // Try compiled dir too
+          const compiledPath = join(workDir, "compiled", relPath);
+          if (existsSync(compiledPath)) return compiledPath;
+        } catch {
+          /* malformed URL */
+        }
+        return src; // unchanged — Rust will skip HTTP URLs safely
+      };
+
+      const resolveAllSrcs = (el: Record<string, unknown>): void => {
         const kind = el.kind as Record<string, unknown> | undefined;
-        if (kind?.type === "Image" && typeof kind.src === "string") {
-          if ((kind.src as string).startsWith("http")) {
-            httpImages.push({ kind, src: kind.src as string });
-          }
+        if (kind && typeof kind.src === "string") {
+          kind.src = resolveHttpSrc(kind.src as string);
         }
         for (const child of (el.children as Record<string, unknown>[]) || []) {
-          findHttpImages(child);
+          resolveAllSrcs(child);
         }
       };
-      for (const el of enrichedScene.elements) findHttpImages(el);
-
-      for (const { kind, src } of httpImages) {
-        try {
-          const b64 = await probeSession!.page.evaluate(
-            `(async () => {
-              try {
-                const r = await fetch(${JSON.stringify(src)});
-                if (!r.ok) return null;
-                const b = await r.blob();
-                return new Promise(resolve => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => resolve(reader.result);
-                  reader.onerror = () => resolve(null);
-                  reader.readAsDataURL(b);
-                });
-              } catch { return null; }
-            })()`,
-          );
-          if (typeof b64 === "string" && b64.includes(",")) {
-            const data = b64.split(",")[1];
-            if (data) {
-              const safeName = (src as string).replace(/[^a-zA-Z0-9.]/g, "_").slice(-80);
-              const localPath = join(imgDir, safeName);
-              writeFileSync(localPath, Buffer.from(data, "base64"));
-              kind.src = localPath;
-            }
-          }
-        } catch {
-          /* skip */
-        }
-      }
+      for (const el of enrichedScene.elements) resolveAllSrcs(el);
 
       // Seek back to start for timeline baking
       await probeSession.page.evaluate(`void(window.__hf?.seek(0))`);
