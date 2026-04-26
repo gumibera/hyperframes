@@ -78,11 +78,9 @@ fn load_bytes(src: &str) -> Option<Vec<u8>> {
     }
 
     if src.starts_with("http://") || src.starts_with("https://") {
-        let output = Command::new("curl")
-            .args(["-fsSL", "--max-time", "20", src])
-            .output()
-            .ok()?;
-        return output.status.success().then_some(output.stdout);
+        // Skip HTTP URLs — the file server is closed by the time the binary
+        // runs. Assets should be downloaded to disk during extraction.
+        return None;
     }
 
     std::fs::read(src).ok()

@@ -96,7 +96,8 @@ export async function bakeTimeline(
       frameTimes.push(i / fps);
     }
 
-    const batchResults = (await page.evaluate(BAKE_BATCH_SCRIPT, frameTimes)) as Array<
+    const inlinedScript = `(${BAKE_BATCH_SCRIPT})(${JSON.stringify(frameTimes)})`;
+    const batchResults = (await page.evaluate(inlinedScript)) as Array<
       Record<string, BakedElementState>
     >;
 

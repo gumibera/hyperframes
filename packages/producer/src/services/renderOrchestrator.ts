@@ -1683,7 +1683,11 @@ export async function executeRenderJob(
       });
       // Re-extract scene with layout data now in DOM attributes
       const enrichedScene = await extractScene(probeSession.page, width, height);
-      enrichedScene.fonts = scene.fonts;
+      // Skip fonts — text elements are pre-rendered as Chrome PNGs, so the
+      // Rust FontRegistry isn't needed. Loading WOFF2 fonts causes Skia to
+      // hang (no freetype-woff2 feature). Fonts will be re-enabled when we
+      // add TTF-only font loading in a future phase.
+      enrichedScene.fonts = [];
 
       // ── Pre-render text elements from Chrome for pixel-perfect glyphs ──
       // Text rendering is the dominant PSNR gap. Instead of re-rendering
@@ -1804,6 +1808,7 @@ export async function executeRenderJob(
           String(job.duration),
           "--quality",
           String(qualityNum),
+          "--cpu",
         ],
         { timeout: 3_600_000, encoding: "utf-8" },
       );

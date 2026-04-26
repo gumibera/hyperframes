@@ -19,18 +19,28 @@ impl FontRegistry {
         }
     }
 
-    /// Build a registry from a list of font descriptors.  Fonts that fail to
-    /// load (missing file, unsupported format) are silently skipped — the
-    /// painter falls back to the system default for those families.
     pub fn from_descriptors(descriptors: &[FontDescriptor]) -> Self {
         let mut registry = Self::new();
+        // Create one FontMgr and reuse — each FontMgr::new() scans system fonts
+        let mgr = FontMgr::new();
         for desc in descriptors {
-            registry.load_font(&desc.family, &desc.path, desc.weight, &desc.style);
+            if desc.path.is_empty() {
+                continue;
+            }
+            let bytes = match std::fs::read(&desc.path) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let typeface = match mgr.new_from_data(&bytes, 0) {
+                Some(tf) => tf,
+                None => continue,
+            };
+            let key = format!("{}-{}-{}", desc.family, desc.weight, desc.style);
+            registry.typefaces.insert(key, typeface);
         }
         registry
     }
 
-    /// Load a single font file into the registry.  Returns `true` on success.
     pub fn load_font(&mut self, family: &str, path: &str, weight: u16, style: &str) -> bool {
         let bytes = match std::fs::read(path) {
             Ok(b) => b,

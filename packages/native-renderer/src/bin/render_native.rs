@@ -58,14 +58,18 @@ fn main() {
     };
 
     let result = if let Some(path) = timeline_path {
+        eprintln!("[render_native] reading timeline: {}", path.display());
         let timeline_json = fs::read_to_string(&path).unwrap_or_else(|err| {
             eprintln!("failed to read {}: {err}", path.display());
             std::process::exit(1);
         });
+        eprintln!("[render_native] parsing timeline ({} bytes)...", timeline_json.len());
         let timeline: BakedTimeline = serde_json::from_str(&timeline_json).unwrap_or_else(|err| {
             eprintln!("invalid timeline JSON: {err}");
             std::process::exit(1);
         });
+        eprintln!("[render_native] timeline parsed: {} frames", timeline.total_frames);
+        eprintln!("[render_native] starting render (force_cpu={force_cpu})...");
 
         if force_cpu {
             render_animated(&scene, &timeline, &config)
