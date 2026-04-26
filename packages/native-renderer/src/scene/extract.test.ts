@@ -6,6 +6,7 @@ describe("ExtractedScene types", () => {
     const scene: ExtractedScene = {
       width: 1920,
       height: 1080,
+      fonts: [],
       elements: [
         {
           id: "bg",
@@ -220,6 +221,7 @@ describe("ExtractedScene types", () => {
     const scene: ExtractedScene = {
       width: 1280,
       height: 720,
+      fonts: [],
       elements: [
         {
           id: "root",
