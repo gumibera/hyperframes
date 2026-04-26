@@ -1537,7 +1537,28 @@ export async function executeRenderJob(
     // bypass Chrome capture entirely: extract scene graph + bake timeline
     // from the already-loaded probe session, then render with Rust/Skia.
     const useNativeRenderer = Boolean(process.env.HYPERFRAMES_NATIVE_RENDER);
-    if (useNativeRenderer && probeSession && outputFormat === "mp4") {
+    if (useNativeRenderer && outputFormat === "mp4") {
+      // Ensure a browser session exists for scene extraction.
+      // The probe session may be null if the composition had a known static duration.
+      if (!probeSession) {
+        if (!fileServer) {
+          fileServer = await createFileServer({
+            projectDir,
+            compiledDir: join(workDir, "compiled"),
+            port: 0,
+            preHeadScripts: [VIRTUAL_TIME_SHIM],
+          });
+          assertNotAborted();
+        }
+        probeSession = await createCaptureSession(
+          fileServer.url,
+          join(workDir, "native-probe"),
+          { width, height, fps: job.config.fps },
+          null,
+          cfg,
+        );
+        await initializeSession(probeSession);
+      }
       const stage4Start = Date.now();
       updateJobStatus(job, "rendering", "Native render: extracting scene", 25, onProgress);
       log.info("Using native Skia renderer");

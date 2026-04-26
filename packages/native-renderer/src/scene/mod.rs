@@ -10,6 +10,19 @@ pub struct Scene {
     pub width: u32,
     pub height: u32,
     pub elements: Vec<Element>,
+    #[serde(default)]
+    pub fonts: Vec<FontDescriptor>,
+}
+
+/// A font file reference that the Rust painter should load into Skia before
+/// rendering.  The `path` is an absolute filesystem path to a .ttf/.otf/.woff2
+/// file.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FontDescriptor {
+    pub family: String,
+    pub path: String,
+    pub weight: u16,
+    pub style: String,
 }
 
 /// A visual element in the scene graph.
@@ -72,6 +85,18 @@ pub struct Style {
     pub object_fit: Option<ObjectFit>,
     pub object_position: Option<ObjectPosition>,
     pub mix_blend_mode: Option<MixBlendMode>,
+    pub letter_spacing: Option<f32>,
+    pub line_height: Option<f32>,
+    /// Timeline start time (seconds) — element is hidden before this time.
+    pub data_start: Option<f32>,
+    /// Timeline end time (seconds) — element is hidden after this time.
+    pub data_end: Option<f32>,
+    /// Path to directory of pre-extracted video frames (frame_00001.jpg, ...).
+    pub video_frames_dir: Option<String>,
+    /// FPS of the extracted video frames (defaults to 30 when frames_dir is set).
+    pub video_fps: Option<f32>,
+    /// Media offset in seconds — where in the source video playback starts.
+    pub video_media_start: Option<f32>,
 }
 
 impl Default for Style {
@@ -99,6 +124,13 @@ impl Default for Style {
             object_fit: None,
             object_position: None,
             mix_blend_mode: None,
+            letter_spacing: None,
+            line_height: None,
+            data_start: None,
+            data_end: None,
+            video_frames_dir: None,
+            video_fps: None,
+            video_media_start: None,
         }
     }
 }

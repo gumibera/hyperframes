@@ -124,6 +124,11 @@ export interface ElementStyle {
   object_fit?: ObjectFit | null;
   object_position?: ObjectPosition | null;
   mix_blend_mode?: MixBlendMode | null;
+  data_start?: number | null;
+  data_end?: number | null;
+  video_frames_dir?: string | null;
+  video_fps?: number | null;
+  video_media_start?: number | null;
 }
 
 /**
@@ -542,6 +547,11 @@ const EXTRACT_SCENE_SCRIPT = `(() => {
           ? parseObjectPosition(cs.objectPosition, rect.width, rect.height)
           : null,
       mix_blend_mode: parseMixBlendMode(cs.mixBlendMode),
+      data_start: el.hasAttribute("data-start") ? parseFloat(el.getAttribute("data-start")) || null : null,
+      data_end: el.hasAttribute("data-end") ? parseFloat(el.getAttribute("data-end")) || null : null,
+      video_frames_dir: el.getAttribute("data-video-frames-dir") || null,
+      video_fps: el.hasAttribute("data-video-fps") ? parseFloat(el.getAttribute("data-video-fps")) || null : null,
+      video_media_start: el.hasAttribute("data-media-start") ? parseFloat(el.getAttribute("data-media-start")) || null : null,
     };
 
     const children = [];
@@ -589,4 +599,42 @@ export async function extractScene(
   const elements = (await page.evaluate(EXTRACT_SCENE_SCRIPT)) as SceneElement[];
 
   return { width, height, elements };
+}
+
+/**
+ * Map of video `src` URL to pre-extracted frame metadata, used by the producer
+ * to inject frame directory paths after extraction but before serialisation to
+ * the Rust renderer.
+ */
+export interface VideoFramesMeta {
+  framesDir: string;
+  fps: number;
+  mediaStart?: number;
+}
+
+/**
+ * Walk a scene and inject pre-extracted video frame metadata into every
+ * `Video` element whose `src` matches a key in `videoFramesMap`.
+ *
+ * Mutates the scene in-place and returns it for chaining.
+ */
+export function injectVideoFramesMeta(
+  scene: ExtractedScene,
+  videoFramesMap: Record<string, VideoFramesMeta>,
+): ExtractedScene {
+  function walk(elements: SceneElement[]) {
+    for (const el of elements) {
+      if (el.kind.type === "Video" && el.kind.src in videoFramesMap) {
+        const meta = videoFramesMap[el.kind.src];
+        el.style.video_frames_dir = meta.framesDir;
+        el.style.video_fps = meta.fps;
+        if (meta.mediaStart !== undefined) {
+          el.style.video_media_start = meta.mediaStart;
+        }
+      }
+      walk(el.children);
+    }
+  }
+  walk(scene.elements);
+  return scene;
 }

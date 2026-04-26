@@ -308,6 +308,19 @@ pub fn paint_element_at_time(
         return;
     }
 
+    // Skip elements outside their data-start..data-end time range.
+    let t = time_secs as f32;
+    if let Some(start) = style.data_start {
+        if t < start {
+            return;
+        }
+    }
+    if let Some(end) = style.data_end {
+        if t >= end {
+            return;
+        }
+    }
+
     let save_count = canvas.save();
 
     // --- Position & Transform ---
@@ -531,7 +544,23 @@ pub fn paint_element_at_time(
 
     // --- Video content ---
     if let ElementKind::Video { ref src } = element.kind {
-        if let Some(image) = images.get_or_load_video_frame(src, time_secs).cloned() {
+        let frame_image = if let Some(ref frames_dir) = style.video_frames_dir {
+            // Pre-extracted frames: compute the frame index from the element's
+            // own timeline position. `data_start` anchors the element on the
+            // composition timeline; `video_media_start` offsets into the source.
+            let media_start = style.video_media_start.unwrap_or(0.0);
+            let video_fps = style.video_fps.unwrap_or(30.0);
+            let element_start = style.data_start.unwrap_or(0.0);
+            let video_time = (t - element_start + media_start).max(0.0);
+            let frame_index = (video_time * video_fps).round() as u32;
+            let frame_path = format!("{}/frame_{:05}.jpg", frames_dir, frame_index + 1);
+            images.get_or_load(&frame_path).cloned()
+        } else {
+            // Fallback: extract frame on-demand via FFmpeg
+            images.get_or_load_video_frame(src, time_secs).cloned()
+        };
+
+        if let Some(image) = frame_image {
             let dest_rect = to_sk_rect(&element.bounds);
             let position = object_position_or_center(style.object_position);
             draw_image(
