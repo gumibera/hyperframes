@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-03-11T01:22:09.852Z",
-  "platform": "linux x64",
-  "nodeVersion": "v22.17.0",
-  "runsPerFixture": 1,
+  "timestamp": "2026-04-25T17:56:52.846Z",
+  "platform": "darwin arm64",
+  "nodeVersion": "v24.9.0",
+  "runsPerFixture": 3,
   "fixtures": [
     {
       "fixture": "missing-host-comp-id",
@@ -11,11 +11,11 @@
         {
           "run": 1,
           "perfSummary": {
-            "renderId": "0afc2d13-2bc0-4eda-9134-1efeb6a15908",
-            "totalElapsedMs": 5620,
+            "renderId": "9f314d55-b125-45f7-b7ad-c4e3db7e4e33",
+            "totalElapsedMs": 2060,
             "fps": 24,
             "quality": "high",
-            "workers": 2,
+            "workers": 3,
             "chunkedEncode": false,
             "chunkSizeFrames": null,
             "compositionDurationSeconds": 3,
@@ -27,31 +27,104 @@
             "videoCount": 0,
             "audioCount": 1,
             "stages": {
-              "compileOnlyMs": 29,
+              "compileOnlyMs": 106,
               "browserProbeMs": 0,
-              "compileMs": 30,
+              "compileMs": 107,
               "videoExtractMs": 0,
-              "audioProcessMs": 136,
-              "captureMs": 4832,
-              "encodeMs": 528,
-              "assembleMs": 94
+              "captureMs": 1622,
+              "encodeMs": 242,
+              "audioProcessMs": 1866,
+              "assembleMs": 87
             },
-            "captureAvgMs": 67
+            "tmpPeakBytes": 5338532,
+            "captureAvgMs": 23,
+            "peakRssMb": 239,
+            "peakHeapUsedMb": 49
+          }
+        },
+        {
+          "run": 2,
+          "perfSummary": {
+            "renderId": "3c32fd08-62fe-4093-9415-4fb5a1c55691",
+            "totalElapsedMs": 1826,
+            "fps": 24,
+            "quality": "high",
+            "workers": 3,
+            "chunkedEncode": false,
+            "chunkSizeFrames": null,
+            "compositionDurationSeconds": 3,
+            "totalFrames": 72,
+            "resolution": {
+              "width": 1080,
+              "height": 1920
+            },
+            "videoCount": 0,
+            "audioCount": 1,
+            "stages": {
+              "compileOnlyMs": 68,
+              "browserProbeMs": 0,
+              "compileMs": 69,
+              "videoExtractMs": 0,
+              "captureMs": 1421,
+              "encodeMs": 246,
+              "audioProcessMs": 1669,
+              "assembleMs": 88
+            },
+            "tmpPeakBytes": 5338532,
+            "captureAvgMs": 20,
+            "peakRssMb": 250,
+            "peakHeapUsedMb": 55
+          }
+        },
+        {
+          "run": 3,
+          "perfSummary": {
+            "renderId": "32807044-f333-4398-b7ef-09c58837e281",
+            "totalElapsedMs": 1859,
+            "fps": 24,
+            "quality": "high",
+            "workers": 3,
+            "chunkedEncode": false,
+            "chunkSizeFrames": null,
+            "compositionDurationSeconds": 3,
+            "totalFrames": 72,
+            "resolution": {
+              "width": 1080,
+              "height": 1920
+            },
+            "videoCount": 0,
+            "audioCount": 1,
+            "stages": {
+              "compileOnlyMs": 64,
+              "browserProbeMs": 0,
+              "compileMs": 65,
+              "videoExtractMs": 0,
+              "captureMs": 1446,
+              "encodeMs": 245,
+              "audioProcessMs": 1693,
+              "assembleMs": 101
+            },
+            "tmpPeakBytes": 5338532,
+            "captureAvgMs": 20,
+            "peakRssMb": 260,
+            "peakHeapUsedMb": 63
           }
         }
       ],
       "averages": {
-        "totalElapsedMs": 5620,
-        "captureAvgMs": 67,
+        "totalElapsedMs": 1915,
+        "captureAvgMs": 21,
+        "peakRssMb": 250,
+        "peakHeapUsedMb": 56,
         "stages": {
-          "compileOnlyMs": 29,
+          "compileOnlyMs": 79,
           "browserProbeMs": 0,
-          "compileMs": 30,
+          "compileMs": 80,
           "videoExtractMs": 0,
-          "audioProcessMs": 136,
-          "captureMs": 4832,
-          "encodeMs": 528,
-          "assembleMs": 94
+          "captureMs": 1496,
+          "encodeMs": 244,
+          "audioProcessMs": 1743,
+          "assembleMs": 92
         }
       }
     }

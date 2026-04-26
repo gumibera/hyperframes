@@ -65,9 +65,10 @@ const NATIVE_UNAVAILABLE_REASON =
   "native renderer binary source is not available in this installation";
 
 export function findNativeRendererRoot(): string | null {
+  const thisDir = dirname(new URL(import.meta.url).pathname);
   const candidates = [
-    resolve(__dirname, "../../../native-renderer"),
-    resolve(__dirname, "../../native-renderer"),
+    resolve(thisDir, "../../../native-renderer"),
+    resolve(thisDir, "../../native-renderer"),
     resolve(process.cwd(), "packages/native-renderer"),
   ];
 
@@ -249,9 +250,15 @@ async function bundleProjectHtml(projectDir: string): Promise<string> {
 
 function findRuntimePath(): string | null {
   const candidates = [
-    resolve(__dirname, "../../../core/dist/hyperframe.runtime.iife.js"),
-    resolve(__dirname, "../../core/dist/hyperframe.runtime.iife.js"),
-    resolve(dirname(__dirname), "hyperframe.runtime.iife.js"),
+    resolve(
+      dirname(new URL(import.meta.url).pathname),
+      "../../../core/dist/hyperframe.runtime.iife.js",
+    ),
+    resolve(
+      dirname(new URL(import.meta.url).pathname),
+      "../../core/dist/hyperframe.runtime.iife.js",
+    ),
+    resolve(dirname(dirname(new URL(import.meta.url).pathname)), "hyperframe.runtime.iife.js"),
   ];
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }

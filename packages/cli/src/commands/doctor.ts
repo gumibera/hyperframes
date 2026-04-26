@@ -195,7 +195,7 @@ function checkNativeRenderer(): CheckResult {
     const cargo = execSync("cargo --version", { encoding: "utf-8", timeout: 5000 }).trim();
     return {
       ok: true,
-      detail: `${root} \u00B7 ${cargo} \u00B7 auto uses native only for supported compositions`,
+      detail: `${root} \u00B7 ${cargo} \u00B7 auto gates native by support detection; zero-copy is not proven yet`,
     };
   } catch {
     return {
