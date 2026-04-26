@@ -1765,7 +1765,7 @@ export async function executeRenderJob(
 
       const dur = job.duration ?? 1;
       // Sample at ~10 evenly spaced timestamps to cover all visual states
-      const numStates = Math.min(Math.max(7, Math.ceil(dur / 15)), 20);
+      const numStates = Math.min(Math.max(10, Math.ceil(dur / 5)), 60);
       const stateTimes: number[] = [];
       for (let i = 0; i < numStates; i++) {
         stateTimes.push((dur * (i + 0.5)) / numStates);
