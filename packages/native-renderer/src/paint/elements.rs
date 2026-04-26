@@ -599,18 +599,25 @@ fn paint_element_inner(
         canvas.draw_str(content, (text_x, text_y), &font, &paint);
     }
 
-    // --- Image content ---
+    // --- Image content (or video with pre-extracted frames) ---
     if let ElementKind::Image { ref src } = element.kind {
-        if let Some(image) = images.get_or_load(src).cloned() {
+        if let Some(ref frames_dir) = style.video_frames_dir {
+            // This Image was originally a Video element — use extracted frames
+            let media_start = style.video_media_start.unwrap_or(0.0);
+            let video_fps = style.video_fps.unwrap_or(30.0);
+            let element_start = style.data_start.unwrap_or(0.0);
+            let video_time = (t - element_start as f64 + media_start as f64).max(0.0);
+            let frame_index = (video_time * video_fps as f64).round() as u32;
+            let frame_path = format!("{}/frame_{:05}.jpg", frames_dir, frame_index + 1);
+            if let Some(image) = images.get_or_load(&frame_path).cloned() {
+                let dest_rect = to_sk_rect(&element.bounds);
+                let position = object_position_or_center(style.object_position);
+                draw_image(canvas, &image, &dest_rect, style.object_fit.unwrap_or(ObjectFit::Cover), position);
+            }
+        } else if let Some(image) = images.get_or_load(src).cloned() {
             let dest_rect = to_sk_rect(&element.bounds);
             let position = object_position_or_center(style.object_position);
-            draw_image(
-                canvas,
-                &image,
-                &dest_rect,
-                style.object_fit.unwrap_or(ObjectFit::Cover),
-                position,
-            );
+            draw_image(canvas, &image, &dest_rect, style.object_fit.unwrap_or(ObjectFit::Cover), position);
         }
     }
 

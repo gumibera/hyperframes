@@ -1696,6 +1696,34 @@ export async function executeRenderJob(
       const textDir = join(workDir, "native-text");
       if (!existsSync(textDir)) mkdirSync(textDir, { recursive: true });
 
+      // ── Inject video frame directories BEFORE element capture ────────
+      // Video elements keep their Video kind (not captured as PNGs).
+      // The Rust binary composites per-frame extracted JPEGs instead.
+      const videoFramesBase = join(workDir, "video-frames");
+      const videoIdsWithFrames = new Set<string>();
+      const injectVideoFrames = (el: Record<string, unknown>): void => {
+        const kind = el.kind as Record<string, unknown> | undefined;
+        const style = el.style as Record<string, unknown> | undefined;
+        if (kind?.type === "Video" && style && el.id) {
+          const frameDir = join(videoFramesBase, el.id as string);
+          if (existsSync(frameDir)) {
+            style.video_frames_dir = frameDir;
+            style.video_fps = job.config.fps;
+            style.video_media_start = 0;
+            videoIdsWithFrames.add(el.id as string);
+            log.info("Mapped video frames", {
+              id: el.id,
+              dir: frameDir,
+              frames: readdirSync(frameDir).filter((f: string) => f.startsWith("frame_")).length,
+            });
+          }
+        }
+        for (const child of (el.children as Record<string, unknown>[]) || []) {
+          injectVideoFrames(child);
+        }
+      };
+      for (const el of enrichedScene.elements) injectVideoFrames(el);
+
       // ── Capture elements from Chrome for pixel-perfect output ─────────
       // Seek through multiple timestamps to capture elements across all
       // visual states (different slides, different animation phases).
@@ -1712,12 +1740,15 @@ export async function executeRenderJob(
       // Skia becomes a pure image compositor — no CSS painting.
       const collectLeaves = (el: Record<string, unknown>): Record<string, unknown>[] => {
         const results: Record<string, unknown>[] = [];
+        const elKind = el.kind as Record<string, unknown> | undefined;
         const bounds = el.bounds as Record<string, number> | undefined;
         const children = (el.children as Record<string, unknown>[]) || [];
         const hasVisualContent = bounds && (bounds.width ?? 0) > 0 && (bounds.height ?? 0) > 0;
+        const isVideoWithFrames =
+          elKind?.type === "Video" && videoIdsWithFrames.has((el.id as string) || "");
 
-        if (hasVisualContent && children.length === 0) {
-          // Leaf element — capture it
+        if (hasVisualContent && children.length === 0 && !isVideoWithFrames) {
+          // Leaf element (not a video with frames) — capture it
           results.push(el);
         } else if (hasVisualContent) {
           // Container with children — capture only if it has a background
@@ -1732,6 +1763,21 @@ export async function executeRenderJob(
         return results;
       };
       const captureEls = enrichedScene.elements.flatMap(collectLeaves);
+      log.info("Element capture plan", {
+        totalLeaves: captureEls.length,
+        videoIdsWithFrames: Array.from(videoIdsWithFrames),
+        videoElementsInScene: (() => {
+          let count = 0;
+          const walk = (els: Record<string, unknown>[]) => {
+            for (const el of els) {
+              if ((el.kind as Record<string, unknown>)?.type === "Video") count++;
+              walk((el.children as Record<string, unknown>[]) || []);
+            }
+          };
+          walk(enrichedScene.elements);
+          return count;
+        })(),
+      });
       let textCaptured = 0;
 
       const cdpClient = await probeSession.page.createCDPSession();
