@@ -1589,6 +1589,82 @@ export async function executeRenderJob(
       };
 
       const scene = await extractScene(probeSession.page, width, height);
+
+      // ── Extract embedded font files for the Rust renderer ─────────────
+      // The producer's deterministic font injection embeds Google Fonts as
+      // base64 @font-face data URIs in the compiled HTML. Extract them to
+      // disk so the Rust FontRegistry can load them.
+      const fontsDir = join(workDir, "native-fonts");
+      if (!existsSync(fontsDir)) mkdirSync(fontsDir, { recursive: true });
+
+      const extractedFonts = await probeSession.page.evaluate(() => {
+        const results: Array<{ family: string; weight: string; style: string; dataUri: string }> =
+          [];
+        for (const sheet of document.styleSheets) {
+          try {
+            for (const rule of sheet.cssRules) {
+              if (rule instanceof CSSFontFaceRule) {
+                const family = rule.style
+                  .getPropertyValue("font-family")
+                  .replace(/['"]/g, "")
+                  .trim();
+                const weight = rule.style.getPropertyValue("font-weight") || "400";
+                const style = rule.style.getPropertyValue("font-style") || "normal";
+                const src = rule.style.getPropertyValue("src");
+                const dataMatch = src.match(/url\(["']?(data:font\/[^;]+;base64,[^"')]+)["']?\)/);
+                if (dataMatch && family) {
+                  results.push({ family, weight, style, dataUri: dataMatch[1] });
+                }
+              }
+            }
+          } catch {
+            /* cross-origin stylesheet — skip */
+          }
+        }
+        return results;
+      });
+
+      for (const font of extractedFonts) {
+        const base64Data = font.dataUri.split(",")[1];
+        if (!base64Data) continue;
+        const fontBytes = Buffer.from(base64Data, "base64");
+        const safeName = font.family.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+        const fontPath = join(fontsDir, `${safeName}-${font.weight}-${font.style}.ttf`);
+        writeFileSync(fontPath, fontBytes);
+
+        scene.fonts.push({
+          family: font.family,
+          path: fontPath,
+          weight: parseInt(font.weight) || 400,
+          style: font.style,
+        });
+      }
+      if (extractedFonts.length > 0) {
+        log.info("Extracted fonts for native renderer", {
+          count: extractedFonts.length,
+          families: [...new Set(extractedFonts.map((f) => f.family))],
+        });
+      }
+
+      // ── Extract layout positioning for better text fidelity ───────────
+      // Capture padding/textAlign from computed styles so the Rust painter
+      // can position text inside elements more accurately.
+      await probeSession.page.evaluate(() => {
+        const els = document.querySelectorAll("[id]");
+        for (const el of els) {
+          if (!(el instanceof HTMLElement)) continue;
+          const cs = getComputedStyle(el);
+          el.setAttribute("data-padding-left", cs.paddingLeft);
+          el.setAttribute("data-padding-top", cs.paddingTop);
+          el.setAttribute("data-text-align", cs.textAlign);
+          el.setAttribute("data-line-height", cs.lineHeight);
+          el.setAttribute("data-letter-spacing", cs.letterSpacing);
+        }
+      });
+      // Re-extract scene with layout data now in DOM attributes
+      const enrichedScene = await extractScene(probeSession.page, width, height);
+      enrichedScene.fonts = scene.fonts;
+
       updateJobStatus(job, "rendering", "Native render: baking timeline", 35, onProgress);
       const timeline = await bakeTimeline(probeSession.page, job.config.fps, job.duration!);
 
@@ -1596,7 +1672,7 @@ export async function executeRenderJob(
       if (!existsSync(nativeWorkDir)) mkdirSync(nativeWorkDir, { recursive: true });
       const scenePath = join(nativeWorkDir, "scene.json");
       const timelinePath = join(nativeWorkDir, "timeline.json");
-      writeFileSync(scenePath, JSON.stringify(scene));
+      writeFileSync(scenePath, JSON.stringify(enrichedScene));
       writeFileSync(timelinePath, JSON.stringify(timeline));
 
       lastBrowserConsole = probeSession.browserConsoleBuffer;

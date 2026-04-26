@@ -544,9 +544,24 @@ fn paint_element_inner(
         paint.set_color4f(to_color4f(&text_color), None);
 
         let (_, metrics) = font.metrics();
-        // `metrics.ascent` is negative (distance above baseline), so negate it to
-        // get the y-offset where the baseline sits.
         let y = -metrics.ascent;
+
+        // Apply padding offset from Chrome's computed layout
+        let pad_left = style.padding_left.unwrap_or(0.0);
+        let pad_top = style.padding_top.unwrap_or(0.0);
+
+        // Text alignment: measure text width and adjust x position
+        let text_x = if let Some(ref align) = style.text_align {
+            let (text_width, _) = font.measure_str(content, Some(&paint));
+            match align.as_str() {
+                "center" => pad_left + (element.bounds.width - pad_left * 2.0 - text_width) / 2.0,
+                "right" | "end" => element.bounds.width - pad_left - text_width,
+                _ => pad_left,
+            }
+        } else {
+            pad_left
+        };
+        let text_y = y + pad_top;
 
         if let Some(ref shadow) = style.text_shadow {
             let mut shadow_paint = Paint::default();
@@ -564,7 +579,7 @@ fn paint_element_inner(
             }
             canvas.draw_str(
                 content,
-                (shadow.offset_x, y + shadow.offset_y),
+                (text_x + shadow.offset_x, text_y + shadow.offset_y),
                 &font,
                 &shadow_paint,
             );
@@ -577,11 +592,11 @@ fn paint_element_inner(
                 stroke_paint.set_style(PaintStyle::Stroke);
                 stroke_paint.set_stroke_width(stroke.width);
                 stroke_paint.set_color4f(to_color4f(&stroke.color), None);
-                canvas.draw_str(content, (0.0, y), &font, &stroke_paint);
+                canvas.draw_str(content, (text_x, text_y), &font, &stroke_paint);
             }
         }
 
-        canvas.draw_str(content, (0.0, y), &font, &paint);
+        canvas.draw_str(content, (text_x, text_y), &font, &paint);
     }
 
     // --- Image content ---

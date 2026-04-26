@@ -87,6 +87,9 @@ pub struct Style {
     pub mix_blend_mode: Option<MixBlendMode>,
     pub letter_spacing: Option<f32>,
     pub line_height: Option<f32>,
+    pub padding_left: Option<f32>,
+    pub padding_top: Option<f32>,
+    pub text_align: Option<String>,
     /// Timeline start time (seconds) — element is hidden before this time.
     pub data_start: Option<f32>,
     /// Timeline end time (seconds) — element is hidden after this time.
@@ -131,6 +134,9 @@ impl Default for Style {
             video_frames_dir: None,
             video_fps: None,
             video_media_start: None,
+            padding_left: None,
+            padding_top: None,
+            text_align: None,
         }
     }
 }

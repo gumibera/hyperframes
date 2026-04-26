@@ -126,6 +126,9 @@ export interface ElementStyle {
   mix_blend_mode?: MixBlendMode | null;
   letter_spacing?: number | null;
   line_height?: number | null;
+  padding_left?: number | null;
+  padding_top?: number | null;
+  text_align?: string | null;
   data_start?: number | null;
   data_end?: number | null;
   video_frames_dir?: string | null;
@@ -559,6 +562,9 @@ const EXTRACT_SCENE_SCRIPT = `(() => {
       mix_blend_mode: parseMixBlendMode(cs.mixBlendMode),
       letter_spacing: isText ? (parseFloat(cs.letterSpacing) || null) : null,
       line_height: isText && cs.lineHeight !== "normal" ? (parseFloat(cs.lineHeight) || null) : null,
+      padding_left: parseFloat(cs.paddingLeft) || null,
+      padding_top: parseFloat(cs.paddingTop) || null,
+      text_align: cs.textAlign !== "start" ? cs.textAlign : null,
       data_start: el.hasAttribute("data-start") ? parseFloat(el.getAttribute("data-start")) || null : null,
       data_end: el.hasAttribute("data-end") ? parseFloat(el.getAttribute("data-end")) || null : null,
       video_frames_dir: el.getAttribute("data-video-frames-dir") || null,
