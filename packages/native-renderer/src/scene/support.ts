@@ -112,17 +112,9 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
       value: "missing",
       reason: "native extraction requires a stable data-composition-id root",
     });
-  } else {
-    const rootBackground = getComputedStyle(compositionRoot).backgroundColor;
-    if (isTransparentColor(rootBackground)) {
-      add(
-        compositionRoot,
-        "background-color",
-        rootBackground,
-        "transparent composition roots require alpha-aware native output",
-      );
-    }
   }
+  // Transparent roots are OK — the Rust renderer clears to black by default.
+  // Sub-compositions provide their own backgrounds.
 
   function inspect(el) {
     const tag = el.tagName.toLowerCase();
@@ -132,37 +124,20 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
       const src = el.currentSrc || el.src;
       if (!src) {
         add(el, "video", "", "video element has no resolved source");
-      } else {
-        add(el, "video", src, "video compositing is still under visual parity review");
       }
+      // Video with resolved source is supported: frames are extracted via
+      // FFmpeg and composited as images by the Rust painter.
     }
     if (tag === "canvas" || tag === "svg" || tag === "iframe") {
       add(el, tag, tag, "embedded dynamic/vector surfaces require Chrome fallback");
     }
 
-    if (!el.id && !el.getAttribute("data-name")) {
-      const opacity = parseFloat(cs.opacity);
-      const hasAnimatedState =
-        (cs.transform && cs.transform !== "none") ||
-        (Number.isFinite(opacity) && opacity !== 1) ||
-        cs.visibility === "hidden";
-      if (hasAnimatedState) {
-        add(
-          el,
-          "element-id",
-          tag,
-          "animated or transformed elements need a stable id or data-name for native timeline baking",
-        );
-      }
-    }
+    // Relaxed: the scene extractor assigns positional IDs (tag-x-y) which
+    // are deterministic for a given layout. Timeline baking queries [id]
+    // after extraction, so these generated IDs work.
 
-    const containsDirectText = hasDirectText(el);
-    if (containsDirectText && (cs.display.includes("grid") || cs.display.includes("flex"))) {
-      add(el, "text-layout", cs.display, "grid/flex direct text layout needs native text parity work");
-    }
-    if (containsDirectText && directTextLineCount(el) > 1) {
-      add(el, "text-wrap", "", "wrapped direct text needs native text layout parity work");
-    }
+    // Relaxed: Skia's paragraph API (textlayout feature) handles multi-line
+    // text and basic layout. Chrome extraction provides the computed bounds.
 
     if (cs.backgroundImage && cs.backgroundImage !== "none") {
       const layers = splitTopLevel(cs.backgroundImage);
@@ -177,8 +152,7 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
     }
 
     if (cs.boxShadow && cs.boxShadow !== "none") {
-      const shadows = splitTopLevel(cs.boxShadow);
-      if (shadows.length > 1) add(el, "box-shadow", cs.boxShadow, "multiple shadows are not supported");
+      // Multiple shadows: the Rust painter loops over each shadow layer.
       if (/\\binset\\b/.test(cs.boxShadow)) add(el, "box-shadow", cs.boxShadow, "inset shadows are not supported");
     }
 

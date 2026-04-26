@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+// Polyfill esbuild's __name helper before any import can reference it.
+if (typeof (globalThis as Record<string, unknown>).__name !== "function") {
+  (globalThis as Record<string, unknown>).__name = <T>(fn: T, _n: string): T => fn;
+}
+
 // ── Fast-path exits ─────────────────────────────────────────────────────────
 // Check --version before importing anything heavy. This makes
 // `hyperframes --version` near-instant (~10ms vs ~80ms).

@@ -1,3 +1,9 @@
+// Polyfill esbuild's keepNames helper — tsx injects __name() wrappers but
+// some transitive imports execute before the global is defined.
+if (typeof (globalThis as Record<string, unknown>).__name !== "function") {
+  (globalThis as Record<string, unknown>).__name = <T>(fn: T, _name: string): T => fn;
+}
+
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
