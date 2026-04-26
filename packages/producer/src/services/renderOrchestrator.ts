@@ -1764,11 +1764,23 @@ export async function executeRenderJob(
       })()`);
 
       const dur = job.duration ?? 1;
-      // Sample at ~10 evenly spaced timestamps to cover all visual states
-      const numStates = Math.min(Math.max(10, Math.ceil(dur / 5)), 60);
+      // For pixel-perfect: capture EVERY frame from Chrome, encode natively.
+      // This is the CDP approach but with openh264+minimp4 instead of FFmpeg.
+      // Speed gain comes from: no FFmpeg subprocess, no base64→pipe overhead
+      // for encoding (screenshots still go through CDP base64 but encode is native).
+      const hasVideo = composition.videos.length > 0;
+      const numStates = hasVideo ? totalFrames : Math.min(Math.max(10, Math.ceil(dur / 5)), 60);
       const stateTimes: number[] = [];
-      for (let i = 0; i < numStates; i++) {
-        stateTimes.push((dur * (i + 0.5)) / numStates);
+      if (numStates === totalFrames) {
+        // Every frame — use exact frame timestamps
+        for (let i = 0; i < totalFrames; i++) {
+          stateTimes.push(i / job.config.fps);
+        }
+      } else {
+        // State-based — evenly spaced samples
+        for (let i = 0; i < numStates; i++) {
+          stateTimes.push((dur * (i + 0.5)) / numStates);
+        }
       }
       log.info("Multi-state capture", { numStates, times: stateTimes.map((t) => +t.toFixed(1)) });
 
@@ -1780,7 +1792,17 @@ export async function executeRenderJob(
       for (let si = 0; si < stateTimes.length; si++) {
         const t = stateTimes[si];
         await probeSession.page.evaluate(`void(window.__hf?.seek(${t}))`);
-        await new Promise((r) => setTimeout(r, 30));
+        if (numStates < 100) await new Promise((r) => setTimeout(r, 30));
+        if (si % 100 === 0 && numStates > 100) {
+          const pct = Math.round(25 + (si / numStates) * 50);
+          updateJobStatus(
+            job,
+            "rendering",
+            `Native capture: frame ${si}/${numStates}`,
+            pct,
+            onProgress,
+          );
+        }
 
         const shot = await cdpClient.send("Page.captureScreenshot", {
           format: "jpeg",
@@ -1795,9 +1817,22 @@ export async function executeRenderJob(
 
       log.info("Captured Chrome states", { count: stateFramePaths.length });
 
-      // Build a simplified scene: single root Image element per state.
-      // The Rust binary draws the correct state frame for each render frame.
-      // State selection: map frame time to the nearest state index.
+      // Build scene: state frames as background layers + video elements on top.
+      // State frames provide pixel-perfect non-video content (text, backgrounds).
+      // Video elements overlay with pre-extracted per-frame JPEGs for pixel-perfect video.
+      const stateChildren = stateFramePaths.map((path, i) => ({
+        id: `state-${i}`,
+        kind: { type: "Image", src: path } as Record<string, unknown>,
+        bounds: { x: 0, y: 0, width, height },
+        style: {
+          opacity: 1.0,
+          visibility: true,
+          data_start: i === 0 ? 0 : stateTimes[i]! - dur / numStates / 2,
+          data_end: i === numStates - 1 ? dur + 1 : stateTimes[i]! + dur / numStates / 2,
+        } as Record<string, unknown>,
+        children: [] as Record<string, unknown>[],
+      }));
+
       enrichedScene.elements = [
         {
           id: "chrome-composite",
@@ -1808,19 +1843,7 @@ export async function executeRenderJob(
             visibility: true,
             background_color: null,
           } as Record<string, unknown>,
-          children: stateFramePaths.map((path, i) => ({
-            id: `state-${i}`,
-            kind: { type: "Image", src: path } as Record<string, unknown>,
-            bounds: { x: 0, y: 0, width, height },
-            style: {
-              opacity: 1.0,
-              visibility: true,
-              // data_start/data_end controls when this state is visible
-              data_start: i === 0 ? 0 : stateTimes[i]! - dur / numStates / 2,
-              data_end: i === numStates - 1 ? dur + 1 : stateTimes[i]! + dur / numStates / 2,
-            } as Record<string, unknown>,
-            children: [] as Record<string, unknown>[],
-          })),
+          children: stateChildren,
         },
       ] as Record<string, unknown>[];
 
