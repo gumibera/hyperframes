@@ -32,13 +32,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copy only the Rust crate (no target/ directory)
-COPY packages/native-renderer/Cargo.toml packages/native-renderer/Cargo.lock* ./
-COPY packages/native-renderer/src ./src
-COPY packages/native-renderer/tests ./tests
-COPY packages/native-renderer/benches ./benches
+# Copy only the Rust crate (target/ excluded via .dockerignore)
+COPY Cargo.toml Cargo.lock* ./
+COPY src ./src
+COPY tests ./tests
+COPY benches ./benches
 
-# Build and test
-RUN cargo build --release --tests 2>&1 | tail -3 && echo "Build succeeded"
+# Build with NO GPU features — pure CPU raster + FFmpeg libx264
+RUN cargo build --release --no-default-features --tests 2>&1 | tail -3 && echo "Build succeeded"
 
-ENTRYPOINT ["sh", "-c", "if [ \"$1\" = bench ]; then cargo bench --release 2>&1 | grep -E 'time:|Benchmarking'; else cargo test --release -- --test-threads=1 && echo 'All tests passed on Linux.'; fi", "--"]
+ENTRYPOINT ["sh", "-c", "if [ \"$1\" = bench ]; then cargo bench --release --no-default-features 2>&1 | grep -E 'time:|Benchmarking'; else cargo test --release --no-default-features -- --test-threads=1 && echo 'All tests passed on Linux.'; fi", "--"]

@@ -12,13 +12,24 @@ pub enum HwEncoder {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn ffmpeg_supports_encoder(name: &str) -> bool {
+fn ffmpeg_encoder_works(name: &str) -> bool {
+    // Actually probe the encoder with a 1-frame test instead of just
+    // checking the encoder list. NVENC shows up in the list even when
+    // libcuda.so.1 isn't available (Docker without GPU).
     std::process::Command::new("ffmpeg")
-        .args(["-hide_banner", "-encoders"])
-        .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.contains(name))
+        .args([
+            "-hide_banner",
+            "-f", "lavfi",
+            "-i", "color=c=black:s=16x16:d=0.01:r=1",
+            "-frames:v", "1",
+            "-c:v", name,
+            "-f", "null",
+            "-",
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
         .unwrap_or(false)
 }
 
@@ -44,12 +55,12 @@ pub fn detect_hw_encoder() -> HwEncoder {
 
     #[cfg(not(target_os = "macos"))]
     {
-        if ffmpeg_supports_encoder("h264_nvenc") {
+        if ffmpeg_encoder_works("h264_nvenc") {
             return HwEncoder::Nvenc;
         }
 
         if std::path::Path::new("/dev/dri/renderD128").exists()
-            && ffmpeg_supports_encoder("h264_vaapi")
+            && ffmpeg_encoder_works("h264_vaapi")
         {
             return HwEncoder::Vaapi;
         }

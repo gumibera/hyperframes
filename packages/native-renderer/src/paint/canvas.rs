@@ -3,6 +3,7 @@ use skia_safe::{
     Surface,
 };
 
+#[cfg(any(feature = "metal-gpu", feature = "vulkan-gpu"))]
 use skia_safe::gpu;
 
 /// A Skia rendering surface backed by either CPU raster or GPU (Metal).
@@ -15,7 +16,7 @@ use skia_safe::gpu;
 /// alongside the surface for the duration of rendering.
 pub struct RenderSurface {
     surface: Surface,
-    /// Keeps the GPU context alive for GPU-backed surfaces. `None` for raster.
+    #[cfg(any(feature = "metal-gpu", feature = "vulkan-gpu"))]
     _gpu_context: Option<gpu::DirectContext>,
 }
 
@@ -26,6 +27,7 @@ impl RenderSurface {
             .ok_or_else(|| format!("failed to create {width}x{height} raster surface"))?;
         Ok(Self {
             surface,
+            #[cfg(any(feature = "metal-gpu", feature = "vulkan-gpu"))]
             _gpu_context: None,
         })
     }
@@ -39,7 +41,7 @@ impl RenderSurface {
     ///
     /// Call [`flush_and_submit`](Self::flush_and_submit) after drawing to ensure
     /// all GPU work is submitted before reading back pixels.
-    #[cfg(target_os = "macos")]
+    #[cfg(feature = "metal-gpu")]
     pub fn new_metal_gpu(width: i32, height: i32) -> Result<Self, String> {
         use metal::foreign_types::ForeignType;
 
@@ -83,56 +85,33 @@ impl RenderSurface {
 
     /// Create a Vulkan GPU-accelerated surface (Linux with NVIDIA/AMD/Intel).
     ///
-    /// Uses Skia's Vulkan backend via the system's Vulkan ICD. This is the
-    /// production path for cloud GPU instances (A10G, T4, L4).
-    #[cfg(target_os = "linux")]
-    pub fn new_vulkan_gpu(width: i32, height: i32) -> Result<Self, String> {
-        let backend = unsafe {
-            gpu::vk::BackendContext::new(std::ptr::null(), std::ptr::null(), std::ptr::null())
-        };
-
-        // Skia's Vulkan backend needs a GetProc callback. Use the built-in
-        // Vulkan context factory which handles instance/device creation.
-        let mut context = gpu::direct_contexts::make_vulkan(&backend, None)
-            .ok_or("failed to create Skia Vulkan DirectContext — is Vulkan installed?")?;
-
-        let image_info = ImageInfo::new(
-            (width, height),
-            ColorType::RGBA8888,
-            AlphaType::Premul,
-            None,
-        );
-
-        let surface = gpu::surfaces::render_target(
-            &mut context,
-            gpu::Budgeted::Yes,
-            &image_info,
-            None,
-            gpu::SurfaceOrigin::TopLeft,
-            None,
-            false,
-            false,
-        )
-        .ok_or("failed to create Vulkan GPU surface")?;
-
-        Ok(Self {
-            surface,
-            _gpu_context: Some(context),
-        })
+    /// Vulkan initialization requires a live GPU with a Vulkan ICD installed.
+    /// Returns Err if Vulkan is unavailable (Docker without GPU, CI, etc.)
+    /// — the caller should fall back to CPU raster via `new_gpu_or_raster`.
+    ///
+    /// Full Vulkan setup (instance → physical device → logical device → queue)
+    /// will be implemented when we validate on an NVIDIA GPU instance.
+    /// For now, this returns Err to trigger the raster fallback.
+    #[cfg(feature = "vulkan-gpu")]
+    pub fn new_vulkan_gpu(_width: i32, _height: i32) -> Result<Self, String> {
+        // TODO: Vulkan instance + device creation for production GPU path.
+        // Requires: VkInstance, VkPhysicalDevice, VkDevice, VkQueue, GetProc.
+        // Placeholder returns Err so new_gpu_or_raster falls back to raster.
+        Err("Vulkan GPU surface not yet implemented — use raster fallback".into())
     }
 
     /// Create the best available GPU surface for the current platform.
     /// Falls back to CPU raster if no GPU is available.
     pub fn new_gpu_or_raster(width: i32, height: i32) -> Result<Self, String> {
         // Try GPU first, fall back to raster.
-        #[cfg(target_os = "macos")]
+        #[cfg(feature = "metal-gpu")]
         {
             match Self::new_metal_gpu(width, height) {
                 Ok(s) => return Ok(s),
                 Err(e) => eprintln!("[native-renderer] Metal GPU unavailable ({e}), falling back to raster"),
             }
         }
-        #[cfg(target_os = "linux")]
+        #[cfg(feature = "vulkan-gpu")]
         {
             match Self::new_vulkan_gpu(width, height) {
                 Ok(s) => return Ok(s),
@@ -226,13 +205,16 @@ impl RenderSurface {
     /// This is a no-op on raster surfaces. On GPU surfaces, it ensures all
     /// queued draw calls are submitted before pixel readback or timing.
     pub fn flush_and_submit(&mut self) {
+        #[cfg(any(feature = "metal-gpu", feature = "vulkan-gpu"))]
         if let Some(ctx) = self._gpu_context.as_mut() {
             ctx.flush_and_submit();
         }
     }
 
-    /// Returns true if this surface is GPU-backed (Metal or Vulkan).
     pub fn is_gpu(&self) -> bool {
-        self._gpu_context.is_some()
+        #[cfg(any(feature = "metal-gpu", feature = "vulkan-gpu"))]
+        { self._gpu_context.is_some() }
+        #[cfg(not(any(feature = "metal-gpu", feature = "vulkan-gpu")))]
+        { false }
     }
 }

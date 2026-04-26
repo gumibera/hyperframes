@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-#[cfg(target_os = "macos")]
 use hyperframes_native_renderer::pipeline::render_animated_gpu;
 use hyperframes_native_renderer::pipeline::{render_animated, render_static, RenderConfig};
 use hyperframes_native_renderer::scene::{parse_scene_file, BakedTimeline};
@@ -71,14 +70,7 @@ fn main() {
         if force_cpu {
             render_animated(&scene, &timeline, &config)
         } else {
-            #[cfg(target_os = "macos")]
-            {
-                render_animated_gpu(&scene, &timeline, &config)
-            }
-            #[cfg(not(target_os = "macos"))]
-            {
-                render_animated(&scene, &timeline, &config)
-            }
+            render_animated_gpu(&scene, &timeline, &config)
         }
     } else {
         render_static(&scene, &config)
