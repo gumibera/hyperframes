@@ -1,0 +1,65 @@
+name: Native Renderer
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "packages/native-renderer/**"
+      - ".github/workflows/native-renderer.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/native-renderer/**"
+
+concurrency:
+  group: native-renderer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (Linux x86_64, CPU raster)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo + Skia
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            packages/native-renderer/target
+          key: native-${{ runner.os }}-${{ hashFiles('packages/native-renderer/Cargo.lock') }}
+          restore-keys: native-${{ runner.os }}-
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang libclang-dev pkg-config \
+            libfontconfig1-dev libfreetype6-dev \
+            ninja-build python3 \
+            ffmpeg fonts-liberation fonts-dejavu-core fontconfig
+          sudo fc-cache -fv
+
+      - name: Build (CPU raster, no GPU)
+        working-directory: packages/native-renderer
+        run: cargo build --release --no-default-features --tests
+
+      - name: Run tests
+        working-directory: packages/native-renderer
+        run: cargo test --release --no-default-features -- --test-threads=1
+
+      - name: Benchmark
+        working-directory: packages/native-renderer
+        run: |
+          cargo bench --no-default-features 2>&1 | tee /tmp/bench.txt
+          echo "## Native Renderer Benchmark" >> $GITHUB_STEP_SUMMARY
+          echo "Linux x86_64, CPU raster, no GPU" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E 'time:|^[a-z].*time:' /tmp/bench.txt >> $GITHUB_STEP_SUMMARY || echo "No benchmark output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

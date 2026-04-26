@@ -4,41 +4,26 @@
 # Validates: CPU raster rendering, FFmpeg pipe encoding, scene parsing,
 # element painting, effects, image compositing, animated pipeline.
 #
-# Usage (from repo root):
-#   docker build -f packages/native-renderer/Dockerfile.test \
-#     --build-context native=packages/native-renderer \
-#     -t hyperframes-native:test .
+# Usage:
+#   cd packages/native-renderer
+#   docker build -f Dockerfile.test -t hyperframes-native:test .
 #   docker run --rm hyperframes-native:test
-#   docker run --rm hyperframes-native:test bench
 
-FROM rust:1.87-bookworm
+FROM rust:1.88-bookworm
 
-# ── System dependencies ─────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    clang \
-    libclang-dev \
-    pkg-config \
-    libfontconfig1-dev \
-    libfreetype6-dev \
-    ninja-build \
-    python3 \
-    git \
-    ffmpeg \
-    fonts-liberation \
-    fonts-dejavu-core \
-    fontconfig \
-    && rm -rf /var/lib/apt/lists/* \
-    && fc-cache -fv
+    clang libclang-dev pkg-config \
+    libfontconfig1-dev libfreetype6-dev \
+    ninja-build python3 git \
+    ffmpeg fonts-liberation fonts-dejavu-core fontconfig \
+    && rm -rf /var/lib/apt/lists/* && fc-cache -fv
 
 WORKDIR /app
-
-# Copy only the Rust crate (target/ excluded via .dockerignore)
 COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 COPY tests ./tests
-COPY benches ./benches
 
-# Build with NO GPU features — pure CPU raster + FFmpeg libx264
-RUN cargo build --release --no-default-features --tests 2>&1 | tail -3 && echo "Build succeeded"
+# Build tests only (skip benchmarks — criterion is heavy)
+RUN cargo test --release --no-default-features --no-run 2>&1 | tail -3
 
-ENTRYPOINT ["sh", "-c", "if [ \"$1\" = bench ]; then cargo bench --release --no-default-features 2>&1 | grep -E 'time:|Benchmarking'; else cargo test --release --no-default-features -- --test-threads=1 && echo 'All tests passed on Linux.'; fi", "--"]
+ENTRYPOINT ["cargo", "test", "--release", "--no-default-features", "--", "--test-threads=1"]
