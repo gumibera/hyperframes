@@ -606,8 +606,8 @@ fn paint_element_inner(
             let media_start = style.video_media_start.unwrap_or(0.0);
             let video_fps = style.video_fps.unwrap_or(30.0);
             let element_start = style.data_start.unwrap_or(0.0);
-            let video_time = (t - element_start as f64 + media_start as f64).max(0.0);
-            let frame_index = (video_time * video_fps as f64).round() as u32;
+            let video_time = (t - element_start + media_start).max(0.0);
+            let frame_index = (video_time * video_fps).round() as u32;
             let frame_path = format!("{}/frame_{:05}.jpg", frames_dir, frame_index + 1);
             if let Some(image) = images.get_or_load(&frame_path).cloned() {
                 let dest_rect = to_sk_rect(&element.bounds);
