@@ -1758,6 +1758,57 @@ export async function executeRenderJob(
         log.info("Pre-rendered text from Chrome", { count: textCaptured, total: textEls.length });
       }
 
+      // ── Download HTTP image assets via Chrome ──────────────────────
+      // Fetch images through Chrome (which can reach the file server)
+      // and save to disk before the browser closes.
+      const imgDir = join(workDir, "native-images");
+      if (!existsSync(imgDir)) mkdirSync(imgDir, { recursive: true });
+
+      const httpImages: Array<{ kind: Record<string, unknown>; src: string }> = [];
+      const findHttpImages = (el: Record<string, unknown>): void => {
+        const kind = el.kind as Record<string, unknown> | undefined;
+        if (kind?.type === "Image" && typeof kind.src === "string") {
+          if ((kind.src as string).startsWith("http")) {
+            httpImages.push({ kind, src: kind.src as string });
+          }
+        }
+        for (const child of (el.children as Record<string, unknown>[]) || []) {
+          findHttpImages(child);
+        }
+      };
+      for (const el of enrichedScene.elements) findHttpImages(el);
+
+      for (const { kind, src } of httpImages) {
+        try {
+          const b64 = await probeSession!.page.evaluate(
+            `(async () => {
+              try {
+                const r = await fetch(${JSON.stringify(src)});
+                if (!r.ok) return null;
+                const b = await r.blob();
+                return new Promise(resolve => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => resolve(reader.result);
+                  reader.onerror = () => resolve(null);
+                  reader.readAsDataURL(b);
+                });
+              } catch { return null; }
+            })()`,
+          );
+          if (typeof b64 === "string" && b64.includes(",")) {
+            const data = b64.split(",")[1];
+            if (data) {
+              const safeName = (src as string).replace(/[^a-zA-Z0-9.]/g, "_").slice(-80);
+              const localPath = join(imgDir, safeName);
+              writeFileSync(localPath, Buffer.from(data, "base64"));
+              kind.src = localPath;
+            }
+          }
+        } catch {
+          /* skip */
+        }
+      }
+
       // Seek back to start for timeline baking
       await probeSession.page.evaluate(`void(window.__hf?.seek(0))`);
 
