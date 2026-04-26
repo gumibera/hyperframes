@@ -81,6 +81,7 @@ fn make_fade_in_timeline() -> BakedTimeline {
                         scale_y: 1.0,
                         rotate_deg: 0.0,
                         visibility: true,
+                        ..Default::default()
                     },
                 )]),
             }

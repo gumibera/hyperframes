@@ -27,4 +27,16 @@ export interface BakedElementState {
   scale_y: number;
   rotate_deg: number;
   visibility: boolean;
+  // Per-frame bounds (captures layout changes from CSS animations)
+  bounds_x?: number;
+  bounds_y?: number;
+  bounds_w?: number;
+  bounds_h?: number;
+  // Per-frame colors (captures animated background/text colors)
+  background_color?: { r: number; g: number; b: number; a: number } | null;
+  color?: { r: number; g: number; b: number; a: number } | null;
+  // Per-frame border-radius
+  border_radius?: [number, number, number, number];
+  // Per-frame clip-path
+  clip_path?: string | null;
 }

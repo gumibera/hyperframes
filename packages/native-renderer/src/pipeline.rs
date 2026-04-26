@@ -452,6 +452,31 @@ fn apply_deltas_recursive(
                 scale_y: state.scale_y,
                 rotate_deg: state.rotate_deg,
             });
+
+            // Apply per-frame bounds (captures layout changes from CSS animations)
+            if let (Some(x), Some(y), Some(w), Some(h)) =
+                (state.bounds_x, state.bounds_y, state.bounds_w, state.bounds_h)
+            {
+                if w > 0.0 && h > 0.0 {
+                    element.bounds.x = x;
+                    element.bounds.y = y;
+                    element.bounds.width = w;
+                    element.bounds.height = h;
+                }
+            }
+
+            // Apply per-frame colors
+            if let Some(ref bg) = state.background_color {
+                element.style.background_color = Some(*bg);
+            }
+            if let Some(ref color) = state.color {
+                element.style.color = Some(*color);
+            }
+
+            // Apply per-frame border-radius
+            if let Some(ref br) = state.border_radius {
+                element.style.border_radius = *br;
+            }
         }
         apply_deltas_recursive(&mut element.children, deltas);
     }

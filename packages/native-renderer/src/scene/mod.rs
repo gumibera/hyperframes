@@ -347,7 +347,9 @@ pub struct BakedFrame {
 }
 
 /// Resolved visual state for a single element at a single frame.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Captures the FULL visual state — not just transform/opacity — so the
+/// Rust renderer has complete per-frame data for high PSNR.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BakedElementState {
     pub opacity: f32,
     pub translate_x: f32,
@@ -356,4 +358,18 @@ pub struct BakedElementState {
     pub scale_y: f32,
     pub rotate_deg: f32,
     pub visibility: bool,
+    #[serde(default)]
+    pub bounds_x: Option<f32>,
+    #[serde(default)]
+    pub bounds_y: Option<f32>,
+    #[serde(default)]
+    pub bounds_w: Option<f32>,
+    #[serde(default)]
+    pub bounds_h: Option<f32>,
+    #[serde(default)]
+    pub background_color: Option<Color>,
+    #[serde(default)]
+    pub color: Option<Color>,
+    #[serde(default)]
+    pub border_radius: Option<[f32; 4]>,
 }

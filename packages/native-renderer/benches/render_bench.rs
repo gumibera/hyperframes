@@ -180,6 +180,7 @@ fn build_30_frame_timeline() -> BakedTimeline {
                         scale_y: 1.0,
                         rotate_deg: 0.0,
                         visibility: true,
+                        ..Default::default()
                     },
                 );
             }

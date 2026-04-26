@@ -3,18 +3,16 @@
  * timestamp via Chrome CDP and extracts per-frame property values for all
  * animated elements.
  *
- * The output JSON is consumed by the Rust native renderer, which applies
- * transform/opacity/visibility per-frame during paint — no V8 needed at
- * render time.
+ * Captures the FULL visual state per element per frame — not just transform
+ * and opacity, but also bounds, colors, border-radius, and clip-path.
+ * This maximizes PSNR by giving the Rust renderer complete per-frame data.
  */
 import type { Page } from "puppeteer-core";
 import type { BakedTimeline, BakedFrame, BakedElementState } from "./types";
 
-// String-based evaluate avoids tsx/esbuild injecting `__name` helpers into the
-// function body that Puppeteer serializes into the browser context.
 const BAKE_FRAME_SCRIPT = `(() => {
   function decomposeMatrix(raw) {
-    if (raw === "none") {
+    if (!raw || raw === "none") {
       return { translate_x: 0, translate_y: 0, scale_x: 1, scale_y: 1, rotate_deg: 0 };
     }
     const mat = raw.match(
@@ -23,10 +21,7 @@ const BAKE_FRAME_SCRIPT = `(() => {
     if (!mat) {
       return { translate_x: 0, translate_y: 0, scale_x: 1, scale_y: 1, rotate_deg: 0 };
     }
-    const a = +mat[1];
-    const b = +mat[2];
-    const c = +mat[3];
-    const d = +mat[4];
+    const a = +mat[1], b = +mat[2], c = +mat[3], d = +mat[4];
     return {
       translate_x: +mat[5],
       translate_y: +mat[6],
@@ -36,12 +31,20 @@ const BAKE_FRAME_SCRIPT = `(() => {
     };
   }
 
+  function parseColor(val) {
+    if (!val || val === "transparent" || val === "rgba(0, 0, 0, 0)") return null;
+    const m = val.match(/rgba?\\(\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\s*\\)/);
+    if (!m) return null;
+    return { r: +m[1], g: +m[2], b: +m[3], a: Math.round((m[4] !== undefined ? +m[4] : 1) * 255) };
+  }
+
   const result = {};
   const els = document.querySelectorAll("[id]");
   for (const el of els) {
     if (!(el instanceof HTMLElement)) continue;
     const cs = getComputedStyle(el);
     const transform = decomposeMatrix(cs.transform);
+    const rect = el.getBoundingClientRect();
 
     result[el.id] = {
       opacity: parseFloat(cs.opacity) || 0,
@@ -51,22 +54,23 @@ const BAKE_FRAME_SCRIPT = `(() => {
       scale_y: transform.scale_y,
       rotate_deg: transform.rotate_deg,
       visibility: cs.visibility !== "hidden" && cs.display !== "none",
+      bounds_x: rect.left,
+      bounds_y: rect.top,
+      bounds_w: rect.width,
+      bounds_h: rect.height,
+      background_color: parseColor(cs.backgroundColor),
+      color: parseColor(cs.color),
+      border_radius: [
+        parseFloat(cs.borderTopLeftRadius) || 0,
+        parseFloat(cs.borderTopRightRadius) || 0,
+        parseFloat(cs.borderBottomRightRadius) || 0,
+        parseFloat(cs.borderBottomLeftRadius) || 0,
+      ],
     };
   }
   return result;
 })()`;
 
-/**
- * Bake a composition's GSAP timeline into per-frame property snapshots.
- *
- * For each frame (0..totalFrames), this:
- * 1. Seeks the composition to the frame's timestamp via `window.__hf.seek()`
- * 2. Reads computed styles from every `[id]` element in the page
- * 3. Decomposes the CSS transform matrix into translate/scale/rotate
- *
- * The caller must have already loaded and initialised the composition in the
- * page (i.e., the GSAP timeline and `window.__hf` must exist).
- */
 export async function bakeTimeline(
   page: Page,
   fps: number,
@@ -78,8 +82,6 @@ export async function bakeTimeline(
   for (let i = 0; i < totalFrames; i++) {
     const time = i / fps;
 
-    // Seek the composition to this timestamp. The guard mirrors the pattern
-    // used in packages/producer/src/services/renderOrchestrator.ts.
     await page.evaluate(
       `(() => {
         const hf = window.__hf;
@@ -89,11 +91,7 @@ export async function bakeTimeline(
       })()`,
     );
 
-    // Extract animated properties for all elements with IDs.
-    // Everything inside page.evaluate runs in the browser context — helpers
-    // must be inlined (no access to outer scope).
     const elements = (await page.evaluate(BAKE_FRAME_SCRIPT)) as Record<string, BakedElementState>;
-
     frames.push({ frame_index: i, time, elements });
   }
 

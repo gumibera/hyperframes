@@ -1632,7 +1632,7 @@ export async function executeRenderJob(
                 const style = rule.style.getPropertyValue("font-style") || "normal";
                 const src = rule.style.getPropertyValue("src");
                 const dataMatch = src.match(/url\(["']?(data:font\/[^;]+;base64,[^"')]+)["']?\)/);
-                if (dataMatch && family) {
+                if (dataMatch?.[1] && family) {
                   results.push({ family, weight, style, dataUri: dataMatch[1] });
                 }
               }
@@ -1684,6 +1684,78 @@ export async function executeRenderJob(
       // Re-extract scene with layout data now in DOM attributes
       const enrichedScene = await extractScene(probeSession.page, width, height);
       enrichedScene.fonts = scene.fonts;
+
+      // ── Pre-render text elements from Chrome for pixel-perfect glyphs ──
+      // Text rendering is the dominant PSNR gap. Instead of re-rendering
+      // text with Skia (different anti-aliasing), capture Chrome's rendered
+      // text as clipped PNGs and draw them as images in Rust.
+      const textDir = join(workDir, "native-text");
+      if (!existsSync(textDir)) mkdirSync(textDir, { recursive: true });
+
+      // Remove force-visible, seek to mid-composition for capture
+      await probeSession.page.evaluate(`(() => {
+        const s = document.getElementById('__hf_extract_force_visible__');
+        if (s) s.remove();
+        if (window.__hf?.seek) window.__hf.seek(${(job.duration ?? 1) * 0.5});
+      })()`);
+      await new Promise((r) => setTimeout(r, 100));
+
+      const collectText = (el: Record<string, unknown>): Record<string, unknown>[] => {
+        const results: Record<string, unknown>[] = [];
+        const kind = el.kind as Record<string, unknown> | undefined;
+        const bounds = el.bounds as Record<string, number> | undefined;
+        if (
+          kind?.type === "Text" &&
+          bounds &&
+          (bounds.width ?? 0) > 0 &&
+          (bounds.height ?? 0) > 0
+        ) {
+          results.push(el);
+        }
+        for (const child of (el.children as Record<string, unknown>[]) || []) {
+          results.push(...collectText(child));
+        }
+        return results;
+      };
+      const textEls = enrichedScene.elements.flatMap(collectText);
+      let textCaptured = 0;
+
+      const cdpClient = await probeSession.page.createCDPSession();
+      for (const textEl of textEls) {
+        const b = textEl.bounds as Record<string, number>;
+        if (!b || (b.width ?? 0) <= 0 || (b.height ?? 0) <= 0) continue;
+        const bx = b.x ?? 0;
+        const by = b.y ?? 0;
+        const bw = b.width ?? 0;
+        const bh = b.height ?? 0;
+        const clampX = Math.max(0, Math.min(bx, width - 1));
+        const clampY = Math.max(0, Math.min(by, height - 1));
+        const clampW = Math.min(bw, width - clampX);
+        const clampH = Math.min(bh, height - clampY);
+        if (clampW <= 0 || clampH <= 0) continue;
+
+        try {
+          const shot = await cdpClient.send("Page.captureScreenshot", {
+            format: "png",
+            clip: { x: clampX, y: clampY, width: clampW, height: clampH, scale: 1 },
+            captureBeyondViewport: false,
+          });
+          const pngPath = join(textDir, `${textEl.id as string}.png`);
+          writeFileSync(pngPath, Buffer.from(shot.data, "base64"));
+          (textEl.kind as Record<string, unknown>) = { type: "Image", src: pngPath };
+          textCaptured++;
+        } catch {
+          /* Skia will render this text normally */
+        }
+      }
+      await cdpClient.detach();
+
+      if (textCaptured > 0) {
+        log.info("Pre-rendered text from Chrome", { count: textCaptured, total: textEls.length });
+      }
+
+      // Seek back to start for timeline baking
+      await probeSession.page.evaluate(`void(window.__hf?.seek(0))`);
 
       updateJobStatus(job, "rendering", "Native render: baking timeline", 35, onProgress);
       const timeline = await bakeTimeline(probeSession.page, job.config.fps, job.duration!);
