@@ -69,6 +69,7 @@ fn build_test_scene() -> Scene {
     Scene {
         width: 1920,
         height: 1080,
+        fonts: vec![],
         elements: vec![Element {
             id: "root".into(),
             kind: ElementKind::Container,
