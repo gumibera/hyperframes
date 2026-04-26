@@ -175,12 +175,12 @@ pub fn render_static(scene: &Scene, config: &RenderConfig) -> Result<RenderResul
 
 // ── Raw Frame Pipeline (fastest render, deferred encode) ────────────────────
 
-/// Render all frames to a raw I420 file at maximum speed, then encode
-/// with a single FFmpeg batch call. This separates rendering throughput
-/// from encoding throughput — the render runs at paint+convert speed
-/// (~3ms/frame) and the encode happens afterward as a parallel batch.
+/// Render all frames to a raw BGRA file at maximum speed, then encode
+/// with a single FFmpeg batch call. Skips I420 conversion during render —
+/// writes BGRA directly (Skia's native format), lets FFmpeg batch-convert.
 ///
-/// Zero quality loss: I420 is lossless raw pixel data.
+/// This is the fastest render path: paint + write, no color conversion.
+/// Pre-allocates the BGRA buffer once and reuses it across frames.
 pub fn render_animated_raw_then_encode(
     scene: &Scene,
     timeline: &BakedTimeline,
@@ -193,12 +193,13 @@ pub fn render_animated_raw_then_encode(
 
     let w = scene.width as i32;
     let h = scene.height as i32;
-    let frame_size = (3 * (w as usize * h as usize)) / 2; // I420
+    let frame_bytes = w as usize * h as usize * 4; // BGRA
 
     let mut surface = RenderSurface::new_raster(w, h)?;
     let mut images = ImageCache::new();
+    // Pre-allocate BGRA buffer — reused every frame (no per-frame allocation)
+    let mut bgra_buf = vec![0u8; frame_bytes];
 
-    // Phase 1: Render all frames to raw I420 file
     let raw_path = format!("{}.raw", config.output_path);
     let mut raw_file = std::fs::File::create(&raw_path)
         .map_err(|e| format!("create raw file: {e}"))?;
@@ -216,46 +217,22 @@ pub fn render_animated_raw_then_encode(
         }
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 
-        // BGRA → I420 conversion
-        let bgra = surface.read_pixels_bgra().ok_or("read pixels failed")?;
-        let mut i420 = vec![0u8; frame_size];
-        {
-            use dcv_color_primitives as dcp;
-            let y_size = (w * h) as usize;
-            let uv_size = ((w / 2) * (h / 2)) as usize;
-            let (y_slice, uv_rest) = i420.split_at_mut(y_size);
-            let (u_slice, v_slice) = uv_rest.split_at_mut(uv_size);
-
-            let src_fmt = dcp::ImageFormat {
-                pixel_format: dcp::PixelFormat::Bgra,
-                color_space: dcp::ColorSpace::Rgb,
-                num_planes: 1,
-            };
-            let dst_fmt = dcp::ImageFormat {
-                pixel_format: dcp::PixelFormat::I420,
-                color_space: dcp::ColorSpace::Bt601,
-                num_planes: 3,
-            };
-            dcp::convert_image(
-                w as u32, h as u32,
-                &src_fmt, None, &[&bgra],
-                &dst_fmt, None, &mut [y_slice, u_slice, v_slice],
-            ).map_err(|e| format!("BGRA→I420: {e:?}"))?;
-        }
+        // Read BGRA directly — no I420 conversion in the render loop
+        surface.read_pixels_bgra_into(&mut bgra_buf)
+            .ok_or("read pixels failed")?;
 
         use std::io::Write as _;
-        raw_file.write_all(&i420).map_err(|e| format!("write raw: {e}"))?;
+        raw_file.write_all(&bgra_buf).map_err(|e| format!("write raw: {e}"))?;
     }
 
     let render_ms = render_start.elapsed().as_millis() as u64;
 
-    // Phase 2: Single FFmpeg batch encode (all frames at once)
-    let encode_start = Instant::now();
+    // Phase 2: Single FFmpeg batch encode — converts BGRA→YUV + encodes
     let ffmpeg_child = Command::new("ffmpeg")
         .args([
             "-y",
             "-f", "rawvideo",
-            "-pix_fmt", "yuv420p",
+            "-pix_fmt", "bgra",
             "-s", &format!("{}x{}", w, h),
             "-r", &config.fps.to_string(),
             "-i", &raw_path,
@@ -272,9 +249,6 @@ pub fn render_animated_raw_then_encode(
         .map_err(|e| format!("ffmpeg spawn: {e}"))?;
 
     finish_ffmpeg(ffmpeg_child)?;
-    let _encode_ms = encode_start.elapsed().as_millis();
-
-    // Cleanup raw file
     std::fs::remove_file(&raw_path).ok();
 
     let total_ms = render_start.elapsed().as_millis() as u64;

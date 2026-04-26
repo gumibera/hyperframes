@@ -198,37 +198,26 @@ fn build_30_frame_timeline() -> BakedTimeline {
     }
 }
 
-/// RENDER-ONLY: CPU paint + BGRA→I420 convert, NO encoding.
-/// This measures the pure rendering throughput that users experience.
+/// RENDER-ONLY: CPU paint + BGRA readback into pre-allocated buffer.
+/// No I420 conversion, no encoding. Pure rendering throughput.
 fn bench_render_only_30_frames(c: &mut Criterion) {
     use hyperframes_native_renderer::paint::{ImageCache, RenderSurface};
     use hyperframes_native_renderer::paint::elements::paint_element;
-    use dcv_color_primitives as dcp;
 
     let scene = build_test_scene();
     let timeline = build_30_frame_timeline();
     let mut surface = RenderSurface::new_raster(1920, 1080).unwrap();
-    let frame_size = (3 * 1920 * 1080) / 2;
-    let mut i420 = vec![0u8; frame_size];
+    let mut bgra_buf = vec![0u8; 1920 * 1080 * 4];
 
     c.bench_function("render_only_30_frames_1080p", |b| {
         let mut images = ImageCache::new();
         b.iter(|| {
-            for frame in &timeline.frames {
+            for _frame in &timeline.frames {
                 surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
                 for element in &scene.elements {
                     paint_element(surface.canvas(), element, &mut images);
                 }
-                let bgra = surface.read_pixels_bgra().unwrap();
-
-                let y_size = 1920 * 1080;
-                let uv_size = 960 * 540;
-                let (y, uv) = i420.split_at_mut(y_size);
-                let (u, v) = uv.split_at_mut(uv_size);
-
-                let src = dcp::ImageFormat { pixel_format: dcp::PixelFormat::Bgra, color_space: dcp::ColorSpace::Rgb, num_planes: 1 };
-                let dst = dcp::ImageFormat { pixel_format: dcp::PixelFormat::I420, color_space: dcp::ColorSpace::Bt601, num_planes: 3 };
-                dcp::convert_image(1920, 1080, &src, None, &[&bgra], &dst, None, &mut [y, u, v]).unwrap();
+                surface.read_pixels_bgra_into(&mut bgra_buf).unwrap();
             }
         });
     });

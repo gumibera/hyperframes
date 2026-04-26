@@ -140,6 +140,23 @@ impl RenderSurface {
         self.read_pixels_with_color_type(ColorType::BGRA8888)
     }
 
+    /// Read BGRA pixels into a pre-allocated buffer. Avoids per-frame allocation.
+    pub fn read_pixels_bgra_into(&mut self, dst: &mut [u8]) -> Option<()> {
+        let width = self.surface.width();
+        let height = self.surface.height();
+        let row_bytes = width as usize * 4;
+        let expected = row_bytes * height as usize;
+        if dst.len() < expected {
+            return None;
+        }
+        let info = ImageInfo::new((width, height), ColorType::BGRA8888, AlphaType::Premul, None);
+        if self.surface.read_pixels(&info, dst, row_bytes, (0, 0)) {
+            Some(())
+        } else {
+            None
+        }
+    }
+
     fn read_pixels_with_color_type(&mut self, color_type: ColorType) -> Option<Vec<u8>> {
         let width = self.surface.width();
         let height = self.surface.height();
