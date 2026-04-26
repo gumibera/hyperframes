@@ -602,13 +602,17 @@ fn paint_element_inner(
     // --- Image content (or video with pre-extracted frames) ---
     if let ElementKind::Image { ref src } = element.kind {
         if let Some(ref frames_dir) = style.video_frames_dir {
-            // This Image was originally a Video element — use extracted frames
             let media_start = style.video_media_start.unwrap_or(0.0);
             let video_fps = style.video_fps.unwrap_or(30.0);
             let element_start = style.data_start.unwrap_or(0.0);
             let video_time = (t - element_start + media_start).max(0.0);
             let frame_index = (video_time * video_fps).round() as u32;
             let frame_path = format!("{}/frame_{:05}.jpg", frames_dir, frame_index + 1);
+            // Debug: log every 100th frame
+            if frame_index % 100 == 0 {
+                let exists = std::path::Path::new(&frame_path).exists();
+                eprintln!("[paint] id={} t={:.2} frame_idx={} path={} exists={}", element.id, t, frame_index, &frame_path[frame_path.len().saturating_sub(30)..], exists);
+            }
             if let Some(image) = images.get_or_load(&frame_path).cloned() {
                 let dest_rect = to_sk_rect(&element.bounds);
                 let position = object_position_or_center(style.object_position);

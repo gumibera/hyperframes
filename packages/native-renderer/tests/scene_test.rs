@@ -251,3 +251,28 @@ fn roundtrip_serialize_deserialize() {
     assert_eq!(reparsed.elements.len(), scene.elements.len());
     assert_eq!(reparsed.elements[0].id, scene.elements[0].id);
 }
+
+#[test]
+fn parse_video_frames_dir_in_style() {
+    let json = r#"{
+        "width": 100, "height": 100, "fonts": [],
+        "elements": [{
+            "id": "vid",
+            "kind": { "type": "Image", "src": "/tmp/fallback.png" },
+            "bounds": { "x": 0, "y": 0, "width": 100, "height": 100 },
+            "style": {
+                "opacity": 1.0,
+                "visibility": true,
+                "video_frames_dir": "/tmp/test-frames",
+                "video_fps": 30.0,
+                "video_media_start": 0.5
+            },
+            "children": []
+        }]
+    }"#;
+    let scene = hyperframes_native_renderer::scene::parse_scene_json(json).unwrap();
+    let el = &scene.elements[0];
+    assert_eq!(el.style.video_frames_dir.as_deref(), Some("/tmp/test-frames"));
+    assert_eq!(el.style.video_fps, Some(30.0));
+    assert_eq!(el.style.video_media_start, Some(0.5));
+}
