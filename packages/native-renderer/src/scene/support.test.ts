@@ -15,7 +15,7 @@ async function setComposition(page: Page, innerHtml: string, rootStyle = ""): Pr
   await page.setContent(`<!doctype html>
     <html>
       <body style="margin:0">
-        <div data-composition-id="test" style="width:320px;height:180px;${rootStyle}">
+        <div data-composition-id="test" style="width:320px;height:180px;background:#fff;${rootStyle}">
           ${innerHtml}
         </div>
       </body>
@@ -55,6 +55,16 @@ describe("detectNativeSupport", () => {
       "animated element without stable id",
       '<span style="display:block;transform:translateY(20px);opacity:.5">Animated</span>',
       "element-id",
+    ],
+    [
+      "grid direct text layout",
+      '<div id="grid-text" style="display:grid;width:260px;height:120px;place-items:center">Grid text</div>',
+      "text-layout",
+    ],
+    [
+      "wrapped direct text",
+      '<div id="wrap-text" style="width:140px;font-size:32px;line-height:1.1">This text wraps</div>',
+      "text-wrap",
     ],
     [
       "backdrop filter",
@@ -111,6 +121,33 @@ describe("detectNativeSupport", () => {
     const report = await detectNativeSupport(page, 320, 180);
 
     expect(report).toEqual({ supported: true, reasons: [] });
+  });
+
+  it("rejects missing composition root before native rendering starts", async () => {
+    await page.setContent(`<!doctype html>
+      <html>
+        <body style="margin:0">
+          <div id="root" style="width:320px;height:180px">Missing data root</div>
+        </body>
+      </html>`);
+
+    const report = await detectNativeSupport(page, 320, 180);
+
+    expect(report.supported).toBe(false);
+    expect(report.reasons.some((reason) => reason.property === "data-composition-id")).toBe(true);
+  });
+
+  it("rejects transparent composition roots before native rendering starts", async () => {
+    await setComposition(
+      page,
+      '<div id="card" style="width:100px;height:80px"></div>',
+      "background:transparent;",
+    );
+
+    const report = await detectNativeSupport(page, 320, 180);
+
+    expect(report.supported).toBe(false);
+    expect(report.reasons.some((reason) => reason.property === "background-color")).toBe(true);
   });
 
   it("allows animated elements when they have a stable id", async () => {

@@ -137,7 +137,7 @@ fn bench_gpu_paint_frame(c: &mut Criterion) {
         });
     });
 
-    c.bench_function("gpu_paint_and_readback_1080p", |b| {
+    c.bench_function("gpu_paint_and_readback_rgba_1080p", |b| {
         let mut images = ImageCache::new();
         b.iter(|| {
             surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
@@ -146,6 +146,18 @@ fn bench_gpu_paint_frame(c: &mut Criterion) {
             }
             surface.flush_and_submit();
             let _pixels = surface.read_pixels_rgba();
+        });
+    });
+
+    c.bench_function("gpu_paint_and_readback_bgra_1080p", |b| {
+        let mut images = ImageCache::new();
+        b.iter(|| {
+            surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
+            for element in &scene.elements {
+                paint_element(surface.canvas(), element, &mut images);
+            }
+            surface.flush_and_submit();
+            let _pixels = surface.read_pixels_bgra();
         });
     });
 }
@@ -187,7 +199,31 @@ fn build_30_frame_timeline() -> BakedTimeline {
     }
 }
 
-/// End-to-end benchmark: GPU paint + JPEG encode + FFmpeg write for 30 frames.
+/// End-to-end: GPU paint + JPEG encode + FFmpeg MJPEG pipe for 30 frames.
+/// Uses JPEG to minimize pipe data (50KB/frame vs 8.3MB/frame raw).
+#[cfg(target_os = "macos")]
+fn bench_e2e_gpu_jpeg_30_frames(c: &mut Criterion) {
+    use hyperframes_native_renderer::pipeline::{render_animated, RenderConfig};
+
+    let scene = build_test_scene();
+    let timeline = build_30_frame_timeline();
+
+    c.bench_function("e2e_gpu_jpeg_30_frames_1080p", |b| {
+        b.iter(|| {
+            let config = RenderConfig {
+                fps: 30,
+                duration_secs: 1.0,
+                quality: 60,
+                output_path: "/tmp/hyperframes-bench-e2e-jpeg.mp4".to_string(),
+            };
+            let result = render_animated(&scene, &timeline, &config)
+                .expect("render_animated must succeed");
+            assert_eq!(result.total_frames, 30);
+        });
+    });
+}
+
+/// End-to-end benchmark: GPU paint + raw BGRA + FFmpeg write for 30 frames.
 ///
 /// This measures the complete `render_animated_gpu` pipeline on a realistic
 /// 1080p scene so we can track total per-frame cost including encode and I/O.
@@ -218,6 +254,7 @@ criterion_group!(
     benches,
     bench_paint_frame,
     bench_gpu_paint_frame,
+    bench_e2e_gpu_jpeg_30_frames,
     bench_e2e_gpu_30_frames
 );
 #[cfg(not(target_os = "macos"))]

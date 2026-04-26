@@ -29,7 +29,6 @@
         top: 72px;
         width: 512px;
         height: 216px;
-        border-radius: 24px;
         overflow: hidden;
         background: rgb(24, 36, 54);
       }
@@ -43,53 +42,38 @@
         background: rgb(255, 214, 0);
       }
 
-      #title {
+      #block-a,
+      #block-b,
+      #block-c {
         position: absolute;
-        left: 40px;
-        top: 42px;
-        width: 430px;
-        height: 56px;
-        color: rgb(255, 255, 255);
-        font-size: 40px;
-        font-weight: 800;
         opacity: 0;
-        transform: translateY(34px);
       }
 
-      #subtitle {
-        position: absolute;
-        left: 42px;
-        top: 118px;
-        width: 380px;
+      #block-a {
+        left: 48px;
+        top: 44px;
+        width: 336px;
         height: 34px;
-        color: rgb(180, 205, 236);
-        font-size: 22px;
-        font-weight: 600;
+        background: rgb(245, 249, 255);
         opacity: 0;
-        transform: translateY(24px);
       }
 
-      #badge {
-        position: absolute;
-        left: 40px;
-        top: 168px;
+      #block-b {
+        left: 48px;
+        top: 108px;
+        width: 264px;
+        height: 24px;
+        background: rgb(180, 205, 236);
+        opacity: 0;
+      }
+
+      #block-c {
+        left: 48px;
+        top: 164px;
         width: 168px;
         height: 38px;
-        border-radius: 19px;
         background: rgb(255, 214, 0);
         opacity: 0;
-        transform: translateY(16px);
-      }
-
-      #badge-text {
-        position: absolute;
-        left: 22px;
-        top: 7px;
-        width: 124px;
-        height: 24px;
-        color: rgb(8, 12, 18);
-        font-size: 18px;
-        font-weight: 800;
       }
     </style>
   </head>
@@ -103,18 +87,18 @@
     >
       <section id="panel">
         <div id="accent"></div>
-        <h1 id="title">Native Skia</h1>
-        <p id="subtitle">Chrome extracts once. Rust paints every frame.</p>
-        <div id="badge"><span id="badge-text">PROOF RUN</span></div>
+        <div id="block-a"></div>
+        <div id="block-b"></div>
+        <div id="block-c"></div>
       </section>
     </main>
 
     <script>
       const duration = 1;
       const animated = [
-        { id: "title", delay: 0, y: 34 },
-        { id: "subtitle", delay: 0.18, y: 24 },
-        { id: "badge", delay: 0.36, y: 16 },
+        { id: "block-a", delay: 0 },
+        { id: "block-b", delay: 0.18 },
+        { id: "block-c", delay: 0.36 },
       ];
 
       function clamp01(v) {
@@ -130,7 +114,6 @@
           const el = document.getElementById(item.id);
           const p = easeOutCubic(clamp01((t - item.delay) / 0.42));
           el.style.opacity = String(p);
-          el.style.transform = `translateY(${(1 - p) * item.y}px)`;
         }
       }
 

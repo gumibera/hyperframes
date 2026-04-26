@@ -67,7 +67,35 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
     );
   }
 
+  function isTransparentColor(value) {
+    if (!value || value === "transparent") return true;
+    const rgba = value.match(/^rgba?\\(([^)]+)\\)$/);
+    if (!rgba) return false;
+    const parts = rgba[1].split(",").map((part) => part.trim());
+    if (parts.length < 4) return false;
+    return Number(parts[3]) < 1;
+  }
+
+  function hasDirectText(el) {
+    return Array.from(el.childNodes).some((node) => {
+      return node.nodeType === Node.TEXT_NODE && !!node.textContent.trim();
+    });
+  }
+
+  function directTextLineCount(el) {
+    let count = 0;
+    for (const node of Array.from(el.childNodes)) {
+      if (node.nodeType !== Node.TEXT_NODE || !node.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      count += range.getClientRects().length;
+      range.detach();
+    }
+    return count;
+  }
+
   const reasons = [];
+  const compositionRoot = document.querySelector("[data-composition-id]");
   function add(el, property, value, reason) {
     reasons.push({
       elementId: elementId(el),
@@ -75,6 +103,25 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
       value: String(value || ""),
       reason,
     });
+  }
+
+  if (!compositionRoot) {
+    reasons.push({
+      elementId: "document",
+      property: "data-composition-id",
+      value: "missing",
+      reason: "native extraction requires a stable data-composition-id root",
+    });
+  } else {
+    const rootBackground = getComputedStyle(compositionRoot).backgroundColor;
+    if (isTransparentColor(rootBackground)) {
+      add(
+        compositionRoot,
+        "background-color",
+        rootBackground,
+        "transparent composition roots require alpha-aware native output",
+      );
+    }
   }
 
   function inspect(el) {
@@ -107,6 +154,14 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
           "animated or transformed elements need a stable id or data-name for native timeline baking",
         );
       }
+    }
+
+    const containsDirectText = hasDirectText(el);
+    if (containsDirectText && (cs.display.includes("grid") || cs.display.includes("flex"))) {
+      add(el, "text-layout", cs.display, "grid/flex direct text layout needs native text parity work");
+    }
+    if (containsDirectText && directTextLineCount(el) > 1) {
+      add(el, "text-wrap", "", "wrapped direct text needs native text layout parity work");
     }
 
     if (cs.backgroundImage && cs.backgroundImage !== "none") {
@@ -175,8 +230,7 @@ const DETECT_NATIVE_SUPPORT_SCRIPT = `(() => {
     for (const child of Array.from(el.children)) inspect(child);
   }
 
-  const root = document.querySelector("[data-composition-id]") ?? document.body;
-  inspect(root);
+  inspect(compositionRoot ?? document.body);
   return reasons;
 })()`;
 

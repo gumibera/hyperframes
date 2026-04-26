@@ -18,6 +18,7 @@ import { bakeTimeline } from "../src/timeline/bake.js";
 interface ProofSummary {
   projectDir: string;
   artifactsDir: string;
+  reportPath: string;
   chrome: {
     outputPath: string;
     elapsedMs: number;
@@ -30,14 +31,25 @@ interface ProofSummary {
     extractionMs: number;
     renderElapsedMs: number;
     totalElapsedMs: number;
-    renderer: unknown;
+    renderer: RenderNativeOutput;
     ffprobe: unknown;
+  };
+  fidelity?: {
+    sampledPsnrDb: number | "inf";
+    status: "excellent" | "review" | "mismatch";
   };
   support: NativeSupportReport;
   speedup: {
     renderOnlyVsChrome: number;
     extractionPlusRenderVsChrome: number;
   };
+}
+
+interface RenderNativeOutput {
+  frames?: number;
+  totalMs?: number;
+  avgPaintMs?: number;
+  outputPath?: string;
 }
 
 function arg(name: string, fallback: string): string {
@@ -67,6 +79,147 @@ function ffprobe(path: string): unknown {
     { encoding: "utf-8" },
   );
   return JSON.parse(raw);
+}
+
+function extractPoster(videoPath: string, posterPath: string, time: number): void {
+  const result = spawnSync(
+    "ffmpeg",
+    [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-ss",
+      String(time),
+      "-i",
+      videoPath,
+      "-frames:v",
+      "1",
+      posterPath,
+      "-y",
+    ],
+    { encoding: "utf-8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(result.stderr || `failed to extract poster for ${videoPath}`);
+  }
+}
+
+function computePsnrDb(referencePath: string, nativePath: string): number | "inf" | undefined {
+  const result = spawnSync(
+    "ffmpeg",
+    ["-hide_banner", "-i", referencePath, "-i", nativePath, "-lavfi", "psnr", "-f", "null", "-"],
+    { encoding: "utf-8" },
+  );
+  if (result.status !== 0) return undefined;
+
+  const output = `${result.stdout}\n${result.stderr}`;
+  const match = output.match(/average:([0-9.]+|inf)/);
+  if (!match) return undefined;
+  return match[1] === "inf" ? "inf" : Number(match[1]);
+}
+
+function classifyPsnr(psnr: number | "inf" | undefined): "excellent" | "review" | "mismatch" {
+  const numeric = psnr === "inf" ? Number.POSITIVE_INFINITY : psnr;
+  if (numeric === undefined) return "mismatch";
+  return numeric >= 40 ? "excellent" : numeric >= 30 ? "review" : "mismatch";
+}
+
+function formatPsnr(psnr: number | "inf" | undefined): string {
+  if (psnr === undefined) return "n/a";
+  return psnr === "inf" ? "inf" : `${psnr.toFixed(2)} dB`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function writeProofReport(summary: ProofSummary): void {
+  const html = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Native Renderer Supported Proof</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #101315;
+        color: #f4f1ea;
+      }
+      body { margin: 0; }
+      main { width: min(1120px, calc(100vw - 48px)); margin: 0 auto; padding: 28px 0 48px; }
+      h1 { margin: 0 0 10px; font-size: 30px; }
+      p { color: #cfc7b8; line-height: 1.5; }
+      .metrics { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 24px; }
+      .metrics span {
+        border: 1px solid #3e4544;
+        background: #1d2322;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-weight: 800;
+      }
+      .comparison { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+      h2 { margin: 0 0 8px; font-size: 18px; }
+      img, video {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        object-fit: contain;
+        background: #000;
+        border: 1px solid #3e4544;
+      }
+      video { margin-top: 8px; }
+      pre {
+        overflow: auto;
+        white-space: pre-wrap;
+        background: #1c2020;
+        border: 1px solid #3e4544;
+        border-radius: 6px;
+        padding: 12px;
+      }
+      @media (max-width: 860px) {
+        .comparison { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Native Renderer Supported Proof</h1>
+      <p>This canary uses only the currently supported native subset: opaque root, stable IDs, solid boxes, and opacity animation. Broader fixtures must pass the support detector before using native.</p>
+      <div class="metrics">
+        <span>Chrome ${summary.chrome.elapsedMs}ms</span>
+        <span>Native render ${summary.native.renderElapsedMs}ms</span>
+        <span>Native total ${summary.native.totalElapsedMs}ms</span>
+        <span>Avg paint ${Number(summary.native.renderer.avgPaintMs ?? 0).toFixed(2)}ms</span>
+        <span>${summary.speedup.renderOnlyVsChrome}x render-only speed</span>
+        <span>${summary.speedup.extractionPlusRenderVsChrome}x extraction+render speed</span>
+        <span>Sampled PSNR ${formatPsnr(summary.fidelity?.sampledPsnrDb)}</span>
+        <span>Fidelity ${summary.fidelity?.status ?? "n/a"}</span>
+      </div>
+      <div class="comparison">
+        <section>
+          <h2>Chrome CDP</h2>
+          <img src="chrome-cdp.jpg" alt="Chrome CDP poster" />
+          <video src="chrome-cdp.mp4" controls muted loop playsinline></video>
+        </section>
+        <section>
+          <h2>Native</h2>
+          <img src="native.jpg" alt="Native poster" />
+          <video src="native.mp4" controls muted loop playsinline></video>
+        </section>
+      </div>
+      <h2>Support</h2>
+      <pre>${escapeHtml(JSON.stringify(summary.support, null, 2))}</pre>
+    </main>
+  </body>
+</html>`;
+
+  writeFileSync(summary.reportPath, html, "utf-8");
 }
 
 function runChecked(command: string, args: string[], cwd: string): string {
@@ -216,7 +369,10 @@ async function main(): Promise<void> {
   const supportPath = join(artifactsDir, "support.json");
   const nativeOutputPath = join(artifactsDir, "native.mp4");
   const chromeOutputPath = join(artifactsDir, "chrome-cdp.mp4");
+  const nativePosterPath = join(artifactsDir, "native.jpg");
+  const chromePosterPath = join(artifactsDir, "chrome-cdp.jpg");
   const summaryPath = join(artifactsDir, "summary.json");
+  const reportPath = join(artifactsDir, "index.html");
 
   const browserInfo = await ensureBrowser();
   const browser = await puppeteer.launch({
@@ -303,7 +459,7 @@ async function main(): Promise<void> {
     repoRoot,
   );
   const nativeTotalElapsedMs = Math.round(performance.now() - nativeStart) + extractionMs;
-  const renderer = JSON.parse(nativeStdout);
+  const renderer = JSON.parse(nativeStdout) as RenderNativeOutput;
 
   const chrome = await renderChromeCdpReference({
     executablePath: browserInfo.executablePath,
@@ -318,9 +474,13 @@ async function main(): Promise<void> {
   });
 
   const nativeRenderElapsedMs = Math.round(renderer.totalMs ?? 0);
+  extractPoster(chromeOutputPath, chromePosterPath, Math.min(0.5, Math.max(0, duration - 1 / fps)));
+  extractPoster(nativeOutputPath, nativePosterPath, Math.min(0.5, Math.max(0, duration - 1 / fps)));
+  const sampledPsnrDb = computePsnrDb(chromeOutputPath, nativeOutputPath);
   const summary: ProofSummary = {
     projectDir,
     artifactsDir,
+    reportPath,
     chrome: {
       outputPath: chromeOutputPath,
       elapsedMs: chrome.elapsedMs,
@@ -336,6 +496,13 @@ async function main(): Promise<void> {
       renderer,
       ffprobe: ffprobe(nativeOutputPath),
     },
+    fidelity:
+      sampledPsnrDb !== undefined
+        ? {
+            sampledPsnrDb,
+            status: classifyPsnr(sampledPsnrDb),
+          }
+        : undefined,
     support,
     speedup: {
       renderOnlyVsChrome: Number((chrome.elapsedMs / nativeRenderElapsedMs).toFixed(2)),
@@ -344,6 +511,7 @@ async function main(): Promise<void> {
   };
 
   writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
+  writeProofReport(summary);
   process.stdout.write(readFileSync(summaryPath, "utf-8") + "\n");
 }
 

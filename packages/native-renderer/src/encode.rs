@@ -87,7 +87,13 @@ pub fn encoder_args(encoder: HwEncoder, fps: u32, quality: u32) -> Vec<String> {
 /// This avoids the intermediate JPEG encode/decode round-trip used by the
 /// compatibility pipe and is the current fastest non-zero-copy transfer path.
 /// The caller must append the output path.
-pub fn raw_rgba_encoder_args(
+/// Build FFmpeg CLI arguments for raw pixel frames written to stdin.
+///
+/// Uses BGRA input (Skia Metal's native format) to avoid a BGRA→RGBA
+/// conversion during GPU readback. For hardware encoders (VideoToolbox,
+/// NVENC), the pixel format conversion is done on the media engine rather
+/// than the CPU, eliminating the main E2E bottleneck.
+pub fn raw_pixel_encoder_args(
     encoder: HwEncoder,
     fps: u32,
     quality: u32,
@@ -99,7 +105,7 @@ pub fn raw_rgba_encoder_args(
         "-f".into(),
         "rawvideo".into(),
         "-pix_fmt".into(),
-        "rgba".into(),
+        "bgra".into(),
         "-s:v".into(),
         format!("{width}x{height}"),
         "-framerate".into(),
@@ -111,6 +117,17 @@ pub fn raw_rgba_encoder_args(
     ];
     append_codec_args(&mut args, encoder, quality);
     args
+}
+
+#[deprecated(note = "use raw_pixel_encoder_args (BGRA) for better performance")]
+pub fn raw_rgba_encoder_args(
+    encoder: HwEncoder,
+    fps: u32,
+    quality: u32,
+    width: u32,
+    height: u32,
+) -> Vec<String> {
+    raw_pixel_encoder_args(encoder, fps, quality, width, height)
 }
 
 fn append_codec_args(args: &mut Vec<String>, encoder: HwEncoder, quality: u32) {
@@ -163,9 +180,16 @@ fn append_codec_args(args: &mut Vec<String>, encoder: HwEncoder, quality: u32) {
         }
     }
 
-    let pix_fmt = match encoder {
-        HwEncoder::Vaapi => "vaapi",
-        HwEncoder::VideoToolbox | HwEncoder::Nvenc | HwEncoder::Software => "yuv420p",
-    };
-    args.extend(["-pix_fmt".into(), pix_fmt.into()]);
+    match encoder {
+        HwEncoder::VideoToolbox => {
+            // VideoToolbox needs NV12. FFmpeg auto-inserts BGRA→NV12 conversion.
+            args.extend(["-pix_fmt".into(), "nv12".into()]);
+        }
+        HwEncoder::Vaapi => {
+            // VAAPI pixel format is set in the vf filter chain above.
+        }
+        HwEncoder::Nvenc | HwEncoder::Software => {
+            args.extend(["-pix_fmt".into(), "yuv420p".into()]);
+        }
+    }
 }

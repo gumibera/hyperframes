@@ -51,7 +51,10 @@ interface BrowserLike {
 
 interface PageLike {
   setViewport(viewport: { width: number; height: number }): Promise<void>;
-  goto(url: string, options: { waitUntil: "networkidle0"; timeout?: number }): Promise<unknown>;
+  goto(
+    url: string,
+    options: { waitUntil: "domcontentloaded" | "load" | "networkidle0"; timeout?: number },
+  ): Promise<unknown>;
   waitForFunction(pageFunction: string, options?: { timeout?: number }): Promise<unknown>;
   evaluate<T = unknown>(pageFunction: string): Promise<T>;
   screenshot(options: { type: "jpeg"; quality: number }): Promise<Uint8Array>;
@@ -96,10 +99,13 @@ interface FixtureResult {
   };
   support?: NativeSupportReport;
   fidelity?: {
-    posterPsnrDb: number | "inf";
+    posterPsnrDb: PsnrDb;
+    sampledPsnrDb?: PsnrDb;
     status: "excellent" | "review" | "mismatch";
   };
 }
+
+type PsnrDb = number | "inf";
 
 function arg(name: string, fallback: string): string {
   const index = process.argv.indexOf(name);
@@ -216,7 +222,7 @@ async function renderCdpReference({
   const start = performance.now();
   try {
     await page.setViewport({ width, height });
-    await page.goto(url, { waitUntil: "networkidle0", timeout: 45_000 });
+    await page.goto(url, { waitUntil: "load", timeout: 90_000 });
     await page.waitForFunction(`!!(window.__hf && typeof window.__hf.seek === "function")`, {
       timeout: 45_000,
     });
@@ -309,10 +315,7 @@ function extractPoster(videoPath: string, posterPath: string, time: number): voi
   }
 }
 
-function computePosterPsnr(
-  referencePath: string,
-  nativePath: string,
-): FixtureResult["fidelity"] | undefined {
+function computePsnrDb(referencePath: string, nativePath: string): PsnrDb | undefined {
   const result = spawnSync(
     "ffmpeg",
     ["-hide_banner", "-i", referencePath, "-i", nativePath, "-lavfi", "psnr", "-f", "null", "-"],
@@ -324,12 +327,48 @@ function computePosterPsnr(
   const match = output.match(/average:([0-9.]+|inf)/);
   if (!match) return undefined;
 
-  const posterPsnrDb = match[1] === "inf" ? "inf" : Number(match[1]);
-  const numeric = posterPsnrDb === "inf" ? Number.POSITIVE_INFINITY : posterPsnrDb;
+  return match[1] === "inf" ? "inf" : Number(match[1]);
+}
+
+function psnrValue(psnr: PsnrDb | undefined): number | undefined {
+  if (psnr === undefined) return undefined;
+  return psnr === "inf" ? Number.POSITIVE_INFINITY : psnr;
+}
+
+function classifyPsnr(...values: (PsnrDb | undefined)[]): "excellent" | "review" | "mismatch" {
+  const numericValues = values
+    .map((value) => psnrValue(value))
+    .filter((value): value is number => value !== undefined);
+  if (numericValues.length === 0) return "mismatch";
+  const floor = Math.min(...numericValues);
+  return floor >= 40 ? "excellent" : floor >= 30 ? "review" : "mismatch";
+}
+
+function computeFidelity({
+  referencePosterPath,
+  nativePosterPath,
+  referenceVideoPath,
+  nativeVideoPath,
+}: {
+  referencePosterPath: string;
+  nativePosterPath: string;
+  referenceVideoPath: string;
+  nativeVideoPath: string;
+}): FixtureResult["fidelity"] | undefined {
+  const posterPsnrDb = computePsnrDb(referencePosterPath, nativePosterPath);
+  if (posterPsnrDb === undefined) return undefined;
+  const sampledPsnrDb = computePsnrDb(referenceVideoPath, nativeVideoPath);
+
   return {
     posterPsnrDb,
-    status: numeric >= 40 ? "excellent" : numeric >= 30 ? "review" : "mismatch",
+    sampledPsnrDb,
+    status: classifyPsnr(posterPsnrDb, sampledPsnrDb),
   };
+}
+
+function formatPsnr(psnr: PsnrDb | undefined): string {
+  if (psnr === undefined) return "n/a";
+  return psnr === "inf" ? "inf" : `${psnr.toFixed(2)} dB`;
 }
 
 function escapeHtml(value: string): string {
@@ -355,10 +394,16 @@ function writeReport(results: FixtureResult[], artifactsDir: string, maxDuration
     (acc, result) => {
       acc.cdp += result.cdp?.elapsedMs ?? 0;
       acc.auto += result.auto?.elapsedMs ?? 0;
-      acc.native += result.native?.totalElapsedMs ?? 0;
+      if (result.native) {
+        const frames = Math.max(1, Math.ceil(result.fps * result.sampleDuration));
+        acc.native += result.native.totalElapsedMs;
+        acc.nativeExtraction += result.native.extractionMs;
+        acc.nativeRender += result.native.renderElapsedMs;
+        acc.nativePaint += result.native.avgPaintMs * frames;
+      }
       return acc;
     },
-    { cdp: 0, auto: 0, native: 0 },
+    { cdp: 0, auto: 0, native: 0, nativeExtraction: 0, nativeRender: 0, nativePaint: 0 },
   );
   const totalAutoSpeedup =
     totals.cdp > 0 && totals.auto > 0 ? Number((totals.cdp / totals.auto).toFixed(2)) : null;
@@ -376,12 +421,8 @@ function writeReport(results: FixtureResult[], artifactsDir: string, maxDuration
         result.cdp && result.auto
           ? Number((result.cdp.elapsedMs / result.auto.elapsedMs).toFixed(2))
           : null;
-      const psnr =
-        result.fidelity?.posterPsnrDb === "inf"
-          ? "inf"
-          : result.fidelity
-            ? `${result.fidelity.posterPsnrDb.toFixed(2)} dB`
-            : "n/a";
+      const posterPsnr = formatPsnr(result.fidelity?.posterPsnrDb);
+      const sampledPsnr = formatPsnr(result.fidelity?.sampledPsnrDb);
       const cdpPoster = existsSync(join(fixtureDir, "cdp.jpg"))
         ? `<img src="${artifactRel(artifactsDir, join(fixtureDir, "cdp.jpg"))}" alt="CDP poster for ${escapeHtml(result.id)}" />`
         : `<div class="placeholder">CDP unavailable</div>`;
@@ -417,11 +458,19 @@ function writeReport(results: FixtureResult[], artifactsDir: string, maxDuration
           <span>${result.fps}fps</span>
           <span>${result.sampleDuration.toFixed(2)}s sampled</span>
           ${result.cdp ? `<span>CDP ${result.cdp.elapsedMs}ms</span>` : ""}
-          ${result.native ? `<span>Native ${result.native.totalElapsedMs}ms</span>` : ""}
+          ${
+            result.native
+              ? `<span>Native ${result.native.totalElapsedMs}ms</span>
+          <span>Extract ${result.native.extractionMs}ms</span>
+          <span>Render ${result.native.renderElapsedMs}ms</span>
+          <span>Avg paint ${result.native.avgPaintMs.toFixed(2)}ms</span>`
+              : ""
+          }
           ${result.auto ? `<span>Auto ${result.auto.elapsedMs}ms (${result.auto.backend})</span>` : ""}
           ${nativeSpeedup ? `<span>${nativeSpeedup}x native speed</span>` : ""}
           ${autoSpeedup ? `<span>${autoSpeedup}x auto speed</span>` : ""}
-          <span>PSNR ${psnr}</span>
+          <span>Poster PSNR ${posterPsnr}</span>
+          <span>Sampled PSNR ${sampledPsnr}</span>
           ${result.fidelity ? `<span>Fidelity ${result.fidelity.status}</span>` : ""}
         </div>
         <div class="comparison">
@@ -438,7 +487,7 @@ function writeReport(results: FixtureResult[], artifactsDir: string, maxDuration
         </div>
         <details>
           <summary>Notes</summary>
-          <p>Poster PSNR compares the sampled CDP and auto-backend frames after video encoding. Use it as a fast mismatch detector; inspect the videos for final visual signoff.</p>
+          <p>Poster PSNR compares one sampled CDP frame against auto output. Sampled PSNR compares the full clipped video segment rendered by both backends. Inspect the side-by-side videos for final visual signoff.</p>
           ${supportReasons}
           ${warnings}
           ${error}
@@ -532,6 +581,9 @@ function writeReport(results: FixtureResult[], artifactsDir: string, maxDuration
         <span>CDP ${totals.cdp}ms</span>
         <span>Auto ${totals.auto}ms</span>
         <span>Native ${totals.native}ms</span>
+        <span>Native extraction ${totals.nativeExtraction}ms</span>
+        <span>Native render ${totals.nativeRender}ms</span>
+        <span>Native paint ${totals.nativePaint.toFixed(2)}ms</span>
         <span>first ${maxDuration}s sampled per fixture</span>
       </div>
       ${rows}
@@ -613,7 +665,7 @@ async function main(): Promise<void> {
         let scene: ExtractedScene | null = null;
         let nativeExtractionMs = 0;
         try {
-          await page.goto(url, { waitUntil: "networkidle0", timeout: 45_000 });
+          await page.goto(url, { waitUntil: "load", timeout: 90_000 });
           await page.waitForFunction(`!!(window.__hf && typeof window.__hf.seek === "function")`, {
             timeout: 45_000,
           });
@@ -718,7 +770,12 @@ async function main(): Promise<void> {
         const autoPosterPath = join(fixtureDir, "auto.jpg");
         extractPoster(cdpOutputPath, cdpPosterPath, posterTime);
         extractPoster(autoOutputPath, autoPosterPath, posterTime);
-        result.fidelity = computePosterPsnr(cdpPosterPath, autoPosterPath);
+        result.fidelity = computeFidelity({
+          referencePosterPath: cdpPosterPath,
+          nativePosterPath: autoPosterPath,
+          referenceVideoPath: cdpOutputPath,
+          nativeVideoPath: autoOutputPath,
+        });
 
         if (result.status !== "fallback-required") {
           result.status =
@@ -744,6 +801,8 @@ async function main(): Promise<void> {
           autoMs: result.auto?.elapsedMs ?? null,
           autoBackend: result.auto?.backend ?? null,
           posterPsnrDb: result.fidelity?.posterPsnrDb ?? null,
+          sampledPsnrDb: result.fidelity?.sampledPsnrDb ?? null,
+          fidelityStatus: result.fidelity?.status ?? null,
           warnings: result.warnings,
           supportReasons: result.support?.reasons.map(formatSupportReason) ?? [],
           error: result.error ?? null,

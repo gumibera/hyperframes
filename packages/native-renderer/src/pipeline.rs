@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use skia_safe::Color4f;
 
-use crate::encode::{detect_hw_encoder, encoder_args, raw_rgba_encoder_args, HwEncoder};
+use crate::encode::{detect_hw_encoder, encoder_args, raw_pixel_encoder_args, HwEncoder};
 use crate::paint::{paint_element, paint_element_at_time, ImageCache, RenderSurface};
 use crate::scene::{BakedElementState, BakedFrame, BakedTimeline, Element, Scene, Transform2D};
 
@@ -84,7 +84,7 @@ fn spawn_raw_rgba_ffmpeg_writer(
     String,
 > {
     let encoder = detect_hw_encoder();
-    let mut args = raw_rgba_encoder_args(encoder, config.fps, config.quality, width, height);
+    let mut args = raw_pixel_encoder_args(encoder, config.fps, config.quality, width, height);
     args.push(config.output_path.clone());
 
     let mut child = Command::new("ffmpeg")
@@ -96,7 +96,9 @@ fn spawn_raw_rgba_ffmpeg_writer(
         .map_err(|e| format!("failed to spawn ffmpeg: {e}"))?;
 
     let mut stdin = child.stdin.take().ok_or("failed to open ffmpeg stdin")?;
-    let (tx, rx) = sync_channel::<Vec<u8>>(2);
+    // Deep buffer lets the GPU render 16 frames ahead of FFmpeg,
+    // decoupling paint throughput from encode throughput.
+    let (tx, rx) = sync_channel::<Vec<u8>>(16);
 
     let writer = std::thread::spawn(move || {
         for frame in rx {
@@ -257,17 +259,17 @@ fn apply_deltas_recursive(
     }
 }
 
-// ── GPU Pipeline (macOS Metal) ─────────────────────────────────────────────
+// ── Chunk-Parallel GPU Pipeline (macOS Metal) ─────────────────────────────
 
-/// Render an animated scene on the GPU with double-buffered surfaces and
-/// a background raw-RGBA FFmpeg pipe writer.
+/// Render an animated scene on the GPU with a background BGRA pipe to FFmpeg.
 ///
-/// Two Metal-backed surfaces alternate while a bounded writer thread feeds
-/// raw frame bytes into FFmpeg. This avoids the MJPEG encode/decode round-trip
-/// while still using CPU-visible readback. True zero-copy IOSurface/VideoToolbox
-/// handoff remains a later production step.
+/// GPU paints each frame, reads back BGRA pixels (Metal's native format),
+/// and a background thread writes them to FFmpeg's stdin. Using BGRA avoids
+/// the GPU-side BGRA→RGBA conversion during readback.
 ///
-/// Uses hardware encoding when available.
+/// The FFmpeg process uses hardware encoding when available (VideoToolbox on
+/// macOS, NVENC on Linux). The BGRA→NV12 conversion for the encoder happens
+/// in FFmpeg's filter chain.
 #[cfg(target_os = "macos")]
 pub fn render_animated_gpu(
     scene: &Scene,
@@ -281,11 +283,8 @@ pub fn render_animated_gpu(
 
     let width = scene.width as i32;
     let height = scene.height as i32;
-
-    // Two GPU surfaces for double-buffering.
-    let mut surface_a = RenderSurface::new_metal_gpu(width, height)?;
-    let mut surface_b = RenderSurface::new_metal_gpu(width, height)?;
-    let mut image_cache = ImageCache::new();
+    let mut surface = RenderSurface::new_metal_gpu(width, height)?;
+    let mut images = ImageCache::new();
 
     let (frame_tx, writer, _encoder) =
         spawn_raw_rgba_ffmpeg_writer(config, scene.width, scene.height)?;
@@ -293,29 +292,22 @@ pub fn render_animated_gpu(
     let start = Instant::now();
     let mut paint_total_ms: f64 = 0.0;
 
-    for (i, frame) in timeline.frames.iter().enumerate() {
-        // Alternate between the two surfaces each frame.
-        let surface = if i % 2 == 0 {
-            &mut surface_a
-        } else {
-            &mut surface_b
-        };
-
+    for (_i, frame) in timeline.frames.iter().enumerate() {
         let animated_scene = apply_frame_deltas(scene, frame);
 
         let paint_start = Instant::now();
         surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
         for element in &animated_scene.elements {
-            paint_element_at_time(surface.canvas(), element, &mut image_cache, frame.time);
+            paint_element_at_time(surface.canvas(), element, &mut images, frame.time);
         }
         surface.flush_and_submit();
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 
-        let rgba = surface
-            .read_pixels_rgba()
+        let bgra = surface
+            .read_pixels_bgra()
             .ok_or("failed to read GPU frame pixels")?;
         frame_tx
-            .send(rgba)
+            .send(bgra)
             .map_err(|e| format!("failed to queue GPU frame for ffmpeg: {e}"))?;
     }
 
@@ -323,7 +315,6 @@ pub fn render_animated_gpu(
     finish_ffmpeg_writer(writer)?;
 
     let total_ms = start.elapsed().as_millis() as u64;
-
     Ok(RenderResult {
         total_frames,
         total_ms,

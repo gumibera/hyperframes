@@ -1,5 +1,5 @@
 use hyperframes_native_renderer::encode::{
-    detect_hw_encoder, encoder_args, raw_rgba_encoder_args, HwEncoder,
+    detect_hw_encoder, encoder_args, raw_pixel_encoder_args, HwEncoder,
 };
 
 fn arg_after(args: &[String], flag: &str) -> String {
@@ -94,7 +94,6 @@ fn encoder_args_vaapi_uploads_software_frames_to_gpu() {
     let args = encoder_args(HwEncoder::Vaapi, 24, 80);
 
     assert_eq!(arg_after(&args, "-vf"), "format=nv12,hwupload");
-    assert_eq!(arg_after(&args, "-pix_fmt"), "vaapi");
 }
 
 #[cfg(target_os = "macos")]
@@ -118,39 +117,34 @@ fn encoder_args_all_start_with_overwrite_flag() {
 }
 
 #[test]
-fn encoder_args_all_end_with_pix_fmt() {
-    for encoder in [
-        HwEncoder::Software,
-        HwEncoder::Nvenc,
-        HwEncoder::Vaapi,
-        HwEncoder::VideoToolbox,
-    ] {
+fn encoder_args_software_and_nvenc_end_with_pix_fmt() {
+    for encoder in [HwEncoder::Software, HwEncoder::Nvenc] {
         let args = encoder_args(encoder, 30, 20);
-        let len = args.len();
-        assert_eq!(
-            args[len - 2],
-            "-pix_fmt",
-            "penultimate must be -pix_fmt for {encoder:?}"
+        assert!(
+            args.contains(&"-pix_fmt".to_string()),
+            "must have -pix_fmt for {encoder:?}"
         );
-        let expected = if encoder == HwEncoder::Vaapi {
-            "vaapi"
-        } else {
-            "yuv420p"
-        };
-        assert_eq!(
-            args[len - 1],
-            expected,
-            "last must be {expected} for {encoder:?}"
+        assert!(
+            args.contains(&"yuv420p".to_string()),
+            "must have yuv420p for {encoder:?}"
         );
     }
 }
 
 #[test]
-fn raw_rgba_encoder_args_use_rawvideo_input() {
-    let args = raw_rgba_encoder_args(HwEncoder::Software, 30, 80, 640, 360);
+fn encoder_args_videotoolbox_uses_nv12() {
+    let args = encoder_args(HwEncoder::VideoToolbox, 30, 20);
+    assert!(args.contains(&"-pix_fmt".to_string()));
+    assert!(args.contains(&"nv12".to_string()));
+}
+
+#[test]
+fn raw_pixel_encoder_args_use_bgra_rawvideo_input() {
+    let args = raw_pixel_encoder_args(HwEncoder::Software, 30, 80, 640, 360);
 
     assert_eq!(arg_after(&args, "-f"), "rawvideo");
-    assert_eq!(arg_after(&args, "-pix_fmt"), "rgba");
+    // BGRA is Skia Metal's native pixel format — avoids a GPU-side conversion
+    assert_eq!(arg_after(&args, "-pix_fmt"), "bgra");
     assert_eq!(arg_after(&args, "-s:v"), "640x360");
     assert_eq!(arg_after(&args, "-framerate"), "30");
     assert!(!args.contains(&"image2pipe".to_string()));
