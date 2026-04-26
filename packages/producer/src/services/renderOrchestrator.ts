@@ -1697,24 +1697,49 @@ export async function executeRenderJob(
       if (!existsSync(textDir)) mkdirSync(textDir, { recursive: true });
 
       // ── Inject video frame directories BEFORE element capture ────────
-      // Video elements keep their Video kind (not captured as PNGs).
-      // The Rust binary composites per-frame extracted JPEGs instead.
-      const videoFramesBase = join(workDir, "video-frames");
+      // Build a lookup from video element ID → frame output directory using
+      // the producer's extraction result (which has the actual paths).
       const videoIdsWithFrames = new Set<string>();
+      const videoFrameDirMap = new Map<string, string>();
+
+      if (extractionResult) {
+        for (const ext of extractionResult.extracted) {
+          if (existsSync(ext.outputDir)) {
+            videoFrameDirMap.set(ext.videoId, ext.outputDir);
+          }
+        }
+      }
+      // Also check video-frames/<id>/ as fallback
+      const videoFramesBase = join(workDir, "video-frames");
+      if (existsSync(videoFramesBase)) {
+        for (const dir of readdirSync(videoFramesBase)) {
+          const fullDir = join(videoFramesBase, dir);
+          if (!videoFrameDirMap.has(dir) && existsSync(join(fullDir, "frame_00001.jpg"))) {
+            videoFrameDirMap.set(dir, fullDir);
+          }
+        }
+      }
+
       const injectVideoFrames = (el: Record<string, unknown>): void => {
         const kind = el.kind as Record<string, unknown> | undefined;
         const style = el.style as Record<string, unknown> | undefined;
         if (kind?.type === "Video" && style && el.id) {
-          const frameDir = join(videoFramesBase, el.id as string);
-          if (existsSync(frameDir)) {
+          const elId = el.id as string;
+          const frameDir = videoFrameDirMap.get(elId);
+          if (frameDir) {
             style.video_frames_dir = frameDir;
             style.video_fps = job.config.fps;
             style.video_media_start = 0;
-            videoIdsWithFrames.add(el.id as string);
+            videoIdsWithFrames.add(elId);
             log.info("Mapped video frames", {
-              id: el.id,
+              id: elId,
               dir: frameDir,
               frames: readdirSync(frameDir).filter((f: string) => f.startsWith("frame_")).length,
+            });
+          } else {
+            log.warn("No extracted frames for video", {
+              id: elId,
+              available: Array.from(videoFrameDirMap.keys()),
             });
           }
         }
@@ -1871,6 +1896,20 @@ export async function executeRenderJob(
       if (!existsSync(nativeWorkDir)) mkdirSync(nativeWorkDir, { recursive: true });
       const scenePath = join(nativeWorkDir, "scene.json");
       const timelinePath = join(nativeWorkDir, "timeline.json");
+      // Debug: count elements with video_frames_dir before writing
+      let vfdCount = 0;
+      const countVfd = (els: Record<string, unknown>[]) => {
+        for (const el of els) {
+          if ((el.style as Record<string, unknown>)?.video_frames_dir) vfdCount++;
+          countVfd((el.children as Record<string, unknown>[]) || []);
+        }
+      };
+      countVfd(enrichedScene.elements);
+      log.info("Scene before write", {
+        totalElements: enrichedScene.elements.length,
+        elementsWithVideoFramesDir: vfdCount,
+      });
+
       writeFileSync(scenePath, JSON.stringify(enrichedScene));
       writeFileSync(timelinePath, JSON.stringify(timeline));
 
