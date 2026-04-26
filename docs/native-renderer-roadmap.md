@@ -1,12 +1,43 @@
 # HyperFrames Native Renderer — Roadmap to Renderer Supremacy
 
-## Executive Summary
+---
 
-We're building a Rust/Skia native renderer that bypasses Chrome's CDP screenshot bottleneck. The renderer uses Chrome's own 2D engine (Skia) to paint composition frames at 10-100x the speed of both HyperFrames' current Chrome pipeline and Remotion's React-in-Chrome architecture.
+## The Problem
 
-**Current status:** Phase 1-3 complete. The renderer paints 1080p frames in 1.8ms on Linux (vs 14-40ms in Chrome). The end-to-end pipeline works: CLI → Chrome compilation → scene extraction → Rust/Skia paint → FFmpeg encode → MP4. Support detection, hardware encoding, GPU acceleration (Metal), and Linux CI are all operational.
+Every video rendering framework today — HyperFrames included, Remotion included — renders video the same way: open a headless Chrome browser, seek to each frame, take a screenshot via the Chrome DevTools Protocol, serialize it as base64, transfer it over a WebSocket, decode it, and pipe it to FFmpeg. This costs **14-40 milliseconds per frame**. For a 30-second video at 30fps, that's 12-36 seconds just on screenshots — and no amount of configuration tuning can make it faster. The CDP serialization round-trip is a physics wall.
 
-**What's left:** Closing the visual fidelity gap between Skia and Chrome output, one CSS feature at a time, until the native renderer handles 90%+ of real compositions without Chrome fallback.
+## What We're Building
+
+A native video renderer in Rust that uses **Skia** — the same 2D graphics library that Chrome itself uses to paint every pixel you see — to render composition frames directly, bypassing Chrome entirely. Chrome is used once (~200ms) to extract the layout tree, then Skia paints all subsequent frames at **1.8ms per frame on CPU** and **0.22ms per frame on GPU**. That's 8-180x faster than the Chrome screenshot path.
+
+## Why Rust
+
+- **Performance**: Rust compiles to native machine code with zero garbage collection pauses. Frame rendering is a tight loop where every millisecond matters — GC pauses from Node.js or Go would show up as frame drops.
+- **Skia bindings**: The `skia-safe` crate provides production-grade Rust bindings to Google's Skia library (the same C++ engine inside Chrome, Android, and Flutter). We get Chrome-identical rendering quality from Chrome's own engine.
+- **Memory safety**: Video rendering processes gigabytes of pixel data. Rust's ownership model prevents buffer overflows, use-after-free, and data races that would be silent bugs in C/C++.
+- **Cross-platform**: One codebase compiles to macOS (Metal GPU), Linux (Vulkan GPU or CPU), and can target Windows. No JVM, no runtime, no container dependency beyond FFmpeg.
+- **Ecosystem**: H.264 encoding (openh264, BSD-licensed), MP4 muxing (minimp4), SIMD color conversion (dcv-color-primitives) — all available as Rust crates with permissive licenses.
+
+## What This Solves
+
+1. **Rendering speed**: 8-22x faster on CPU, 64-182x faster on GPU. A 30-second video that takes 40 seconds with Chrome renders in 2-5 seconds natively.
+2. **Infrastructure cost**: Each Chrome instance uses ~256MB RAM. The native renderer uses ~50MB. On cloud GPU instances, one machine renders 10-50x more videos per hour.
+3. **Competitive moat**: Remotion cannot copy this (explained below). Our composition format enables native rendering; theirs doesn't.
+4. **Path to real-time**: At 0.22ms/frame on GPU, we can preview compositions at 60fps+ in a native desktop app without a browser.
+
+## Definition of Done
+
+The native renderer is production-ready when:
+
+1. **`--backend auto` produces correct output** for all compositions. Unsupported compositions fall back to Chrome automatically. No silent quality loss.
+2. **80%+ of regression test fixtures render natively** with PSNR > 30dB against Chrome output (imperceptible visual difference).
+3. **Render speed is 10x+ faster** than Chrome CDP on Linux CPU for supported compositions, measured end-to-end (paint + encode + mux).
+4. **Every claim is benchmarked**: speed numbers come from CI, not local machines. PSNR scores come from the regression harness, not eyeballing.
+5. **Zero regressions** in the existing Chrome pipeline. The native renderer is additive — it doesn't modify any existing code path.
+
+## Current Status
+
+**Phase 1-3 complete.** 51 Rust tests + 31 TypeScript tests, all passing on macOS and Linux CI. The paint layer is proven fast. The encoding layer and visual fidelity gap are the remaining work (Phases 4-7, ~8-12 weeks).
 
 ---
 
