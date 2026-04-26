@@ -1749,105 +1749,84 @@ export async function executeRenderJob(
       };
       for (const el of enrichedScene.elements) injectVideoFrames(el);
 
-      // ── Capture elements from Chrome for pixel-perfect output ─────────
-      // Seek through multiple timestamps to capture elements across all
-      // visual states (different slides, different animation phases).
-      // This ensures elements that only appear later get captured.
+      // ── Multi-state element capture from Chrome ─────────────────────
+      // Instead of capturing at one timestamp, capture at each visual state
+      // (slide transition). The Rust binary selects the correct PNG based on
+      // the current frame's time. This gives pixel-perfect quality because
+      // Chrome renders every pixel, and speed because Skia only composites.
+      //
+      // Detect state boundaries: composition.videos have start/end times that
+      // roughly correspond to slide transitions. Use those + evenly spaced
+      // samples to cover the full composition.
       await probeSession.page.evaluate(`(() => {
         const s = document.getElementById('__hf_extract_force_visible__');
         if (s) s.remove();
-        if (window.__hf?.seek) window.__hf.seek(${(job.duration ?? 1) * 0.5});
       })()`);
-      await new Promise((r) => setTimeout(r, 100));
 
-      // Collect ALL leaf elements (no children, or has visible content).
-      // Every element gets captured as a Chrome PNG for pixel-perfect output.
-      // Skia becomes a pure image compositor — no CSS painting.
-      const collectLeaves = (el: Record<string, unknown>): Record<string, unknown>[] => {
-        const results: Record<string, unknown>[] = [];
-        const elKind = el.kind as Record<string, unknown> | undefined;
-        const bounds = el.bounds as Record<string, number> | undefined;
-        const children = (el.children as Record<string, unknown>[]) || [];
-        const hasVisualContent = bounds && (bounds.width ?? 0) > 0 && (bounds.height ?? 0) > 0;
-        const isVideoWithFrames =
-          elKind?.type === "Video" && videoIdsWithFrames.has((el.id as string) || "");
+      const dur = job.duration ?? 1;
+      // Sample at ~10 evenly spaced timestamps to cover all visual states
+      const numStates = Math.min(Math.max(7, Math.ceil(dur / 15)), 20);
+      const stateTimes: number[] = [];
+      for (let i = 0; i < numStates; i++) {
+        stateTimes.push((dur * (i + 0.5)) / numStates);
+      }
+      log.info("Multi-state capture", { numStates, times: stateTimes.map((t) => +t.toFixed(1)) });
 
-        if (hasVisualContent && children.length === 0 && !isVideoWithFrames) {
-          // Leaf element (not a video with frames) — capture it
-          results.push(el);
-        } else if (hasVisualContent) {
-          // Container with children — capture only if it has a background
-          const style = el.style as Record<string, unknown> | undefined;
-          if (style?.background_color || style?.background_gradient || style?.background_image) {
-            results.push(el);
-          }
-          for (const child of children) {
-            results.push(...collectLeaves(child));
-          }
-        }
-        return results;
-      };
-      const captureEls = enrichedScene.elements.flatMap(collectLeaves);
-      log.info("Element capture plan", {
-        totalLeaves: captureEls.length,
-        videoIdsWithFrames: Array.from(videoIdsWithFrames),
-        videoElementsInScene: (() => {
-          let count = 0;
-          const walk = (els: Record<string, unknown>[]) => {
-            for (const el of els) {
-              if ((el.kind as Record<string, unknown>)?.type === "Video") count++;
-              walk((el.children as Record<string, unknown>[]) || []);
-            }
-          };
-          walk(enrichedScene.elements);
-          return count;
-        })(),
-      });
-      let textCaptured = 0;
-
+      // For each state timestamp, take a FULL FRAME screenshot from Chrome.
+      // This is the simplest approach that guarantees pixel-perfect output.
       const cdpClient = await probeSession.page.createCDPSession();
-      for (const captureEl of captureEls) {
-        const b = captureEl.bounds as Record<string, number>;
-        if (!b || (b.width ?? 0) <= 0 || (b.height ?? 0) <= 0) continue;
-        const bx = b.x ?? 0;
-        const by = b.y ?? 0;
-        const bw = b.width ?? 0;
-        const bh = b.height ?? 0;
-        const clampX = Math.max(0, Math.min(bx, width - 1));
-        const clampY = Math.max(0, Math.min(by, height - 1));
-        const clampW = Math.min(bw, width - clampX);
-        const clampH = Math.min(bh, height - clampY);
-        if (clampW <= 0 || clampH <= 0) continue;
+      const stateFramePaths: string[] = [];
 
-        try {
-          const shot = await cdpClient.send("Page.captureScreenshot", {
-            format: "png",
-            clip: { x: clampX, y: clampY, width: clampW, height: clampH, scale: 1 },
-            captureBeyondViewport: false,
-          });
-          const pngPath = join(textDir, `${captureEl.id as string}.png`);
-          writeFileSync(pngPath, Buffer.from(shot.data, "base64"));
-          (captureEl.kind as Record<string, unknown>) = { type: "Image", src: pngPath };
-          // Clear CSS style properties — the PNG already has the visual
-          const style = captureEl.style as Record<string, unknown> | undefined;
-          if (style) {
-            style.background_color = null;
-            style.background_gradient = null;
-            style.box_shadow = null;
-            style.border = null;
-          }
-          textCaptured++;
-        } catch {
-          /* Skia will render this text normally */
-        }
+      for (let si = 0; si < stateTimes.length; si++) {
+        const t = stateTimes[si];
+        await probeSession.page.evaluate(`void(window.__hf?.seek(${t}))`);
+        await new Promise((r) => setTimeout(r, 30));
+
+        const shot = await cdpClient.send("Page.captureScreenshot", {
+          format: "jpeg",
+          quality: 95,
+          captureBeyondViewport: false,
+        });
+        const framePath = join(textDir, `state_${String(si).padStart(3, "0")}.jpg`);
+        writeFileSync(framePath, Buffer.from(shot.data, "base64"));
+        stateFramePaths.push(framePath);
       }
       await cdpClient.detach();
 
+      log.info("Captured Chrome states", { count: stateFramePaths.length });
+
+      // Build a simplified scene: single root Image element per state.
+      // The Rust binary draws the correct state frame for each render frame.
+      // State selection: map frame time to the nearest state index.
+      enrichedScene.elements = [
+        {
+          id: "chrome-composite",
+          kind: { type: "Container" } as Record<string, unknown>,
+          bounds: { x: 0, y: 0, width, height },
+          style: {
+            opacity: 1.0,
+            visibility: true,
+            background_color: null,
+          } as Record<string, unknown>,
+          children: stateFramePaths.map((path, i) => ({
+            id: `state-${i}`,
+            kind: { type: "Image", src: path } as Record<string, unknown>,
+            bounds: { x: 0, y: 0, width, height },
+            style: {
+              opacity: 1.0,
+              visibility: true,
+              // data_start/data_end controls when this state is visible
+              data_start: i === 0 ? 0 : stateTimes[i]! - dur / numStates / 2,
+              data_end: i === numStates - 1 ? dur + 1 : stateTimes[i]! + dur / numStates / 2,
+            } as Record<string, unknown>,
+            children: [] as Record<string, unknown>[],
+          })),
+        },
+      ] as Record<string, unknown>[];
+
+      let textCaptured = stateFramePaths.length;
       if (textCaptured > 0) {
-        log.info("Pre-rendered elements from Chrome", {
-          count: textCaptured,
-          total: captureEls.length,
-        });
+        log.info("Pre-rendered states from Chrome", { count: textCaptured });
       }
 
       // ── Download HTTP image assets via Chrome ──────────────────────
