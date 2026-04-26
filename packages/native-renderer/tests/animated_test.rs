@@ -58,6 +58,7 @@ fn make_animated_scene() -> Scene {
         width: 640,
         height: 360,
         elements: vec![background],
+        fonts: vec![],
     }
 }
 

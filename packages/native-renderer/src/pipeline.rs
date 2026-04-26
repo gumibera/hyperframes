@@ -7,8 +7,48 @@ use std::time::Instant;
 use skia_safe::Color4f;
 
 use crate::encode::{detect_hw_encoder, encoder_args, raw_pixel_encoder_args, HwEncoder};
-use crate::paint::{paint_element, paint_element_at_time, ImageCache, RenderSurface};
+use crate::paint::{
+    paint_element_at_time, paint_element_at_time_with_fonts, FontRegistry,
+    ImageCache, RenderSurface,
+};
 use crate::scene::{BakedElementState, BakedFrame, BakedTimeline, Element, Scene, Transform2D};
+
+/// Build a font registry from the scene's font descriptors.
+/// Returns `None` when no custom fonts are declared (common case),
+/// avoiding the overhead of an empty registry lookup on every element.
+fn build_font_registry(scene: &Scene) -> Option<FontRegistry> {
+    if scene.fonts.is_empty() {
+        return None;
+    }
+    let registry = FontRegistry::from_descriptors(&scene.fonts);
+    if registry.is_empty() {
+        // All font files failed to load — don't burden the paint loop.
+        return None;
+    }
+    Some(registry)
+}
+
+/// Paint all top-level elements with optional font registry.
+fn paint_elements(
+    canvas: &skia_safe::Canvas,
+    elements: &[Element],
+    images: &mut ImageCache,
+    time_secs: f64,
+    fonts: Option<&FontRegistry>,
+) {
+    match fonts {
+        Some(registry) => {
+            for element in elements {
+                paint_element_at_time_with_fonts(canvas, element, images, time_secs, Some(registry));
+            }
+        }
+        None => {
+            for element in elements {
+                paint_element_at_time(canvas, element, images, time_secs);
+            }
+        }
+    }
+}
 
 /// Configuration for a render pass.
 pub struct RenderConfig {
@@ -136,10 +176,15 @@ pub fn render_static(scene: &Scene, config: &RenderConfig) -> Result<RenderResul
     let mut surface = RenderSurface::new_raster(scene.width as i32, scene.height as i32)?;
     surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
 
+    let font_registry = build_font_registry(scene);
     let mut image_cache = ImageCache::new();
-    for element in &scene.elements {
-        paint_element(surface.canvas(), element, &mut image_cache);
-    }
+    paint_elements(
+        surface.canvas(),
+        &scene.elements,
+        &mut image_cache,
+        0.0,
+        font_registry.as_ref(),
+    );
 
     let frame_jpeg = surface
         .encode_jpeg(config.quality)
@@ -195,6 +240,7 @@ pub fn render_animated_raw_then_encode(
     let h = scene.height as i32;
     let frame_bytes = w as usize * h as usize * 4; // BGRA
 
+    let font_registry = build_font_registry(scene);
     let mut surface = RenderSurface::new_raster(w, h)?;
     let mut images = ImageCache::new();
     // Pre-allocate BGRA buffer — reused every frame (no per-frame allocation)
@@ -212,9 +258,13 @@ pub fn render_animated_raw_then_encode(
 
         let paint_start = Instant::now();
         surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
-        for element in &animated_scene.elements {
-            paint_element_at_time(surface.canvas(), element, &mut images, frame.time);
-        }
+        paint_elements(
+            surface.canvas(),
+            &animated_scene.elements,
+            &mut images,
+            frame.time,
+            font_registry.as_ref(),
+        );
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 
         // Read BGRA directly — no I420 conversion in the render loop
@@ -224,8 +274,6 @@ pub fn render_animated_raw_then_encode(
         use std::io::Write as _;
         raw_file.write_all(&bgra_buf).map_err(|e| format!("write raw: {e}"))?;
     }
-
-    let render_ms = render_start.elapsed().as_millis() as u64;
 
     // Phase 2: Single FFmpeg batch encode — converts BGRA→YUV + encodes
     let ffmpeg_child = Command::new("ffmpeg")
@@ -279,6 +327,7 @@ pub fn render_animated_native(
 
     let w = scene.width;
     let h = scene.height;
+    let font_registry = build_font_registry(scene);
     let mut encoder = NativeEncoder::new(w, h, config.fps)?;
     let mut surface = RenderSurface::new_raster(w as i32, h as i32)?;
     let mut images = ImageCache::new();
@@ -291,9 +340,13 @@ pub fn render_animated_native(
 
         let paint_start = Instant::now();
         surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
-        for element in &animated_scene.elements {
-            paint_element_at_time(surface.canvas(), element, &mut images, frame.time);
-        }
+        paint_elements(
+            surface.canvas(),
+            &animated_scene.elements,
+            &mut images,
+            frame.time,
+            font_registry.as_ref(),
+        );
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 
         let bgra = surface
@@ -330,6 +383,7 @@ pub fn render_animated(
         return Err("timeline has zero frames".into());
     }
 
+    let font_registry = build_font_registry(scene);
     let mut surface = RenderSurface::new_raster(scene.width as i32, scene.height as i32)?;
     let mut image_cache = ImageCache::new();
 
@@ -344,9 +398,13 @@ pub fn render_animated(
 
         let paint_start = Instant::now();
         surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
-        for element in &animated_scene.elements {
-            paint_element_at_time(surface.canvas(), element, &mut image_cache, frame.time);
-        }
+        paint_elements(
+            surface.canvas(),
+            &animated_scene.elements,
+            &mut image_cache,
+            frame.time,
+            font_registry.as_ref(),
+        );
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 
         let jpeg = surface
@@ -417,6 +475,7 @@ pub fn render_animated_gpu(
         return Err("timeline has zero frames".into());
     }
 
+    let font_registry = build_font_registry(scene);
     let width = scene.width as i32;
     let height = scene.height as i32;
     let mut surface = RenderSurface::new_gpu_or_raster(width, height)?;
@@ -433,9 +492,13 @@ pub fn render_animated_gpu(
 
         let paint_start = Instant::now();
         surface.clear(Color4f::new(0.0, 0.0, 0.0, 1.0));
-        for element in &animated_scene.elements {
-            paint_element_at_time(surface.canvas(), element, &mut images, frame.time);
-        }
+        paint_elements(
+            surface.canvas(),
+            &animated_scene.elements,
+            &mut images,
+            frame.time,
+            font_registry.as_ref(),
+        );
         surface.flush_and_submit();
         paint_total_ms += paint_start.elapsed().as_secs_f64() * 1000.0;
 

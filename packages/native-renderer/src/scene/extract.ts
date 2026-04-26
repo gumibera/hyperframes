@@ -124,11 +124,20 @@ export interface ElementStyle {
   object_fit?: ObjectFit | null;
   object_position?: ObjectPosition | null;
   mix_blend_mode?: MixBlendMode | null;
+  letter_spacing?: number | null;
+  line_height?: number | null;
   data_start?: number | null;
   data_end?: number | null;
   video_frames_dir?: string | null;
   video_fps?: number | null;
   video_media_start?: number | null;
+}
+
+export interface FontDescriptor {
+  family: string;
+  path: string;
+  weight: number;
+  style: string;
 }
 
 /**
@@ -153,6 +162,7 @@ export interface ExtractedScene {
   width: number;
   height: number;
   elements: SceneElement[];
+  fonts: FontDescriptor[];
 }
 
 // String-based evaluate avoids tsx/esbuild injecting `__name` helpers into the
@@ -547,6 +557,8 @@ const EXTRACT_SCENE_SCRIPT = `(() => {
           ? parseObjectPosition(cs.objectPosition, rect.width, rect.height)
           : null,
       mix_blend_mode: parseMixBlendMode(cs.mixBlendMode),
+      letter_spacing: isText ? (parseFloat(cs.letterSpacing) || null) : null,
+      line_height: isText && cs.lineHeight !== "normal" ? (parseFloat(cs.lineHeight) || null) : null,
       data_start: el.hasAttribute("data-start") ? parseFloat(el.getAttribute("data-start")) || null : null,
       data_end: el.hasAttribute("data-end") ? parseFloat(el.getAttribute("data-end")) || null : null,
       video_frames_dir: el.getAttribute("data-video-frames-dir") || null,
@@ -571,11 +583,28 @@ const EXTRACT_SCENE_SCRIPT = `(() => {
     };
   }
 
+  function collectFontFamilies(elements) {
+    const seen = new Set();
+    function walk(els) {
+      for (const el of els) {
+        if (el.style.font_family) seen.add(el.style.font_family + ":" + (el.style.font_weight || 400));
+        walk(el.children);
+      }
+    }
+    walk(elements);
+    return Array.from(seen).map((entry) => {
+      const [family, weight] = entry.split(":");
+      return { family, path: "", weight: parseInt(weight, 10) || 400, style: "normal" };
+    });
+  }
+
   const root = document.querySelector("[data-composition-id]") ?? document.body;
   const rootRect = root.getBoundingClientRect();
 
   const extractedRoot = extract(root, { x: 0, y: 0 });
-  return extractedRoot ? [extractedRoot] : [];
+  const elements = extractedRoot ? [extractedRoot] : [];
+  const fonts = collectFontFamilies(elements);
+  return { elements, fonts };
 })()`;
 
 // ---------------------------------------------------------------------------
@@ -596,9 +625,12 @@ export async function extractScene(
 ): Promise<ExtractedScene> {
   await page.setViewport({ width, height });
 
-  const elements = (await page.evaluate(EXTRACT_SCENE_SCRIPT)) as SceneElement[];
+  const result = (await page.evaluate(EXTRACT_SCENE_SCRIPT)) as {
+    elements: SceneElement[];
+    fonts: FontDescriptor[];
+  };
 
-  return { width, height, elements };
+  return { width, height, elements: result.elements, fonts: result.fonts };
 }
 
 /**

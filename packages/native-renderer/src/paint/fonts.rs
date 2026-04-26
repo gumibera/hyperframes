@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use skia_safe::{Data, Typeface};
+use skia_safe::{FontMgr, Typeface};
 
 use crate::scene::FontDescriptor;
 
@@ -36,8 +36,8 @@ impl FontRegistry {
             Ok(b) => b,
             Err(_) => return false,
         };
-        let data = Data::new_copy(&bytes);
-        let typeface = match Typeface::from_data(data, 0) {
+        let mgr = FontMgr::new();
+        let typeface = match mgr.new_from_data(&bytes, 0) {
             Some(tf) => tf,
             None => return false,
         };
