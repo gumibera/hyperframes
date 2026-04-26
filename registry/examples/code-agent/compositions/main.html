@@ -1,0 +1,694 @@
+<template id="code-agent-main-template">
+  <div
+    data-composition-id="code-agent-main"
+    data-start="0"
+    data-width="1920"
+    data-height="1080"
+    data-duration="12"
+  >
+    <div class="ca-canvas">
+      <!-- Window chrome -->
+      <div class="ca-window">
+        <div class="ca-titlebar">
+          <div class="ca-traffic">
+            <span class="ca-dot ca-dot-r"></span>
+            <span class="ca-dot ca-dot-y"></span>
+            <span class="ca-dot ca-dot-g"></span>
+          </div>
+          <div class="ca-title">code-agent &mdash; new chat</div>
+          <div class="ca-titlebar-spacer"></div>
+        </div>
+
+        <div class="ca-body">
+          <!-- Sidebar -->
+          <aside class="ca-sidebar">
+            <div class="ca-newchat">
+              <span class="ca-plus">+</span>
+              <span>New chat</span>
+            </div>
+            <div class="ca-section-label">Recent</div>
+            <ul class="ca-chats">
+              <li class="ca-chat">Refactor auth middleware</li>
+              <li class="ca-chat">Fix flaky integration test</li>
+              <li class="ca-chat">Migrate to drizzle</li>
+              <li class="ca-chat">Tune cron retry policy</li>
+              <li class="ca-chat">Wire up webhook signing</li>
+            </ul>
+          </aside>
+
+          <!-- Main panel -->
+          <main class="ca-main">
+            <div class="ca-thread">
+              <!-- User message -->
+              <div class="ca-msg ca-msg-user">
+                <div class="ca-bubble ca-bubble-user">
+                  <span id="ca-user-text"></span><span class="ca-caret"></span>
+                </div>
+              </div>
+
+              <!-- Assistant message -->
+              <div class="ca-msg ca-msg-asst">
+                <div class="ca-avatar">
+                  <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path
+                      d="M12 2 L3 7 L3 17 L12 22 L21 17 L21 7 Z"
+                      fill="none"
+                      stroke="#7ee787"
+                      stroke-width="1.6"
+                      stroke-linejoin="round"
+                    />
+                    <circle cx="12" cy="12" r="3" fill="#7ee787" />
+                  </svg>
+                </div>
+                <div class="ca-asst-body">
+                  <div class="ca-thinking" id="ca-thinking">
+                    <span></span><span></span><span></span>
+                  </div>
+
+                  <div class="ca-asst-reply" id="ca-asst-reply">
+                    <p class="ca-asst-line">Here&rsquo;s a small fix &mdash; debounce the input:</p>
+
+                    <div class="ca-codeblock" id="ca-code">
+                      <div class="ca-code-head">
+                        <span class="ca-code-file">debounce.ts</span>
+                        <button class="ca-runbtn" id="ca-runbtn">
+                          <svg viewBox="0 0 24 24" width="14" height="14">
+                            <path d="M8 5 L19 12 L8 19 Z" fill="currentColor" />
+                          </svg>
+                          <span>Run</span>
+                        </button>
+                      </div>
+                      <pre
+                        class="ca-code-body"
+                      ><code id="ca-code-body"><span class="ca-line" data-line="1"><span class="kw">export</span> <span class="kw">function</span> <span class="fn">debounce</span><span class="pn">&lt;</span><span class="ty">T</span> <span class="kw">extends</span> <span class="ty">unknown</span><span class="pn">[]</span><span class="pn">&gt;</span><span class="pn">(</span></span>
+<span class="ca-line" data-line="2">  fn<span class="pn">:</span> <span class="pn">(</span><span class="pn">...</span>args<span class="pn">:</span> <span class="ty">T</span><span class="pn">)</span> <span class="pn">=&gt;</span> <span class="ty">void</span><span class="pn">,</span></span>
+<span class="ca-line" data-line="3">  ms<span class="pn">:</span> <span class="ty">number</span> <span class="op">=</span> <span class="nm">200</span><span class="pn">,</span></span>
+<span class="ca-line" data-line="4"><span class="pn">)</span> <span class="pn">{</span></span>
+<span class="ca-line" data-line="5">  <span class="kw">let</span> t<span class="pn">:</span> <span class="ty">ReturnType</span><span class="pn">&lt;</span><span class="kw">typeof</span> <span class="fn">setTimeout</span><span class="pn">&gt;</span> <span class="op">|</span> <span class="kw">undefined</span><span class="pn">;</span></span>
+<span class="ca-line" data-line="6">  <span class="kw">return</span> <span class="pn">(</span><span class="pn">...</span>args<span class="pn">:</span> <span class="ty">T</span><span class="pn">)</span> <span class="pn">=&gt;</span> <span class="pn">{</span></span>
+<span class="ca-line" data-line="7">    <span class="fn">clearTimeout</span><span class="pn">(</span>t<span class="pn">)</span><span class="pn">;</span></span>
+<span class="ca-line" data-line="8">    t <span class="op">=</span> <span class="fn">setTimeout</span><span class="pn">(</span><span class="pn">(</span><span class="pn">)</span> <span class="pn">=&gt;</span> <span class="fn">fn</span><span class="pn">(</span><span class="pn">...</span>args<span class="pn">)</span><span class="pn">,</span> ms<span class="pn">)</span><span class="pn">;</span></span>
+<span class="ca-line" data-line="9">  <span class="pn">}</span><span class="pn">;</span></span>
+<span class="ca-line" data-line="10"><span class="pn">}</span></span></code></pre>
+                    </div>
+
+                    <div class="ca-terminal" id="ca-terminal">
+                      <div class="ca-term-head">
+                        <span class="ca-term-dot"></span>
+                        <span class="ca-term-title">output</span>
+                      </div>
+                      <pre class="ca-term-body"><code id="ca-term-body"></code></pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Input bar -->
+            <div class="ca-inputbar">
+              <div class="ca-input">
+                <span id="ca-input-text"></span><span class="ca-caret" id="ca-input-caret"></span>
+              </div>
+              <button class="ca-send" id="ca-send">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                  <path d="M3 11 L21 3 L13 21 L11 13 Z" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      [data-composition-id="code-agent-main"] .ca-canvas {
+        width: 1920px;
+        height: 1080px;
+        background: radial-gradient(circle at 30% 20%, #161b2a 0%, #0a0d14 55%, #05070b 100%);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Inter", sans-serif;
+        color: #e6edf3;
+      }
+      [data-composition-id="code-agent-main"] .ca-window {
+        width: 1680px;
+        height: 920px;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 14px;
+        box-shadow:
+          0 40px 120px rgba(0, 0, 0, 0.6),
+          0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(40px) scale(0.985);
+      }
+      [data-composition-id="code-agent-main"] .ca-titlebar {
+        height: 48px;
+        background: #161b22;
+        border-bottom: 1px solid #21262d;
+        display: flex;
+        align-items: center;
+        padding: 0 18px;
+        gap: 14px;
+        flex-shrink: 0;
+      }
+      [data-composition-id="code-agent-main"] .ca-traffic {
+        display: flex;
+        gap: 8px;
+      }
+      [data-composition-id="code-agent-main"] .ca-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      [data-composition-id="code-agent-main"] .ca-dot-r {
+        background: #ff5f57;
+      }
+      [data-composition-id="code-agent-main"] .ca-dot-y {
+        background: #febc2e;
+      }
+      [data-composition-id="code-agent-main"] .ca-dot-g {
+        background: #28c840;
+      }
+      [data-composition-id="code-agent-main"] .ca-title {
+        font-size: 14px;
+        color: #7d8590;
+        font-weight: 500;
+        margin-left: 8px;
+      }
+      [data-composition-id="code-agent-main"] .ca-titlebar-spacer {
+        flex: 1;
+      }
+      [data-composition-id="code-agent-main"] .ca-body {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      [data-composition-id="code-agent-main"] .ca-sidebar {
+        width: 320px;
+        background: #0a0d12;
+        border-right: 1px solid #21262d;
+        padding: 20px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      [data-composition-id="code-agent-main"] .ca-newchat {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        color: #e6edf3;
+        font-size: 16px;
+        font-weight: 500;
+      }
+      [data-composition-id="code-agent-main"] .ca-plus {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #2f81f7;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      [data-composition-id="code-agent-main"] .ca-section-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9da7b3;
+        padding: 14px 14px 4px;
+        font-weight: 600;
+      }
+      [data-composition-id="code-agent-main"] .ca-chats {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      [data-composition-id="code-agent-main"] .ca-chat {
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 15px;
+        color: #c9d1d9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0;
+        transform: translateX(-12px);
+      }
+      [data-composition-id="code-agent-main"] .ca-chat:nth-child(1) {
+        background: #161b22;
+        color: #e6edf3;
+      }
+      [data-composition-id="code-agent-main"] .ca-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      [data-composition-id="code-agent-main"] .ca-thread {
+        flex: 1;
+        padding: 36px 56px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        overflow: hidden;
+      }
+      [data-composition-id="code-agent-main"] .ca-msg {
+        display: flex;
+        gap: 16px;
+        max-width: 920px;
+      }
+      [data-composition-id="code-agent-main"] .ca-msg-user {
+        align-self: flex-end;
+        opacity: 1;
+      }
+      [data-composition-id="code-agent-main"] .ca-msg-asst {
+        align-self: flex-start;
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      [data-composition-id="code-agent-main"] .ca-bubble {
+        padding: 14px 20px;
+        border-radius: 16px;
+        font-size: 18px;
+        line-height: 1.5;
+        max-width: 720px;
+      }
+      [data-composition-id="code-agent-main"] .ca-bubble-user {
+        background: #1f6feb;
+        color: white;
+        border-bottom-right-radius: 6px;
+      }
+      [data-composition-id="code-agent-main"] .ca-avatar {
+        width: 36px;
+        height: 36px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      [data-composition-id="code-agent-main"] .ca-asst-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      [data-composition-id="code-agent-main"] .ca-thinking {
+        display: inline-flex;
+        gap: 6px;
+        padding: 14px 18px;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 16px;
+        align-self: flex-start;
+        opacity: 0;
+      }
+      [data-composition-id="code-agent-main"] .ca-thinking span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #7d8590;
+      }
+      [data-composition-id="code-agent-main"] .ca-asst-reply {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        opacity: 0;
+      }
+      [data-composition-id="code-agent-main"] .ca-asst-line {
+        font-size: 18px;
+        line-height: 1.5;
+        color: #e6edf3;
+      }
+      [data-composition-id="code-agent-main"] .ca-codeblock {
+        background: #0b0f15;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        overflow: hidden;
+        max-width: 920px;
+      }
+      [data-composition-id="code-agent-main"] .ca-code-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        background: #11161d;
+        border-bottom: 1px solid #21262d;
+      }
+      [data-composition-id="code-agent-main"] .ca-code-file {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        color: #7d8590;
+      }
+      [data-composition-id="code-agent-main"] .ca-runbtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #21262d;
+        border: 1px solid #30363d;
+        color: #e6edf3;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      [data-composition-id="code-agent-main"] .ca-code-body {
+        padding: 18px 20px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 16px;
+        line-height: 1.7;
+        color: #c9d1d9;
+        white-space: pre;
+        overflow: hidden;
+      }
+      [data-composition-id="code-agent-main"] .ca-line {
+        display: block;
+        opacity: 0;
+        transform: translateX(-6px);
+      }
+      [data-composition-id="code-agent-main"] .kw {
+        color: #ff7b72;
+      }
+      [data-composition-id="code-agent-main"] .fn {
+        color: #d2a8ff;
+      }
+      [data-composition-id="code-agent-main"] .ty {
+        color: #ffa657;
+      }
+      [data-composition-id="code-agent-main"] .pn {
+        color: #8b949e;
+      }
+      [data-composition-id="code-agent-main"] .op {
+        color: #ff7b72;
+      }
+      [data-composition-id="code-agent-main"] .nm {
+        color: #79c0ff;
+      }
+      [data-composition-id="code-agent-main"] .ca-terminal {
+        background: #050810;
+        border: 1px solid #21262d;
+        border-radius: 12px;
+        overflow: hidden;
+        max-width: 920px;
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      [data-composition-id="code-agent-main"] .ca-term-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: #0b0f15;
+        border-bottom: 1px solid #21262d;
+      }
+      [data-composition-id="code-agent-main"] .ca-term-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #7ee787;
+        box-shadow: 0 0 8px #7ee78788;
+      }
+      [data-composition-id="code-agent-main"] .ca-term-title {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        color: #7d8590;
+      }
+      [data-composition-id="code-agent-main"] .ca-term-body {
+        padding: 16px 20px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 15px;
+        line-height: 1.65;
+        color: #7ee787;
+        white-space: pre;
+        min-height: 88px;
+      }
+      [data-composition-id="code-agent-main"] .ca-inputbar {
+        padding: 18px 56px 32px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      [data-composition-id="code-agent-main"] .ca-input {
+        flex: 1;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 14px;
+        padding: 16px 20px;
+        font-size: 17px;
+        color: #e6edf3;
+        min-height: 56px;
+        display: flex;
+        align-items: center;
+      }
+      [data-composition-id="code-agent-main"] .ca-send {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: #21262d;
+        border: 1px solid #30363d;
+        color: #7d8590;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      [data-composition-id="code-agent-main"] .ca-caret {
+        display: inline-block;
+        width: 2px;
+        height: 1.05em;
+        background: #58a6ff;
+        margin-left: 1px;
+        vertical-align: text-bottom;
+        opacity: 0;
+      }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        const tl = gsap.timeline({ paused: true });
+        const PROMPT = "make my input field stop firing on every keystroke";
+
+        const inputTextEl = document.querySelector(
+          '[data-composition-id="code-agent-main"] #ca-input-text',
+        );
+        const userTextEl = document.querySelector(
+          '[data-composition-id="code-agent-main"] #ca-user-text',
+        );
+        const caret = document.querySelector(
+          '[data-composition-id="code-agent-main"] #ca-input-caret',
+        );
+        const termBody = document.querySelector(
+          '[data-composition-id="code-agent-main"] #ca-term-body',
+        );
+
+        // Hide the user bubble until the prompt is committed.
+        tl.set('[data-composition-id="code-agent-main"] .ca-msg-user', { opacity: 0, y: 8 }, 0);
+        tl.set(userTextEl, { text: "" }, 0);
+        tl.set(inputTextEl, { text: "" }, 0);
+
+        // Window enters.
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-window',
+          { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" },
+          0.1,
+        );
+
+        // Sidebar items stagger in.
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-chat',
+          { opacity: 1, x: 0, duration: 0.35, stagger: 0.06, ease: "power2.out" },
+          0.55,
+        );
+
+        // Input caret blinks: 1s cycle from t=1.0 to t=11.8 → 10 full cycles → repeat: 9.
+        const caretBlink = gsap.timeline({ repeat: 9, paused: true });
+        caretBlink.to(caret, { opacity: 1, duration: 0.001 });
+        caretBlink.to(caret, { opacity: 0, duration: 0.001 }, 0.5);
+        tl.call(() => caretBlink.play(0), null, 1.0);
+        tl.set(caret, { opacity: 1 }, 1.0);
+
+        // Type the prompt char-by-char into the input bar.
+        const promptStart = 1.1;
+        const promptEnd = 3.3;
+        const typeProxy = { i: 0 };
+        tl.to(
+          typeProxy,
+          {
+            i: PROMPT.length,
+            duration: promptEnd - promptStart,
+            ease: "none",
+            onUpdate: () => {
+              if (!inputTextEl) return;
+              inputTextEl.textContent = PROMPT.slice(0, Math.round(typeProxy.i));
+            },
+          },
+          promptStart,
+        );
+
+        // Pulse the send button as it commits.
+        tl.to(
+          '[data-composition-id="code-agent-main"] #ca-send',
+          { backgroundColor: "#1f6feb", color: "#ffffff", duration: 0.18, ease: "power2.out" },
+          promptEnd,
+        );
+        tl.to(
+          '[data-composition-id="code-agent-main"] #ca-send',
+          { scale: 0.92, duration: 0.1, ease: "power2.in", yoyo: true, repeat: 1 },
+          promptEnd,
+        );
+
+        // Move the typed prompt up into a user bubble; clear the input.
+        tl.call(
+          () => {
+            if (userTextEl) userTextEl.textContent = PROMPT;
+            if (inputTextEl) inputTextEl.textContent = "";
+          },
+          null,
+          promptEnd + 0.05,
+        );
+        tl.fromTo(
+          '[data-composition-id="code-agent-main"] .ca-msg-user',
+          { opacity: 0, y: 30, scale: 0.96 },
+          { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "back.out(1.5)" },
+          promptEnd + 0.05,
+        );
+
+        // Assistant placeholder appears + thinking dots.
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-msg-asst',
+          { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
+          promptEnd + 0.4,
+        );
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-thinking',
+          { opacity: 1, duration: 0.2, ease: "power2.out" },
+          promptEnd + 0.4,
+        );
+
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-thinking span',
+          { y: -4, duration: 0.3, stagger: 0.12, yoyo: true, repeat: 1 },
+          promptEnd + 0.5,
+        );
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-thinking span',
+          { y: -4, duration: 0.3, stagger: 0.12, yoyo: true, repeat: 1 },
+          promptEnd + 1.1,
+        );
+
+        // Thinking out, reply in.
+        const replyStart = promptEnd + 1.7;
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-thinking',
+          { opacity: 0, duration: 0.2, ease: "power2.in" },
+          replyStart - 0.1,
+        );
+        tl.set(
+          '[data-composition-id="code-agent-main"] .ca-thinking',
+          { display: "none" },
+          replyStart,
+        );
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-asst-reply',
+          { opacity: 1, duration: 0.3, ease: "power2.out" },
+          replyStart,
+        );
+
+        // Stream code lines in.
+        const codeStart = replyStart + 0.25;
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-line',
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.18,
+            stagger: 0.16,
+            ease: "power2.out",
+          },
+          codeStart,
+        );
+
+        // After code is laid out, highlight + click Run.
+        const runAt = codeStart + 0.18 + 0.16 * 9 + 0.2;
+        tl.to(
+          '[data-composition-id="code-agent-main"] #ca-runbtn',
+          { backgroundColor: "#238636", borderColor: "#2ea043", color: "#ffffff", duration: 0.25 },
+          runAt,
+        );
+        tl.to(
+          '[data-composition-id="code-agent-main"] #ca-runbtn',
+          { scale: 0.94, duration: 0.1, ease: "power2.in", yoyo: true, repeat: 1 },
+          runAt + 0.1,
+        );
+
+        // Terminal panel reveals.
+        const termAt = runAt + 0.45;
+        tl.to(
+          '[data-composition-id="code-agent-main"] .ca-terminal',
+          { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" },
+          termAt,
+        );
+
+        // Stream terminal output line by line via direct text writes.
+        const termLines = [
+          "$ bun test debounce.ts",
+          "  bun test v1.1",
+          "",
+          "  debounce.ts:",
+          "    ✓ fires once after rapid calls (12ms)",
+          "    ✓ passes latest args (4ms)",
+          "",
+          "  2 pass / 0 fail   — ready.",
+        ];
+        let termAcc = "";
+        termLines.forEach((line, i) => {
+          tl.call(
+            () => {
+              if (!termBody) return;
+              termAcc = termAcc.length === 0 ? line : termAcc + "\n" + line;
+              termBody.textContent = termAcc;
+            },
+            null,
+            termAt + 0.2 + i * 0.18,
+          );
+        });
+
+        // Stop the caret blink at the end.
+        tl.call(
+          () => {
+            caretBlink.pause();
+            if (caret) caret.style.opacity = "0";
+          },
+          null,
+          11.8,
+        );
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["code-agent-main"] = tl;
+      })();
+    </script>
+  </div>
+</template>
