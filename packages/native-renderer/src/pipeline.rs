@@ -261,16 +261,12 @@ fn apply_deltas_recursive(
 
 // ── Chunk-Parallel GPU Pipeline (macOS Metal) ─────────────────────────────
 
-/// Render an animated scene on the GPU with a background BGRA pipe to FFmpeg.
+/// Render an animated scene with GPU acceleration (Metal on macOS, Vulkan on
+/// Linux) and a background raw-pixel pipe to FFmpeg with hardware encoding.
 ///
-/// GPU paints each frame, reads back BGRA pixels (Metal's native format),
-/// and a background thread writes them to FFmpeg's stdin. Using BGRA avoids
-/// the GPU-side BGRA→RGBA conversion during readback.
-///
-/// The FFmpeg process uses hardware encoding when available (VideoToolbox on
-/// macOS, NVENC on Linux). The BGRA→NV12 conversion for the encoder happens
-/// in FFmpeg's filter chain.
-#[cfg(target_os = "macos")]
+/// Falls back to CPU raster if no GPU is available (Docker without GPU access).
+/// Hardware encoding auto-detects: VideoToolbox (macOS), NVENC (NVIDIA),
+/// VAAPI (Intel/AMD), libx264 (CPU fallback).
 pub fn render_animated_gpu(
     scene: &Scene,
     timeline: &BakedTimeline,
@@ -283,7 +279,7 @@ pub fn render_animated_gpu(
 
     let width = scene.width as i32;
     let height = scene.height as i32;
-    let mut surface = RenderSurface::new_metal_gpu(width, height)?;
+    let mut surface = RenderSurface::new_gpu_or_raster(width, height)?;
     let mut images = ImageCache::new();
 
     let (frame_tx, writer, _encoder) =

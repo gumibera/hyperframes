@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-#[cfg(target_os = "macos")]
 use hyperframes_native_renderer::pipeline::render_animated_gpu;
 use hyperframes_native_renderer::pipeline::{render_animated, RenderConfig};
 use hyperframes_native_renderer::scene::{
@@ -123,7 +122,6 @@ fn render_animated_scene_to_mp4() {
     std::fs::remove_file(output_path).ok();
 }
 
-#[cfg(target_os = "macos")]
 #[test]
 fn render_animated_gpu_scene_to_mp4() {
     let scene = make_animated_scene();

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 base64 = "0.22"
-skia-safe = { version = "0.93", features = ["textlayout", "gpu", "metal"] }
+skia-safe = { version = "0.93", features = ["textlayout", "gpu", "metal", "vulkan"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

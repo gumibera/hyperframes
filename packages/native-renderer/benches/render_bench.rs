@@ -120,11 +120,10 @@ fn bench_paint_frame(c: &mut Criterion) {
     });
 }
 
-#[cfg(target_os = "macos")]
 fn bench_gpu_paint_frame(c: &mut Criterion) {
     let scene = build_test_scene();
-    let mut surface = RenderSurface::new_metal_gpu(1920, 1080)
-        .expect("Metal GPU surface required for this benchmark");
+    let mut surface = RenderSurface::new_gpu_or_raster(1920, 1080)
+        .expect("GPU or raster surface required for this benchmark");
 
     c.bench_function("gpu_paint_1080p_20_elements", |b| {
         let mut images = ImageCache::new();
@@ -199,9 +198,7 @@ fn build_30_frame_timeline() -> BakedTimeline {
     }
 }
 
-/// End-to-end: GPU paint + JPEG encode + FFmpeg MJPEG pipe for 30 frames.
-/// Uses JPEG to minimize pipe data (50KB/frame vs 8.3MB/frame raw).
-#[cfg(target_os = "macos")]
+/// End-to-end: CPU raster + JPEG encode + FFmpeg MJPEG pipe for 30 frames.
 fn bench_e2e_gpu_jpeg_30_frames(c: &mut Criterion) {
     use hyperframes_native_renderer::pipeline::{render_animated, RenderConfig};
 
@@ -223,11 +220,7 @@ fn bench_e2e_gpu_jpeg_30_frames(c: &mut Criterion) {
     });
 }
 
-/// End-to-end benchmark: GPU paint + raw BGRA + FFmpeg write for 30 frames.
-///
-/// This measures the complete `render_animated_gpu` pipeline on a realistic
-/// 1080p scene so we can track total per-frame cost including encode and I/O.
-#[cfg(target_os = "macos")]
+/// End-to-end benchmark: GPU paint + raw pixel pipe + FFmpeg hw encode for 30 frames.
 fn bench_e2e_gpu_30_frames(c: &mut Criterion) {
     use hyperframes_native_renderer::pipeline::{render_animated_gpu, RenderConfig};
 
@@ -249,7 +242,6 @@ fn bench_e2e_gpu_30_frames(c: &mut Criterion) {
     });
 }
 
-#[cfg(target_os = "macos")]
 criterion_group!(
     benches,
     bench_paint_frame,
@@ -257,6 +249,6 @@ criterion_group!(
     bench_e2e_gpu_jpeg_30_frames,
     bench_e2e_gpu_30_frames
 );
-#[cfg(not(target_os = "macos"))]
+#[cfg(any())] // dead code — kept for reference
 criterion_group!(benches, bench_paint_frame);
 criterion_main!(benches);

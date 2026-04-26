@@ -3,7 +3,6 @@ use skia_safe::{
     Surface,
 };
 
-#[cfg(target_os = "macos")]
 use skia_safe::gpu;
 
 /// A Skia rendering surface backed by either CPU raster or GPU (Metal).
@@ -17,7 +16,6 @@ use skia_safe::gpu;
 pub struct RenderSurface {
     surface: Surface,
     /// Keeps the GPU context alive for GPU-backed surfaces. `None` for raster.
-    #[cfg(target_os = "macos")]
     _gpu_context: Option<gpu::DirectContext>,
 }
 
@@ -28,7 +26,6 @@ impl RenderSurface {
             .ok_or_else(|| format!("failed to create {width}x{height} raster surface"))?;
         Ok(Self {
             surface,
-            #[cfg(target_os = "macos")]
             _gpu_context: None,
         })
     }
@@ -84,6 +81,67 @@ impl RenderSurface {
         })
     }
 
+    /// Create a Vulkan GPU-accelerated surface (Linux with NVIDIA/AMD/Intel).
+    ///
+    /// Uses Skia's Vulkan backend via the system's Vulkan ICD. This is the
+    /// production path for cloud GPU instances (A10G, T4, L4).
+    #[cfg(target_os = "linux")]
+    pub fn new_vulkan_gpu(width: i32, height: i32) -> Result<Self, String> {
+        let backend = unsafe {
+            gpu::vk::BackendContext::new(std::ptr::null(), std::ptr::null(), std::ptr::null())
+        };
+
+        // Skia's Vulkan backend needs a GetProc callback. Use the built-in
+        // Vulkan context factory which handles instance/device creation.
+        let mut context = gpu::direct_contexts::make_vulkan(&backend, None)
+            .ok_or("failed to create Skia Vulkan DirectContext — is Vulkan installed?")?;
+
+        let image_info = ImageInfo::new(
+            (width, height),
+            ColorType::RGBA8888,
+            AlphaType::Premul,
+            None,
+        );
+
+        let surface = gpu::surfaces::render_target(
+            &mut context,
+            gpu::Budgeted::Yes,
+            &image_info,
+            None,
+            gpu::SurfaceOrigin::TopLeft,
+            None,
+            false,
+            false,
+        )
+        .ok_or("failed to create Vulkan GPU surface")?;
+
+        Ok(Self {
+            surface,
+            _gpu_context: Some(context),
+        })
+    }
+
+    /// Create the best available GPU surface for the current platform.
+    /// Falls back to CPU raster if no GPU is available.
+    pub fn new_gpu_or_raster(width: i32, height: i32) -> Result<Self, String> {
+        // Try GPU first, fall back to raster.
+        #[cfg(target_os = "macos")]
+        {
+            match Self::new_metal_gpu(width, height) {
+                Ok(s) => return Ok(s),
+                Err(e) => eprintln!("[native-renderer] Metal GPU unavailable ({e}), falling back to raster"),
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            match Self::new_vulkan_gpu(width, height) {
+                Ok(s) => return Ok(s),
+                Err(e) => eprintln!("[native-renderer] Vulkan GPU unavailable ({e}), falling back to raster"),
+            }
+        }
+        Self::new_raster(width, height)
+    }
+
     /// Get the Skia canvas for drawing operations.
     pub fn canvas(&mut self) -> &Canvas {
         self.surface.canvas()
@@ -126,7 +184,6 @@ impl RenderSurface {
     }
 
     fn encode_image(&mut self, format: EncodedImageFormat, quality: u32) -> Option<Vec<u8>> {
-        #[cfg(target_os = "macos")]
         self.flush_and_submit();
 
         let image = self.surface.image_snapshot();
@@ -168,10 +225,14 @@ impl RenderSurface {
     ///
     /// This is a no-op on raster surfaces. On GPU surfaces, it ensures all
     /// queued draw calls are submitted before pixel readback or timing.
-    #[cfg(target_os = "macos")]
     pub fn flush_and_submit(&mut self) {
         if let Some(ctx) = self._gpu_context.as_mut() {
             ctx.flush_and_submit();
         }
+    }
+
+    /// Returns true if this surface is GPU-backed (Metal or Vulkan).
+    pub fn is_gpu(&self) -> bool {
+        self._gpu_context.is_some()
     }
 }
