@@ -1588,7 +1588,27 @@ export async function executeRenderJob(
         return null;
       };
 
+      // Force all elements visible before extraction so getBoundingClientRect
+      // returns real bounds (not 0x0 for opacity:0 or display:none elements).
+      // The baked timeline restores correct opacity/visibility per-frame.
+      await probeSession.page.evaluate(`(() => {
+        const style = document.createElement('style');
+        style.id = '__hf_extract_force_visible__';
+        style.textContent = '* { opacity: 1 !important; visibility: visible !important; display: revert !important; }';
+        document.head.appendChild(style);
+        // Seek to 50% so animated positions are roughly centered
+        if (window.__hf?.seek) window.__hf.seek(${(job.duration ?? 1) * 0.5});
+      })()`);
+      await new Promise((r) => setTimeout(r, 100));
+
       const scene = await extractScene(probeSession.page, width, height);
+
+      // Remove force-visible style and seek back to start
+      await probeSession.page.evaluate(`(() => {
+        const style = document.getElementById('__hf_extract_force_visible__');
+        if (style) style.remove();
+        if (window.__hf?.seek) window.__hf.seek(0);
+      })()`);
 
       // ── Extract embedded font files for the Rust renderer ─────────────
       // The producer's deterministic font injection embeds Google Fonts as
