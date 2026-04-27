@@ -3,7 +3,12 @@ import { join, resolve, isAbsolute, sep } from "path";
 import { parseHTML } from "linkedom";
 import { transformSync } from "esbuild";
 import { compileHtml, type MediaDurationProber } from "./htmlCompiler";
-import { rewriteAssetPaths, rewriteCssAssetUrls } from "./rewriteSubCompPaths";
+import {
+  rewriteAssetPaths,
+  rewriteCssAssetUrls,
+  rewriteInlineStyleAssetUrls,
+} from "./rewriteSubCompPaths";
+import { scopeCssToComposition, wrapScopedCompositionScript } from "./compositionScoping";
 import { validateHyperframeHtmlContract } from "./staticGuard";
 
 /**
@@ -439,6 +444,8 @@ export async function bundleToSingleHtml(
     const innerRoot = compId
       ? contentDoc.querySelector(`[data-composition-id="${compId}"]`)
       : contentDoc.querySelector("[data-composition-id]");
+    const inferredCompId = innerRoot?.getAttribute("data-composition-id")?.trim() || "";
+    const scopeCompId = compId || inferredCompId;
 
     // When a sub-composition is a full HTML document (no <template>), styles
     // and scripts in <head> are not part of contentDoc (which only has body
@@ -446,7 +453,8 @@ export async function bundleToSingleHtml(
     // scripts (e.g. GSAP CDN) are not silently dropped.
     if (!contentRoot && compDoc.head) {
       for (const s of [...compDoc.head.querySelectorAll("style")]) {
-        compStyleChunks.push(rewriteCssAssetUrls(s.textContent || "", src));
+        const css = rewriteCssAssetUrls(s.textContent || "", src);
+        compStyleChunks.push(scopeCompId ? scopeCssToComposition(css, scopeCompId) : css);
       }
       for (const s of [...compDoc.head.querySelectorAll("script")]) {
         const externalSrc = (s.getAttribute("src") || "").trim();
@@ -457,7 +465,8 @@ export async function bundleToSingleHtml(
     }
 
     for (const s of [...contentDoc.querySelectorAll("style")]) {
-      compStyleChunks.push(rewriteCssAssetUrls(s.textContent || "", src));
+      const css = rewriteCssAssetUrls(s.textContent || "", src);
+      compStyleChunks.push(scopeCompId ? scopeCssToComposition(css, scopeCompId) : css);
       s.remove();
     }
     for (const s of [...contentDoc.querySelectorAll("script")]) {
@@ -470,7 +479,13 @@ export async function bundleToSingleHtml(
         }
       } else {
         compScriptChunks.push(
-          `(function(){ try { ${s.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+          scopeCompId
+            ? wrapScopedCompositionScript(
+                s.textContent || "",
+                scopeCompId,
+                "[HyperFrames] composition script error:",
+              )
+            : `(function(){ try { ${s.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
         );
       }
       s.remove();
@@ -499,7 +514,7 @@ export async function bundleToSingleHtml(
       if (innerW && !hostEl.getAttribute("data-width")) hostEl.setAttribute("data-width", innerW);
       if (innerH && !hostEl.getAttribute("data-height")) hostEl.setAttribute("data-height", innerH);
       for (const child of [...innerRoot.querySelectorAll("style, script")]) child.remove();
-      hostEl.innerHTML = innerRoot.innerHTML || "";
+      hostEl.innerHTML = innerRoot.outerHTML || "";
     } else {
       for (const child of [...contentDoc.querySelectorAll("style, script")]) child.remove();
       hostEl.innerHTML = contentDoc.body.innerHTML || "";
@@ -532,7 +547,8 @@ export async function bundleToSingleHtml(
     if (innerRoot) {
       // Hoist styles into the collected style chunks
       for (const styleEl of [...innerRoot.querySelectorAll("style")]) {
-        compStyleChunks.push(styleEl.textContent || "");
+        const css = styleEl.textContent || "";
+        compStyleChunks.push(compId ? scopeCssToComposition(css, compId) : css);
         styleEl.remove();
       }
       // Hoist scripts into the collected script chunks
@@ -544,7 +560,13 @@ export async function bundleToSingleHtml(
           }
         } else {
           compScriptChunks.push(
-            `(function(){ try { ${scriptEl.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+            compId
+              ? wrapScopedCompositionScript(
+                  scriptEl.textContent || "",
+                  compId,
+                  "[HyperFrames] composition script error:",
+                )
+              : `(function(){ try { ${scriptEl.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
           );
         }
         scriptEl.remove();
@@ -556,12 +578,13 @@ export async function bundleToSingleHtml(
       if (innerW && !host.getAttribute("data-width")) host.setAttribute("data-width", innerW);
       if (innerH && !host.getAttribute("data-height")) host.setAttribute("data-height", innerH);
 
-      // Set host content from inner root
-      host.innerHTML = innerRoot.innerHTML || "";
+      // Preserve the inner composition root so bundled previews match the runtime loader.
+      host.innerHTML = innerRoot.outerHTML || "";
     } else {
       // No matching inner root — inject all template content directly
       for (const styleEl of [...innerDoc.querySelectorAll("style")]) {
-        compStyleChunks.push(styleEl.textContent || "");
+        const css = styleEl.textContent || "";
+        compStyleChunks.push(compId ? scopeCssToComposition(css, compId) : css);
         styleEl.remove();
       }
       for (const scriptEl of [...innerDoc.querySelectorAll("script")]) {
@@ -572,7 +595,13 @@ export async function bundleToSingleHtml(
           }
         } else {
           compScriptChunks.push(
-            `(function(){ try { ${scriptEl.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
+            compId
+              ? wrapScopedCompositionScript(
+                  scriptEl.textContent || "",
+                  compId,
+                  "[HyperFrames] composition script error:",
+                )
+              : `(function(){ try { ${scriptEl.textContent || ""} } catch (_err) { console.error('[HyperFrames] composition script error:', _err); } })();`,
           );
         }
         scriptEl.remove();

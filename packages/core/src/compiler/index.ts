@@ -22,3 +22,6 @@ export {
   type HyperframeStaticFailureReason,
   type HyperframeStaticGuardResult,
 } from "./staticGuard";
+
+// Composition isolation helpers
+export { scopeCssToComposition, wrapScopedCompositionScript } from "./compositionScoping";

@@ -1,3 +1,5 @@
+import { scopeCssToComposition, wrapScopedCompositionScript } from "../compiler/compositionScoping";
+
 type LoadExternalCompositionsParams = {
   injectedStyles: HTMLStyleElement[];
   injectedScripts: HTMLScriptElement[];
@@ -13,6 +15,7 @@ type PendingScript =
       kind: "inline";
       content: string;
       type: string;
+      scopeCompositionId: string | null;
     }
   | {
       kind: "external";
@@ -101,6 +104,8 @@ async function mountCompositionContent(params: {
       ) ?? null;
   }
   const contentNode = innerRoot ?? params.sourceNode;
+  const scopeCompositionId =
+    innerRoot?.getAttribute("data-composition-id")?.trim() || params.hostCompositionId || null;
 
   // Inject <head> styles from non-template sub-compositions first (they define
   // element styles like backgrounds and positioning that the composition needs).
@@ -108,6 +113,12 @@ async function mountCompositionContent(params: {
     for (const style of params.headStyles) {
       const clonedStyle = style.cloneNode(true);
       if (!(clonedStyle instanceof HTMLStyleElement)) continue;
+      if (scopeCompositionId) {
+        clonedStyle.textContent = scopeCssToComposition(
+          clonedStyle.textContent || "",
+          scopeCompositionId,
+        );
+      }
       document.head.appendChild(clonedStyle);
       params.injectedStyles.push(clonedStyle);
     }
@@ -117,6 +128,12 @@ async function mountCompositionContent(params: {
   for (const style of styles) {
     const clonedStyle = style.cloneNode(true);
     if (!(clonedStyle instanceof HTMLStyleElement)) continue;
+    if (scopeCompositionId) {
+      clonedStyle.textContent = scopeCssToComposition(
+        clonedStyle.textContent || "",
+        scopeCompositionId,
+      );
+    }
     document.head.appendChild(clonedStyle);
     params.injectedStyles.push(clonedStyle);
   }
@@ -134,7 +151,12 @@ async function mountCompositionContent(params: {
       } else {
         const scriptText = script.textContent?.trim() ?? "";
         if (scriptText) {
-          headScriptPayloads.push({ kind: "inline", content: scriptText, type: scriptType });
+          headScriptPayloads.push({
+            kind: "inline",
+            content: scriptText,
+            type: scriptType,
+            scopeCompositionId,
+          });
         }
       }
     }
@@ -159,6 +181,7 @@ async function mountCompositionContent(params: {
           kind: "inline",
           content: scriptText,
           type: scriptType,
+          scopeCompositionId,
         });
       }
     }
@@ -202,6 +225,11 @@ async function mountCompositionContent(params: {
       injectedScript.src = scriptPayload.src;
     } else if (scriptPayload.type.toLowerCase() === "module") {
       injectedScript.textContent = scriptPayload.content;
+    } else if (scriptPayload.scopeCompositionId) {
+      injectedScript.textContent = wrapScopedCompositionScript(
+        scriptPayload.content,
+        scriptPayload.scopeCompositionId,
+      );
     } else {
       injectedScript.textContent = `(function(){${scriptPayload.content}})();`;
     }

@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo, type ReactNode } from "react";
 import { useMountEffect } from "./hooks/useMountEffect";
 import { NLELayout } from "./components/nle/NLELayout";
-import { TimelineEditorNotice } from "./components/nle/TimelineEditorNotice";
 import { SourceEditor } from "./components/editor/SourceEditor";
 import { LeftSidebar } from "./components/sidebar/LeftSidebar";
 import { RenderQueue } from "./components/renders/RenderQueue";
@@ -38,9 +37,7 @@ import {
   getTimelineZoomPercent,
 } from "./player/components/timelineZoom";
 import {
-  getTimelineEditorHintDismissed,
   getTimelineToggleTitle,
-  setTimelineEditorHintDismissed,
   shouldHandleTimelineToggleHotkey,
 } from "./utils/timelineDiscovery";
 
@@ -267,9 +264,6 @@ export function StudioApp() {
   const [globalDragOver, setGlobalDragOver] = useState(false);
   const [appToast, setAppToast] = useState<AppToast | null>(null);
   const [timelineVisible, setTimelineVisible] = useState(true);
-  const [timelineEditorHintDismissed, setTimelineEditorHintState] = useState(
-    getTimelineEditorHintDismissed,
-  );
   const dragCounterRef = useRef(0);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastBlockedTimelineToastAtRef = useRef(0);
@@ -307,10 +301,6 @@ export function StudioApp() {
   useMountEffect(() => () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
   });
-  const dismissTimelineEditorHint = useCallback(() => {
-    setTimelineEditorHintState(true);
-    setTimelineEditorHintDismissed(true);
-  }, []);
   const handleTimelineToggleHotkey = useCallback(
     (event: KeyboardEvent) => {
       if (!shouldHandleTimelineToggleHotkey(event)) return;
@@ -1618,12 +1608,6 @@ export function StudioApp() {
           </>
         )}
       </div>
-
-      {timelineElements.length > 0 && !timelineEditorHintDismissed && (
-        <div className="pointer-events-none absolute bottom-5 left-5 z-[140]">
-          <TimelineEditorNotice onDismiss={dismissTimelineEditorHint} />
-        </div>
-      )}
 
       {/* Lint modal */}
       {lintModal !== null && projectId && (

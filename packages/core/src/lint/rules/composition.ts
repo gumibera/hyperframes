@@ -62,6 +62,35 @@ export const compositionRules: Array<(ctx: LintContext) => HyperframeLintFinding
     return findings;
   },
 
+  // split_data_attribute_selector
+  ({ scripts, styles }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const splitDataAttrSelectorPattern =
+      /\[data-composition-id=(["'])([^"'\]]+)\1\s+(data-[\w:-]+)=(["'])([^"'\]]*)\4\]/g;
+    const scan = (content: string) => {
+      splitDataAttrSelectorPattern.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = splitDataAttrSelectorPattern.exec(content)) !== null) {
+        const compId = match[2] ?? "";
+        const attrName = match[3] ?? "";
+        const attrValue = match[5] ?? "";
+        findings.push({
+          code: "split_data_attribute_selector",
+          severity: "error",
+          message:
+            `Selector "${match[0]}" combines two attributes inside one CSS attribute selector. ` +
+            "Browsers reject it, so GSAP timelines or querySelector calls will fail before registering.",
+          selector: match[0],
+          fixHint: `Use separate attribute selectors: [data-composition-id="${compId}"][${attrName}="${attrValue}"].`,
+          snippet: truncateSnippet(match[0]),
+        });
+      }
+    };
+    for (const style of styles) scan(style.content);
+    for (const script of scripts) scan(script.content);
+    return findings;
+  },
+
   // template_literal_selector
   ({ scripts }) => {
     const findings: HyperframeLintFinding[] = [];

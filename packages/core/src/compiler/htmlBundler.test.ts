@@ -196,6 +196,82 @@ describe("bundleToSingleHtml", () => {
     expect(bundled).toContain("Sized content");
   });
 
+  it("preserves the sub-composition root when inlining external compositions", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head></head><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div
+      id="scene-host"
+      data-composition-id="scene"
+      data-composition-src="compositions/scene.html"
+      data-start="intro"
+      data-duration="5"></div>
+  </div>
+  <script>window.__timelines={};</script>
+</body></html>`,
+      "compositions/scene.html": `<template id="scene-template">
+  <div data-composition-id="scene" data-start="0" data-width="1920" data-height="1080">
+    <style>[data-composition-id="scene"][data-start="0"] .title { opacity: 0; }</style>
+    <h1 class="title">Scene</h1>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const root = document.querySelector('[data-composition-id="scene"][data-start="0"]');
+      window.__timelines["scene"] = { root };
+    </script>
+  </div>
+</template>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    expect(bundled).toContain('id="scene-host"');
+    expect(bundled).toContain('data-composition-id="scene" data-start="0"');
+    expect(bundled).toContain('[data-composition-id="scene"][data-start="0"]');
+  });
+
+  it("scopes external sub-composition styles and classic scripts", async () => {
+    const dir = makeTempProject({
+      "index.html": `<!doctype html>
+<html><head>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+</head><body>
+  <div id="root" data-composition-id="main" data-width="1920" data-height="1080">
+    <div
+      id="scene-host"
+      data-composition-id="scene"
+      data-composition-src="compositions/scene.html"
+      data-start="0"
+      data-duration="5"></div>
+    <div data-composition-id="other"><h1 class="title">Other</h1></div>
+  </div>
+  <script>window.__timelines={};</script>
+</body></html>`,
+      "compositions/scene.html": `<template id="scene-template">
+  <div data-composition-id="scene" data-width="1920" data-height="1080">
+    <style>
+      .title { opacity: 0; transform: translateY(30px); }
+      @media (min-width: 800px) { .title { color: red; } }
+    </style>
+    <h1 class="title">Scene</h1>
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      tl.to('.title', { opacity: 1 });
+      window.__timelines["scene"] = tl;
+    </script>
+  </div>
+</template>`,
+    });
+
+    const bundled = await bundleToSingleHtml(dir);
+
+    expect(bundled).toContain('[data-composition-id="scene"] .title');
+    expect(bundled).toContain('[data-composition-id="scene"] .title { color: red; }');
+    expect(bundled).toContain("new Proxy(window.document");
+    expect(bundled).toContain("new Proxy(__hfBaseGsap");
+    expect(bundled).toContain('tl.to(".title"');
+  });
+
   it("rewrites CSS url(...) asset paths from sub-compositions when styles are hoisted", async () => {
     const dir = makeTempProject({
       "index.html": `<!doctype html>

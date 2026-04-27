@@ -12,7 +12,6 @@
 import { readFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname, resolve } from "path";
 import { parseHTML } from "linkedom";
-import postcss from "postcss";
 import {
   compileTimingAttrs,
   injectDurations,
@@ -23,6 +22,7 @@ import {
   rewriteAssetPaths,
   rewriteCssAssetUrls,
 } from "@hyperframes/core";
+import { scopeCssToComposition, wrapScopedCompositionScript } from "@hyperframes/core/compiler";
 import { extractMediaMetadata, extractAudioMetadata } from "../utils/ffprobe.js";
 import { isPathInside, toExternalAssetKey } from "../utils/paths.js";
 import {
@@ -448,45 +448,6 @@ function promoteCssImportsToLinkTags(html: string): string {
  * export, preventing font-loading and animation-ordering regressions.
  */
 
-/**
- * Scope CSS rules to a specific composition by prepending each selector
- * with `[data-composition-id="<id>"]`. This prevents class name collisions
- * when multiple sub-compositions use the same class names (e.g. ".content").
- *
- * Handles:
- * - Regular rules: `.foo { }` → `[data-composition-id="x"] .foo { }`
- * - @media and other at-rules: preserved, inner selectors are scoped
- * - @import, @font-face, @keyframes: left unscoped (global by nature)
- */
-function scopeCssToComposition(css: string, compositionId: string): string {
-  const scope = `[data-composition-id="${compositionId}"]`;
-  const globalAtRules = new Set(["keyframes", "-webkit-keyframes", "font-face"]);
-  const root = postcss.parse(css);
-
-  root.walkRules((rule) => {
-    // Skip rules nested inside @keyframes or @font-face — they're global
-    let node: postcss.Node | undefined = rule.parent;
-    while (node) {
-      if (
-        node.type === "atrule" &&
-        globalAtRules.has((node as postcss.AtRule).name.toLowerCase())
-      ) {
-        return;
-      }
-      node = (node as postcss.ChildNode).parent;
-    }
-
-    rule.selectors = rule.selectors.map((sel) => {
-      if (!sel.trim()) return sel;
-      if (/^(html|body|:root|\*)$/i.test(sel.trim())) return sel;
-      if (sel.includes(`data-composition-id="${compositionId}"`)) return sel;
-      return `${scope} ${sel}`;
-    });
-  });
-
-  return root.toResult().css;
-}
-
 function coalesceHeadStylesAndBodyScripts(html: string): string {
   const { document } = parseHTML(html);
   const head = document.querySelector("head");
@@ -665,28 +626,15 @@ function inlineSubCompositions(
       const content = (scriptEl.textContent || "").trim();
       if (content) {
         const scriptMountCompId = compId || inferredCompId || "";
-        const compIdLiteral = JSON.stringify(scriptMountCompId);
-        collectedScripts.push(`(function(){
-  var __compId = ${compIdLiteral};
-  var __run = function() {
-    try {
-      ${content}
-    } catch (_err) {
-      console.error("[Compiler] Composition script failed", __compId, _err);
-    }
-  };
-  if (!__compId) { __run(); return; }
-  ${COMPILER_MOUNT_BLOCK_START}
-  var __selector = '[data-composition-id="' + (__compId + '').replace(/"/g, '\\\\"') + '"]';
-  var __attempt = 0;
-  var __tryRun = function() {
-    if (document.querySelector(__selector)) { __run(); return; }
-    if (++__attempt >= 8) { __run(); return; }
-    requestAnimationFrame(__tryRun);
-  };
-  __tryRun();
-  ${COMPILER_MOUNT_BLOCK_END}
-})()`);
+        collectedScripts.push(
+          scriptMountCompId
+            ? wrapScopedCompositionScript(
+                content,
+                scriptMountCompId,
+                "[Compiler] Composition script failed",
+              )
+            : `(function(){ try { ${content} } catch (_err) { console.error("[Compiler] Composition script failed", _err); } })()`,
+        );
       }
       scriptEl.remove();
     }
@@ -707,11 +655,7 @@ function inlineSubCompositions(
       if (innerW && !host.getAttribute("data-width")) host.setAttribute("data-width", innerW);
       if (innerH && !host.getAttribute("data-height")) host.setAttribute("data-height", innerH);
       innerRoot.querySelectorAll("style, script").forEach((el) => el.remove());
-      if (!compId && inferredCompId) {
-        host.innerHTML = innerRoot.outerHTML || "";
-      } else {
-        host.innerHTML = innerRoot.innerHTML || "";
-      }
+      host.innerHTML = innerRoot.outerHTML || "";
     } else {
       contentDoc.querySelectorAll("style, script").forEach((el) => el.remove());
       host.innerHTML = contentDoc.toString();

@@ -95,6 +95,29 @@ describe("composition rules", () => {
     expect(finding).toBeUndefined();
   });
 
+  it("reports error when a selector combines data attributes in one bracket", () => {
+    const html = `
+<template id="scene-template">
+  <div data-composition-id="scene" data-start="0" data-width="1920" data-height="1080">
+    <style>
+      [data-composition-id="scene" data-start="0"] .title { opacity: 0; }
+    </style>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const title = document.querySelector('[data-composition-id="scene" data-start="0"] .title');
+      const tl = gsap.timeline({ paused: true });
+      tl.to('[data-composition-id="scene" data-start="0"]', { opacity: 0, duration: 0.5 }, 4);
+      window.__timelines["scene"] = tl;
+    </script>
+  </div>
+</template>`;
+    const result = lintHyperframeHtml(html, { filePath: "compositions/scene.html" });
+    const findings = result.findings.filter((f) => f.code === "split_data_attribute_selector");
+    expect(findings.length).toBe(1);
+    expect(findings[0]?.severity).toBe("error");
+    expect(findings[0]?.fixHint).toContain('[data-composition-id="scene"][data-start="0"]');
+  });
+
   describe("timed_element_missing_clip_class", () => {
     it("flags element with data-start but no class='clip'", () => {
       const html = `

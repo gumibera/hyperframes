@@ -473,6 +473,7 @@ describe("template-wrapped sub-composition media offsets", () => {
       join(projectDir, "index.html"),
       `<!DOCTYPE html>
 <html>
+  <head></head>
   <body>
     <div
       id="root"
@@ -506,6 +507,8 @@ describe("template-wrapped sub-composition media offsets", () => {
     data-height="360"
     data-duration="4"
   >
+    <style>.title { opacity: 0; }</style>
+    <h1 class="title">Scene</h1>
     <video
       id="scene-video"
       src="../assets/clip.mp4"
@@ -593,5 +596,19 @@ describe("template-wrapped sub-composition media offsets", () => {
       start: 21.5,
       end: 25.5,
     });
+  });
+
+  it("preserves the sub-composition root in compiled render HTML", async () => {
+    const { projectDir, indexPath } = writeTemplateWrappedProject(
+      'data-start="20" data-duration="6" data-width="640" data-height="360"',
+      'data-start="1.5" data-duration="4"',
+    );
+
+    const compiled = await compileForRender(projectDir, indexPath, projectDir);
+
+    expect(compiled.html).toContain('id="scene-host"');
+    expect(compiled.html).toContain('data-composition-id="scene" data-start="0"');
+    expect(compiled.html).toContain('[data-composition-id="scene"] .title');
+    expect(compiled.html).toContain("new Proxy(window.document");
   });
 });

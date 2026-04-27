@@ -15,6 +15,8 @@ describe("loadExternalCompositions", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     document.head.querySelectorAll("style").forEach((s) => s.remove());
+    delete (window as Window & { gsap?: unknown; __selectedTitle?: unknown }).gsap;
+    delete (window as Window & { gsap?: unknown; __selectedTitle?: unknown }).__selectedTitle;
     vi.restoreAllMocks();
   });
 
@@ -49,9 +51,11 @@ describe("loadExternalCompositions", () => {
     await loadExternalCompositions({ ...defaultParams });
 
     const mountedParagraph = host.querySelector("p");
+    const innerRoot = host.firstElementChild;
 
     expect(mountedParagraph).toBeTruthy();
     expect(mountedParagraph?.textContent).toBe("Hello World");
+    expect(innerRoot?.getAttribute("data-composition-id")).toBe("scene-1");
   });
 
   it("injects styles into document head", async () => {
@@ -188,6 +192,44 @@ describe("loadExternalCompositions", () => {
 
     expect(injectedScripts.length).toBeGreaterThan(0);
     expect(injectedScripts[0].textContent).toContain("console.log");
+  });
+
+  it("scopes injected styles and document selectors to the mounted composition root", async () => {
+    const otherRoot = document.createElement("div");
+    otherRoot.setAttribute("data-composition-id", "other");
+    otherRoot.innerHTML = '<h1 class="title">Other</h1>';
+    document.body.appendChild(otherRoot);
+
+    const host = document.createElement("div");
+    host.setAttribute("data-composition-src", "https://example.com/comp.html");
+    host.setAttribute("data-composition-id", "scene");
+    document.body.appendChild(host);
+
+    const compositionHtml = `
+      <html><body>
+        <div data-composition-id="scene" data-width="1920" data-height="1080">
+          <style>.title { opacity: 0; }</style>
+          <h1 class="title">Scene</h1>
+          <script>
+            window.__selectedTitle = document.querySelector('.title')?.textContent;
+          </script>
+        </div>
+      </body></html>
+    `;
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(compositionHtml, { status: 200 }));
+
+    const injectedStyles: HTMLStyleElement[] = [];
+    const injectedScripts: HTMLScriptElement[] = [];
+    await loadExternalCompositions({
+      ...defaultParams,
+      injectedStyles,
+      injectedScripts,
+    });
+
+    expect(injectedStyles[0]?.textContent).toContain('[data-composition-id="scene"] .title');
+    expect(injectedScripts[0]?.textContent).toContain('var __hfCompId = "scene";');
+    expect(injectedScripts[0]?.textContent).toContain("new Proxy(window.document");
   });
 
   it("handles multiple compositions in parallel", async () => {
