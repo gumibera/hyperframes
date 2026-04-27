@@ -2,17 +2,26 @@
 <html>
   <head>
     <style>
+      /*
+        We DELIBERATELY paint a non-transparent body background here to
+        exercise the regression this PR fixes. The pre-navigation
+        Emulation.setDefaultBackgroundColorOverride that the engine used
+        to set is overridden by any `body { background: ... }` rule, so
+        on the buggy code path the captured PNG's "transparent" pixels
+        decode as opaque #111 (rgba [17, 17, 17, 255]).
+        The fix injects an `[data-composition-id]{background:transparent !important}`
+        stylesheet via initTransparentBackground() AFTER navigation, which
+        force-overrides this body background and produces a real alpha
+        channel — pixels outside the .card decode as rgba [0, 0, 0, 0].
+        If the test passes against this fixture, alpha is genuinely making
+        it through end-to-end.
+      */
       html,
       body {
         margin: 0;
         padding: 0;
+        background: #111;
       }
-      /*
-        Intentionally NO body / #root background — the alpha pipeline forces
-        the page background fully transparent. We DO set a background on
-        .card to verify that *inner* element backgrounds survive the
-        force-transparent override.
-      */
       .card {
         position: absolute;
         left: 50px;
