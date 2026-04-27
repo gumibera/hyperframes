@@ -1536,7 +1536,9 @@ export async function executeRenderJob(
     // When the native renderer is available and the composition is supported,
     // bypass Chrome capture entirely: extract scene graph + bake timeline
     // from the already-loaded probe session, then render with Rust/Skia.
-    const useNativeRenderer = Boolean(process.env.HYPERFRAMES_NATIVE_RENDER);
+    const nativeRenderMode = process.env.HYPERFRAMES_NATIVE_RENDER;
+    const useNativeRenderer = Boolean(nativeRenderMode);
+    const pixelPerfectMode = nativeRenderMode === "pixel-perfect";
     if (useNativeRenderer && outputFormat === "mp4") {
       // Ensure a browser session exists for scene extraction.
       // The probe session may be null if the composition had a known static duration.
@@ -1904,38 +1906,100 @@ export async function executeRenderJob(
         ids: videoOverlays.map((v) => `${v.id}[${v.dataStart.toFixed(1)}-${v.dataEnd.toFixed(1)}]`),
       });
 
-      // Sparse uniform state capture — backgrounds only. Video quality comes
-      // from per-frame baked timeline metadata, not dense screenshots.
-      const numStates = Math.min(Math.max(15, Math.ceil(dur / 2.5)), 80);
-      const stateTimes: number[] = [];
-      for (let i = 0; i < numStates; i++) {
-        stateTimes.push((dur * i) / (numStates - 1));
-      }
-      log.info("Sparse state capture", { numStates });
+      // ── Adaptive state capture ──────────────────────────────────────
+      // pixel-perfect: per-frame CDP during video periods, sparse otherwise
+      // fast (default): sparse states + baked video overlay
+      const videoRanges = videoOverlays.map((v) => ({
+        start: v.dataStart,
+        end: v.dataEnd,
+      }));
+      const isInVideoRange = (t: number) => videoRanges.some((r) => t >= r.start && t < r.end);
 
-      // Hide video elements so state frames capture clean backgrounds.
-      // Video content is composited by the Rust painter using pre-extracted
-      // frames + per-frame baked metadata from the GSAP timeline.
+      const stateTimes: number[] = [];
+
+      if (pixelPerfectMode) {
+        const seen = new Set<string>();
+        for (let t = 0; t <= dur + 0.001; t += 1 / job.config.fps) {
+          const rounded = Math.round(t * 1000) / 1000;
+          if (isInVideoRange(rounded)) {
+            const key = rounded.toFixed(3);
+            if (!seen.has(key)) {
+              stateTimes.push(rounded);
+              seen.add(key);
+            }
+          }
+        }
+        for (let t = 0; t <= dur; t += 2.5) {
+          const rounded = Math.round(t * 1000) / 1000;
+          const key = rounded.toFixed(3);
+          if (!isInVideoRange(rounded) && !seen.has(key)) {
+            stateTimes.push(rounded);
+            seen.add(key);
+          }
+        }
+        if (!seen.has("0.000")) stateTimes.unshift(0);
+        if (!seen.has(dur.toFixed(3))) stateTimes.push(dur);
+        stateTimes.sort((a, b) => a - b);
+      } else {
+        const numSparse = Math.min(Math.max(15, Math.ceil(dur / 2.5)), 80);
+        for (let i = 0; i < numSparse; i++) {
+          stateTimes.push((dur * i) / (numSparse - 1));
+        }
+      }
+
+      const numStates = stateTimes.length;
+      const videoStateCount = stateTimes.filter(isInVideoRange).length;
+      log.info("State capture plan", {
+        mode: pixelPerfectMode ? "pixel-perfect" : "fast",
+        numStates,
+        videoStates: videoStateCount,
+        sparseStates: numStates - videoStateCount,
+      });
+
+      // CDP capture — toggle video visibility at video/non-video boundaries
+      const cdpClient = await probeSession.page.createCDPSession();
+      const stateFramePaths: string[] = [];
+      let videosHidden = false;
+
       if (videoOverlays.length > 0) {
         const vids = videoOverlays.map((v) => JSON.stringify(v.id)).join(",");
         await probeSession.page.evaluate(
           `[${vids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.setProperty("visibility","hidden","important")})`,
         );
+        videosHidden = true;
       }
 
-      const cdpClient = await probeSession.page.createCDPSession();
-      const stateFramePaths: string[] = [];
+      for (let si = 0; si < numStates; si++) {
+        const t = stateTimes[si]!;
+        const inVideo = isInVideoRange(t);
 
-      for (let si = 0; si < stateTimes.length; si++) {
-        const t = stateTimes[si];
+        if (videoOverlays.length > 0) {
+          const vids = videoOverlays.map((v) => JSON.stringify(v.id)).join(",");
+          if (inVideo && videosHidden) {
+            await probeSession.page.evaluate(
+              `[${vids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.removeProperty("visibility")})`,
+            );
+            videosHidden = false;
+          } else if (!inVideo && !videosHidden) {
+            await probeSession.page.evaluate(
+              `[${vids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.setProperty("visibility","hidden","important")})`,
+            );
+            videosHidden = true;
+          }
+        }
+
         await probeSession.page.evaluate(`void(window.__hf?.seek(${t}))`);
-        await new Promise((r) => setTimeout(r, 5));
-        if (si % 50 === 0 && numStates > 50) {
+        // Settle time: video frames need decoder to present the seeked frame
+        await new Promise((r) => setTimeout(r, inVideo ? 16 : 5));
+
+        if (si % 100 === 0) {
           const pct = Math.round(25 + (si / numStates) * 50);
           updateJobStatus(
             job,
             "rendering",
-            `Native capture: frame ${si}/${numStates}`,
+            pixelPerfectMode
+              ? `Pixel-perfect capture: ${si}/${numStates}`
+              : `Native capture: ${si}/${numStates}`,
             pct,
             onProgress,
           );
@@ -1946,42 +2010,18 @@ export async function executeRenderJob(
           quality: 95,
           captureBeyondViewport: false,
         });
-        const framePath = join(textDir, `state_${String(si).padStart(4, "0")}.jpg`);
+        const framePath = join(textDir, `state_${String(si).padStart(5, "0")}.jpg`);
         writeFileSync(framePath, Buffer.from(shot.data, "base64"));
         stateFramePaths.push(framePath);
       }
       await cdpClient.detach();
 
-      log.info("Captured Chrome states", { count: stateFramePaths.length });
+      log.info("Captured states", {
+        mode: pixelPerfectMode ? "pixel-perfect" : "fast",
+        count: stateFramePaths.length,
+      });
 
-      // ── Bake video-only timeline for per-frame overlay metadata ──────
-      // Un-hide video elements so GSAP evaluation returns correct state.
-      if (videoOverlays.length > 0) {
-        const vids = videoOverlays.map((v) => JSON.stringify(v.id)).join(",");
-        await probeSession.page.evaluate(
-          `[${vids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.removeProperty("visibility")})`,
-        );
-
-        const { bakeVideoTimeline } = await import(nrResolve("timeline/bake.ts"));
-        const videoElementIds = [...new Set(videoOverlays.map((v) => v.id))];
-
-        const bakeStart = Date.now();
-        var videoTimeline = await bakeVideoTimeline(
-          probeSession.page,
-          job.config.fps,
-          dur,
-          videoElementIds,
-        );
-        log.info("Video timeline baked", {
-          frames: videoTimeline.total_frames,
-          videoElements: videoElementIds.length,
-          ms: Date.now() - bakeStart,
-        });
-      }
-
-      // Build scene: state frames + video overlays.
-      // Each state covers from the midpoint to the previous state to the midpoint
-      // to the next state (Voronoi tiling of the timeline).
+      // Build scene: Voronoi-tiled state images
       const stateChildren = stateFramePaths.map((path, i) => {
         const prev = i > 0 ? stateTimes[i - 1]! : stateTimes[0]!;
         const curr = stateTimes[i]!;
@@ -2002,57 +2042,78 @@ export async function executeRenderJob(
         };
       });
 
-      // De-duplicate video overlays by ID — same DOM element across instances.
-      // Baked timeline provides per-frame visibility via opacity.
-      const deduped = new Map<string, (typeof videoOverlays)[0]>();
-      for (const v of videoOverlays) {
-        const existing = deduped.get(v.id);
-        if (!existing) {
-          deduped.set(v.id, { ...v });
-        } else {
-          existing.dataStart = Math.min(existing.dataStart, v.dataStart);
-          existing.dataEnd = Math.max(existing.dataEnd, v.dataEnd);
+      let sceneChildren: Record<string, unknown>[] = stateChildren;
+
+      // Fast mode: add video overlay children with baked timeline metadata
+      if (!pixelPerfectMode && videoOverlays.length > 0) {
+        const { bakeVideoTimeline } = await import(nrResolve("timeline/bake.ts"));
+        const videoElementIds = [...new Set(videoOverlays.map((v) => v.id))];
+        const vids = videoOverlays.map((v) => JSON.stringify(v.id)).join(",");
+        if (videosHidden) {
+          await probeSession.page.evaluate(
+            `[${vids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.removeProperty("visibility")})`,
+          );
         }
-      }
-      const uniqueOverlays = [...deduped.values()];
+        const bakeStart = Date.now();
+        var videoTimeline = await bakeVideoTimeline(
+          probeSession.page,
+          job.config.fps,
+          dur,
+          videoElementIds,
+        );
+        log.info("Video timeline baked", {
+          frames: videoTimeline.total_frames,
+          ms: Date.now() - bakeStart,
+        });
 
-      // Carry rendering-critical styles from the extracted scene
-      const findExtractedStyle = (id: string): Record<string, unknown> => {
-        const search = (els: Record<string, unknown>[]): Record<string, unknown> | null => {
-          for (const el of els) {
-            if (el.id === id) return (el.style as Record<string, unknown>) ?? {};
-            const found = search((el.children as Record<string, unknown>[]) || []);
-            if (found) return found;
+        const deduped = new Map<string, (typeof videoOverlays)[0]>();
+        for (const v of videoOverlays) {
+          const existing = deduped.get(v.id);
+          if (!existing) {
+            deduped.set(v.id, { ...v });
+          } else {
+            existing.dataStart = Math.min(existing.dataStart, v.dataStart);
+            existing.dataEnd = Math.max(existing.dataEnd, v.dataEnd);
           }
-          return null;
-        };
-        return search(enrichedScene.elements) ?? {};
-      };
+        }
 
-      const videoOverlayChildren = uniqueOverlays.map((v) => {
-        const extracted = findExtractedStyle(v.id);
-        return {
-          id: v.id,
-          kind: { type: "Image", src: "" } as Record<string, unknown>,
-          bounds: v.bounds,
-          style: {
-            opacity: 1.0,
-            visibility: true,
-            overflow_hidden: true,
-            video_frames_dir: v.framesDir,
-            video_fps: v.fps,
-            video_media_start: v.mediaStart,
-            data_start: v.dataStart,
-            data_end: v.dataEnd,
-            object_fit: extracted.object_fit ?? "cover",
-            object_position: extracted.object_position ?? undefined,
-            mix_blend_mode: extracted.mix_blend_mode ?? undefined,
-            filter_blur: extracted.filter_blur ?? undefined,
-            filter_adjust: extracted.filter_adjust ?? undefined,
-          } as Record<string, unknown>,
-          children: [] as Record<string, unknown>[],
+        const findStyle = (id: string): Record<string, unknown> => {
+          const search = (els: Record<string, unknown>[]): Record<string, unknown> | null => {
+            for (const el of els) {
+              if (el.id === id) return (el.style as Record<string, unknown>) ?? {};
+              const found = search((el.children as Record<string, unknown>[]) || []);
+              if (found) return found;
+            }
+            return null;
+          };
+          return search(enrichedScene.elements) ?? {};
         };
-      });
+
+        const videoOverlayChildren = [...deduped.values()].map((v) => {
+          const ex = findStyle(v.id);
+          return {
+            id: v.id,
+            kind: { type: "Image", src: "" } as Record<string, unknown>,
+            bounds: v.bounds,
+            style: {
+              opacity: 1.0,
+              visibility: true,
+              overflow_hidden: true,
+              video_frames_dir: v.framesDir,
+              video_fps: v.fps,
+              video_media_start: v.mediaStart,
+              data_start: v.dataStart,
+              data_end: v.dataEnd,
+              object_fit: ex.object_fit ?? "cover",
+              object_position: ex.object_position ?? undefined,
+              mix_blend_mode: ex.mix_blend_mode ?? undefined,
+            } as Record<string, unknown>,
+            children: [] as Record<string, unknown>[],
+          };
+        });
+
+        sceneChildren = [...stateChildren, ...videoOverlayChildren];
+      }
 
       enrichedScene.elements = [
         {
@@ -2064,14 +2125,15 @@ export async function executeRenderJob(
             visibility: true,
             background_color: null,
           } as Record<string, unknown>,
-          children: [...stateChildren, ...videoOverlayChildren],
+          children: sceneChildren,
         },
       ] as Record<string, unknown>[];
 
-      let textCaptured = stateFramePaths.length;
-      if (textCaptured > 0) {
-        log.info("Pre-rendered states from Chrome", { count: textCaptured });
-      }
+      log.info("Scene built", {
+        mode: pixelPerfectMode ? "pixel-perfect" : "fast",
+        states: stateChildren.length,
+        videoOverlays: sceneChildren.length - stateChildren.length,
+      });
 
       // ── Download HTTP image assets via Chrome ──────────────────────
       // Fetch images through Chrome (which can reach the file server)
