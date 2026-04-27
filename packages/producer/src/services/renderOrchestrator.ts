@@ -1956,8 +1956,6 @@ export async function executeRenderJob(
         sparseStates: numStates - videoStateCount,
       });
 
-      // CDP capture — toggle video visibility at video/non-video boundaries
-      const cdpClient = await probeSession.page.createCDPSession();
       const stateFramePaths: string[] = [];
       let videosHidden = false;
 
@@ -1969,63 +1967,83 @@ export async function executeRenderJob(
         videosHidden = true;
       }
 
-      const pixelPerfectVideoInjector =
-        pixelPerfectMode && frameLookup ? createVideoFrameInjector(frameLookup) : null;
+      if (pixelPerfectMode) {
+        // ── Pixel-perfect: use engine's deterministic capture pipeline ──
+        // Create a FRESH capture session with beginFrame mode and video
+        // frame injection — identical to the standard CDP render pipeline.
+        // This guarantees the same deterministic GSAP evaluation.
+        const ppSession = await createCaptureSession(
+          fileServer!.url,
+          join(workDir, "pixel-perfect-capture"),
+          { width, height, fps: job.config.fps },
+          createVideoFrameInjector(frameLookup),
+          cfg,
+        );
+        await initializeSession(ppSession);
 
-      for (let si = 0; si < numStates; si++) {
-        const t = stateTimes[si]!;
-        const inVideo = isInVideoRange(t);
+        for (let si = 0; si < numStates; si++) {
+          const t = stateTimes[si]!;
+          const frameIndex = Math.round(t * job.config.fps);
 
-        if (videoOverlays.length > 0) {
-          const vids = videoOverlays.map((v) => JSON.stringify(v.id)).join(",");
-          if (inVideo && videosHidden) {
-            await probeSession.page.evaluate(
-              `[${vids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.removeProperty("visibility")})`,
+          if (si % 100 === 0) {
+            const pct = Math.round(25 + (si / numStates) * 50);
+            updateJobStatus(
+              job,
+              "rendering",
+              `Pixel-perfect capture: ${si}/${numStates}`,
+              pct,
+              onProgress,
             );
-            videosHidden = false;
-          } else if (!inVideo && !videosHidden) {
-            await probeSession.page.evaluate(
-              `[${vids}].forEach(id=>{` +
-                `const e=document.getElementById(id);if(e)e.style.setProperty("visibility","hidden","important");` +
-                `const img=e?.nextElementSibling;if(img?.classList.contains("__render_frame__"))img.style.visibility="hidden"` +
-                `})`,
-            );
-            videosHidden = true;
           }
-        }
 
-        await probeSession.page.evaluate(`void(window.__hf?.seek(${t}))`);
-        if (inVideo && pixelPerfectVideoInjector) {
-          // Headless Chrome can't seek <video> programmatically — inject
-          // FFmpeg-extracted frames as <img> tags (same as standard CDP pipeline)
-          await pixelPerfectVideoInjector(probeSession.page, t);
-        } else {
+          const result = await captureFrame(ppSession, frameIndex, t, textDir);
+          stateFramePaths.push(result.path);
+        }
+        await closeCaptureSession(ppSession);
+      } else {
+        // ── Fast mode: probe session + Page.captureScreenshot ──
+        for (let si = 0; si < numStates; si++) {
+          const t = stateTimes[si]!;
+
+          if (videoOverlays.length > 0) {
+            const vids = videoOverlays.map((v) => JSON.stringify(v.id)).join(",");
+            if (!videosHidden) {
+              await probeSession.page.evaluate(
+                `[${vids}].forEach(id=>{` +
+                  `const e=document.getElementById(id);if(e)e.style.setProperty("visibility","hidden","important");` +
+                  `const img=e?.nextElementSibling;if(img?.classList.contains("__render_frame__"))img.style.visibility="hidden"` +
+                  `})`,
+              );
+              videosHidden = true;
+            }
+          }
+
+          await probeSession.page.evaluate(`void(window.__hf?.seek(${t}))`);
           await new Promise((r) => setTimeout(r, 5));
-        }
 
-        if (si % 100 === 0) {
-          const pct = Math.round(25 + (si / numStates) * 50);
-          updateJobStatus(
-            job,
-            "rendering",
-            pixelPerfectMode
-              ? `Pixel-perfect capture: ${si}/${numStates}`
-              : `Native capture: ${si}/${numStates}`,
-            pct,
-            onProgress,
-          );
-        }
+          if (si % 50 === 0 && numStates > 50) {
+            const pct = Math.round(25 + (si / numStates) * 50);
+            updateJobStatus(
+              job,
+              "rendering",
+              `Native capture: ${si}/${numStates}`,
+              pct,
+              onProgress,
+            );
+          }
 
-        const shot = await cdpClient.send("Page.captureScreenshot", {
-          format: "jpeg",
-          quality: 95,
-          captureBeyondViewport: false,
-        });
-        const framePath = join(textDir, `state_${String(si).padStart(5, "0")}.jpg`);
-        writeFileSync(framePath, Buffer.from(shot.data, "base64"));
-        stateFramePaths.push(framePath);
+          const cdpClient2 = await probeSession.page.createCDPSession();
+          const shot = await cdpClient2.send("Page.captureScreenshot", {
+            format: "jpeg",
+            quality: 95,
+            captureBeyondViewport: false,
+          });
+          await cdpClient2.detach();
+          const framePath = join(textDir, `state_${String(si).padStart(5, "0")}.jpg`);
+          writeFileSync(framePath, Buffer.from(shot.data, "base64"));
+          stateFramePaths.push(framePath);
+        }
       }
-      await cdpClient.detach();
 
       log.info("Captured states", {
         mode: pixelPerfectMode ? "pixel-perfect" : "fast",
