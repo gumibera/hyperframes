@@ -113,3 +113,76 @@ export async function bakeTimeline(
 
   return { fps, duration, total_frames: totalFrames, frames };
 }
+
+const VIDEO_BAKE_BATCH_SIZE = 50;
+
+const VIDEO_BAKE_SCRIPT = `(frameTimes, videoIds) => {
+  const results = [];
+  const hf = window.__hf;
+  for (const t of frameTimes) {
+    if (hf && typeof hf.seek === "function") hf.seek(t);
+    const frame = {};
+    for (const id of videoIds) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const cs = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      frame[id] = {
+        opacity: parseFloat(cs.opacity) || 0,
+        translate_x: 0,
+        translate_y: 0,
+        scale_x: 1,
+        scale_y: 1,
+        rotate_deg: 0,
+        visibility: cs.visibility !== "hidden" && cs.display !== "none",
+        bounds_x: rect.left,
+        bounds_y: rect.top,
+        bounds_w: rect.width,
+        bounds_h: rect.height,
+        border_radius: [
+          parseFloat(cs.borderTopLeftRadius) || 0,
+          parseFloat(cs.borderTopRightRadius) || 0,
+          parseFloat(cs.borderBottomRightRadius) || 0,
+          parseFloat(cs.borderBottomLeftRadius) || 0,
+        ],
+      };
+    }
+    results.push(frame);
+  }
+  return results;
+}`;
+
+export async function bakeVideoTimeline(
+  page: Page,
+  fps: number,
+  duration: number,
+  videoIds: string[],
+): Promise<BakedTimeline> {
+  const uniqueIds = [...new Set(videoIds)];
+  const totalFrames = Math.ceil(fps * duration);
+  const frames: BakedFrame[] = [];
+
+  for (let batchStart = 0; batchStart < totalFrames; batchStart += VIDEO_BAKE_BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + VIDEO_BAKE_BATCH_SIZE, totalFrames);
+    const frameTimes: number[] = [];
+    for (let i = batchStart; i < batchEnd; i++) {
+      frameTimes.push(i / fps);
+    }
+
+    const inlinedScript = `(${VIDEO_BAKE_SCRIPT})(${JSON.stringify(frameTimes)}, ${JSON.stringify(uniqueIds)})`;
+    const batchResults = (await page.evaluate(inlinedScript)) as Array<
+      Record<string, BakedElementState>
+    >;
+
+    for (let j = 0; j < batchResults.length; j++) {
+      const i = batchStart + j;
+      frames.push({
+        frame_index: i,
+        time: frameTimes[j]!,
+        elements: batchResults[j]!,
+      });
+    }
+  }
+
+  return { fps, duration, total_frames: totalFrames, frames };
+}
