@@ -1969,6 +1969,9 @@ export async function executeRenderJob(
         videosHidden = true;
       }
 
+      const pixelPerfectVideoInjector =
+        pixelPerfectMode && frameLookup ? createVideoFrameInjector(frameLookup) : null;
+
       for (let si = 0; si < numStates; si++) {
         const t = stateTimes[si]!;
         const inVideo = isInVideoRange(t);
@@ -1989,8 +1992,13 @@ export async function executeRenderJob(
         }
 
         await probeSession.page.evaluate(`void(window.__hf?.seek(${t}))`);
-        // Settle time: video frames need decoder to present the seeked frame
-        await new Promise((r) => setTimeout(r, inVideo ? 16 : 5));
+        if (inVideo && pixelPerfectVideoInjector) {
+          // Headless Chrome can't seek <video> programmatically — inject
+          // FFmpeg-extracted frames as <img> tags (same as standard CDP pipeline)
+          await pixelPerfectVideoInjector(probeSession.page, t);
+        } else {
+          await new Promise((r) => setTimeout(r, 5));
+        }
 
         if (si % 100 === 0) {
           const pct = Math.round(25 + (si / numStates) * 50);
