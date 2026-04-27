@@ -1909,11 +1909,23 @@ export async function executeRenderJob(
       // ── Adaptive state capture ──────────────────────────────────────
       // pixel-perfect: per-frame CDP during video periods, sparse otherwise
       // fast (default): sparse states + baked video overlay
-      const videoRanges = videoOverlays.map((v) => ({
-        start: v.dataStart,
-        end: v.dataEnd,
+      //
+      // Use composition.videos (ALL videos including subcompositions) for
+      // video period detection — more reliable than GSAP visibility probe
+      // which can miss subcomposition videos.
+      const videoRanges = composition.videos.map((v) => ({
+        id: v.id,
+        start: v.start,
+        end: v.end,
       }));
       const isInVideoRange = (t: number) => videoRanges.some((r) => t >= r.start && t < r.end);
+
+      if (pixelPerfectMode) {
+        log.info("Video ranges from composition metadata", {
+          count: videoRanges.length,
+          ranges: videoRanges.map((r) => `${r.id}[${r.start.toFixed(1)}-${r.end.toFixed(1)}]`),
+        });
+      }
 
       const stateTimes: number[] = [];
 
