@@ -1985,7 +1985,10 @@ export async function executeRenderJob(
             videosHidden = false;
           } else if (!inVideo && !videosHidden) {
             await probeSession.page.evaluate(
-              `[${vids}].forEach(id=>{const e=document.getElementById(id);if(e)e.style.setProperty("visibility","hidden","important")})`,
+              `[${vids}].forEach(id=>{` +
+                `const e=document.getElementById(id);if(e)e.style.setProperty("visibility","hidden","important");` +
+                `const img=e?.nextElementSibling;if(img?.classList.contains("__render_frame__"))img.style.visibility="hidden"` +
+                `})`,
             );
             videosHidden = true;
           }
