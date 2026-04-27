@@ -1728,7 +1728,9 @@ export async function executeRenderJob(
           if (frameDir) {
             style.video_frames_dir = frameDir;
             style.video_fps = job.config.fps;
-            style.video_media_start = 0;
+            const compVideo = composition.videos.find((v) => v.id === elId);
+            style.video_media_start =
+              compVideo?.mediaStart ?? (style.video_media_start as number) ?? 0;
             videoIdsWithFrames.add(elId);
             log.info("Mapped video frames", {
               id: elId,
