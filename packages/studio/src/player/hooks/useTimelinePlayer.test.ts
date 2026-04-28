@@ -39,6 +39,7 @@ describe("buildStandaloneRootTimelineElement", () => {
       }),
     ).toEqual({
       id: "hero",
+      label: "hero",
       key: 'scenes/hero.html:[data-composition-id="hero"]:0',
       tag: "div",
       start: 0,

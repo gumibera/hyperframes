@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export interface TimelineElement {
   id: string;
+  label?: string;
   key?: string;
   tag: string;
   start: number;

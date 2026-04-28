@@ -92,6 +92,35 @@ describe("core rules", () => {
     expect(finding).toBeUndefined();
   });
 
+  it("warns when a timeline-visible element has no stable id for Studio editing", () => {
+    const html = `
+<html><body>
+  <div id="root" data-composition-id="c1" data-width="1920" data-height="1080">
+    <section class="clip hero-card" data-start="0" data-duration="3"></section>
+  </div>
+  <script>window.__timelines = {};</script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "studio_missing_editable_id");
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("warning");
+    expect(finding?.message).toContain('<section class="hero-card" data-start="0">');
+    expect(finding?.fixHint).toContain("stable, human-readable id");
+  });
+
+  it("does not warn about the composition root or timeline elements with ids", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080" data-start="0">
+    <section id="hero-card" class="clip hero-card" data-start="0" data-duration="3"></section>
+  </div>
+  <script>window.__timelines = {};</script>
+</body></html>`;
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "studio_missing_editable_id");
+    expect(finding).toBeUndefined();
+  });
+
   describe("non_deterministic_code", () => {
     it("detects Math.random() in script content", () => {
       const html = `

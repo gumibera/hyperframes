@@ -165,6 +165,19 @@ export function shouldIgnorePlaybackShortcutEvent(
   );
 }
 
+function getTimelineElementDisplayLabel(input: {
+  id?: string | null;
+  label?: string | null;
+  tag?: string | null;
+}): string {
+  const label = input.label?.trim();
+  if (label) return label;
+  const id = input.id?.trim();
+  if (id) return id;
+  const tag = input.tag?.trim().toLowerCase();
+  return tag ? `${tag} clip` : "Timeline clip";
+}
+
 /**
  * Parse [data-start] elements from a Document into TimelineElement[].
  * Shared helper — used by onIframeLoad fallback, handleMessage, and enrichMissingCompositions.
@@ -200,9 +213,15 @@ function parseTimelineFromDOM(doc: Document, rootDuration: number): TimelineElem
     const selector = getTimelineElementSelector(el);
     const sourceFile = getTimelineElementSourceFile(el);
     const selectorIndex = getTimelineElementSelectorIndex(doc, el, selector);
-    const id = el.id || compId || el.className?.split(" ")[0] || tagLower;
+    const label = getTimelineElementDisplayLabel({
+      id: el.id || compId || null,
+      label: el.getAttribute("data-timeline-label") ?? el.getAttribute("data-label"),
+      tag: tagLower,
+    });
+    const id = el.id || compId || label;
     const entry: TimelineElement = {
       id,
+      label,
       key: buildTimelineElementKey({
         id,
         fallbackIndex: els.length,
@@ -333,6 +352,10 @@ export function buildStandaloneRootTimelineElement(params: {
 
   return {
     id: params.compositionId,
+    label: getTimelineElementDisplayLabel({
+      id: params.compositionId,
+      tag: params.tagName,
+    }),
     key: buildTimelineElementKey({
       id: params.compositionId,
       fallbackIndex: 0,
@@ -822,26 +845,33 @@ export function useTimelinePlayer() {
       const filtered = data.clips.filter(
         (clip) => !clip.parentCompositionId || !clipCompositionIds.has(clip.parentCompositionId),
       );
+      let iframeDoc: Document | null = null;
+      try {
+        iframeDoc = iframeRef.current?.contentDocument ?? null;
+      } catch {
+        iframeDoc = null;
+      }
+      const usedHostEls = new Set<Element>();
       const els: TimelineElement[] = filtered.map((clip, index) => {
-        let hostEl: Element | null = null;
-        const id = clip.id || clip.label || clip.tagName || "element";
+        let hostEl = iframeDoc
+          ? findTimelineDomNodeForClip(iframeDoc, clip, index, usedHostEls)
+          : null;
+        if (hostEl) usedHostEls.add(hostEl);
+        const label = getTimelineElementDisplayLabel({
+          id: clip.id,
+          label: clip.label,
+          tag: clip.tagName || clip.kind,
+        });
+        const id = clip.id || label;
         const entry: TimelineElement = {
           id,
+          label,
           tag: clip.tagName || clip.kind,
           start: clip.start,
           duration: clip.duration,
           track: clip.track,
         };
-        try {
-          const iframeDoc = iframeRef.current?.contentDocument;
-          if (iframeDoc && entry.id) {
-            hostEl = findTimelineDomNode(iframeDoc, entry.id);
-          }
-        } catch {
-          /* cross-origin */
-        }
         if (hostEl) {
-          const iframeDoc = iframeRef.current?.contentDocument;
           entry.domId = hostEl.id || undefined;
           entry.selector = getTimelineElementSelector(hostEl);
           entry.selectorIndex =
@@ -1014,9 +1044,15 @@ export function useTimelinePlayer() {
         const selector = getTimelineElementSelector(el);
         const sourceFile = getTimelineElementSourceFile(el);
         const selectorIndex = getTimelineElementSelectorIndex(doc, el, selector);
-        const id = el.id || compId;
+        const label = getTimelineElementDisplayLabel({
+          id: el.id || compId || null,
+          label: el.getAttribute("data-timeline-label") ?? el.getAttribute("data-label"),
+          tag: el.tagName,
+        });
+        const id = el.id || compId || label;
         const entry: TimelineElement = {
           id,
+          label,
           key: buildTimelineElementKey({
             id,
             fallbackIndex: missing.length,

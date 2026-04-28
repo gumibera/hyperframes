@@ -271,6 +271,39 @@ describe("collectRuntimeTimelinePayload", () => {
     expect(result.clips[0].label).toBe("Hero Shot");
   });
 
+  it("uses a friendly label and null id for anonymous clips", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "10");
+    document.body.appendChild(root);
+
+    const clip = document.createElement("div");
+    clip.className = "clip hero-card";
+    clip.setAttribute("data-start", "0");
+    clip.setAttribute("data-duration", "5");
+    root.appendChild(clip);
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    expect(result.clips[0].id).toBeNull();
+    expect(result.clips[0].label).toBe("Hero Card");
+  });
+
+  it("falls back to a readable ordinal label instead of a node index id", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "10");
+    document.body.appendChild(root);
+
+    const clip = document.createElement("div");
+    clip.setAttribute("data-start", "0");
+    clip.setAttribute("data-duration", "5");
+    root.appendChild(clip);
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    expect(result.clips[0].id).toBeNull();
+    expect(result.clips[0].label).toBe("Element 1");
+  });
+
   it("handles timeline registry for composition duration", () => {
     const root = document.createElement("div");
     root.setAttribute("data-composition-id", "main");
