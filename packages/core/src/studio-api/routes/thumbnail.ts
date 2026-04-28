@@ -23,6 +23,9 @@ export function registerThumbnailRoutes(api: Hono, adapter: StudioApiAdapter): v
     const vpWidth = parseInt(url.searchParams.get("w") || "0") || 0;
     const vpHeight = parseInt(url.searchParams.get("h") || "0") || 0;
     const selector = url.searchParams.get("selector") || undefined;
+    const rawSelectorIndex = Number.parseInt(url.searchParams.get("selectorIndex") || "0", 10);
+    const selectorIndex =
+      Number.isFinite(rawSelectorIndex) && rawSelectorIndex > 0 ? rawSelectorIndex : undefined;
     const urlVersion = url.searchParams.get("v") || "";
 
     // Determine composition dimensions from HTML
@@ -49,7 +52,7 @@ export function registerThumbnailRoutes(api: Hono, adapter: StudioApiAdapter): v
     // Cache
     const cacheDir = join(project.dir, ".thumbnails");
     const selectorKey = selector
-      ? `_${selector.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 80)}`
+      ? `_${selector.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 80)}_${selectorIndex ?? 0}`
       : "";
     const urlVersionKey = urlVersion
       ? `_${urlVersion.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 32)}`
@@ -71,6 +74,7 @@ export function registerThumbnailRoutes(api: Hono, adapter: StudioApiAdapter): v
         height: compH,
         previewUrl,
         selector,
+        selectorIndex,
       });
       if (!buffer) {
         return c.json({ error: "Thumbnail generation returned null" }, 500);

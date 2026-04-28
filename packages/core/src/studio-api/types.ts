@@ -72,6 +72,7 @@ export interface StudioApiAdapter {
     height: number;
     previewUrl: string;
     selector?: string;
+    selectorIndex?: number;
   }) => Promise<Buffer | null>;
 
   /** Optional: resolve session ID to project (multi-project mode). */

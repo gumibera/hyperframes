@@ -260,23 +260,34 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
         await new Promise((r) => setTimeout(r, 200));
         let clip: { x: number; y: number; width: number; height: number } | undefined;
         if (opts.selector) {
-          clip = await page.evaluate((selector: string) => {
-            const el = document.querySelector(selector);
-            if (!(el instanceof HTMLElement)) return undefined;
-            const rect = el.getBoundingClientRect();
-            if (rect.width < 4 || rect.height < 4) return undefined;
-            const pad = 8;
-            const x = Math.max(0, rect.left - pad);
-            const y = Math.max(0, rect.top - pad);
-            const maxWidth = window.innerWidth - x;
-            const maxHeight = window.innerHeight - y;
-            return {
-              x,
-              y,
-              width: Math.max(1, Math.min(rect.width + pad * 2, maxWidth)),
-              height: Math.max(1, Math.min(rect.height + pad * 2, maxHeight)),
-            };
-          }, opts.selector);
+          clip = await page.evaluate(
+            (selector: string, selectorIndex: number | undefined) => {
+              const matches = Array.from(document.querySelectorAll(selector)).filter(
+                (el): el is HTMLElement => el instanceof HTMLElement,
+              );
+              const safeIndex = Math.max(
+                0,
+                Math.min(matches.length - 1, Math.floor(selectorIndex ?? 0)),
+              );
+              const el = matches[safeIndex] ?? null;
+              if (!(el instanceof HTMLElement)) return undefined;
+              const rect = el.getBoundingClientRect();
+              if (rect.width < 4 || rect.height < 4) return undefined;
+              const pad = 8;
+              const x = Math.max(0, rect.left - pad);
+              const y = Math.max(0, rect.top - pad);
+              const maxWidth = window.innerWidth - x;
+              const maxHeight = window.innerHeight - y;
+              return {
+                x,
+                y,
+                width: Math.max(1, Math.min(rect.width + pad * 2, maxWidth)),
+                height: Math.max(1, Math.min(rect.height + pad * 2, maxHeight)),
+              };
+            },
+            opts.selector,
+            opts.selectorIndex,
+          );
         }
         const screenshot = (await page.screenshot({
           type: "jpeg",
