@@ -88,16 +88,47 @@ function getStyle(tag: string): TrackVisualStyle {
 }
 
 /* ── Tick Generation ────────────────────────────────────────────── */
-export function generateTicks(duration: number): { major: number[]; minor: number[] } {
+function getMajorTickInterval(duration: number, pixelsPerSecond?: number): number {
+  const zoomIntervals = [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+  if (Number.isFinite(pixelsPerSecond) && (pixelsPerSecond ?? 0) > 0) {
+    const targetMajorPx = 128;
+    return (
+      zoomIntervals.find((interval) => interval * (pixelsPerSecond ?? 0) >= targetMajorPx) ?? 600
+    );
+  }
+  const durationIntervals = [0.25, 0.5, 1, 2, 5, 10, 15, 30, 60];
+  const target = duration / 6;
+  return durationIntervals.find((interval) => interval >= target) ?? 60;
+}
+
+function getMinorTickInterval(majorInterval: number, pixelsPerSecond?: number): number {
+  let interval = majorInterval / 2;
+  if (majorInterval >= 30) interval = majorInterval / 6;
+  else if (majorInterval >= 15) interval = majorInterval / 3;
+  else if (majorInterval >= 5) interval = majorInterval / 5;
+  else if (majorInterval >= 1) interval = majorInterval / 4;
+
+  if (
+    Number.isFinite(pixelsPerSecond) &&
+    (pixelsPerSecond ?? 0) > 0 &&
+    interval * (pixelsPerSecond ?? 0) < 20
+  ) {
+    return Math.max(0.25, majorInterval / 2);
+  }
+  return Math.max(0.25, interval);
+}
+
+export function generateTicks(
+  duration: number,
+  pixelsPerSecond?: number,
+): { major: number[]; minor: number[] } {
   if (duration <= 0 || !Number.isFinite(duration) || duration > 7200)
     return { major: [], minor: [] };
-  const intervals = [0.5, 1, 2, 5, 10, 15, 30, 60];
-  const target = duration / 6;
-  const majorInterval = intervals.find((i) => i >= target) ?? 60;
-  const minorInterval = Math.max(0.25, majorInterval / 2);
+  const majorInterval = getMajorTickInterval(duration, pixelsPerSecond);
+  const minorInterval = getMinorTickInterval(majorInterval, pixelsPerSecond);
   const major: number[] = [];
   const minor: number[] = [];
-  const maxTicks = 500; // Safety cap to prevent infinite loop
+  const maxTicks = 2000; // Safety cap to prevent runaway tick generation
   for (
     let t = 0;
     t <= duration + 0.001 && major.length + minor.length < maxTicks;
@@ -111,6 +142,25 @@ export function generateTicks(duration: number): { major: number[]; minor: numbe
     else minor.push(rounded);
   }
   return { major, minor };
+}
+
+export function formatTimelineTickLabel(time: number, duration: number, majorInterval: number) {
+  if (!Number.isFinite(time)) return "0:00";
+  const safeTime = Math.max(0, time);
+  if (majorInterval < 1) {
+    const totalTenths = Math.round(safeTime * 10);
+    const wholeSeconds = Math.floor(totalTenths / 10);
+    const tenth = totalTenths % 10;
+    return `${formatTime(wholeSeconds)}.${tenth}`;
+  }
+  if (duration >= 3600 || safeTime >= 3600) {
+    const totalSeconds = Math.floor(safeTime);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  }
+  return formatTime(safeTime);
 }
 
 export function shouldAutoScrollTimeline(
@@ -956,7 +1006,12 @@ export const Timeline = memo(function Timeline({
     cancelAnimationFrame(dragScrollRaf.current);
   }, []);
 
-  const { major, minor } = useMemo(() => generateTicks(effectiveDuration), [effectiveDuration]);
+  const { major, minor } = useMemo(
+    () => generateTicks(effectiveDuration, pps),
+    [effectiveDuration, pps],
+  );
+  const majorTickInterval =
+    major.length >= 2 ? Math.max(0.25, major[1] - major[0]) : effectiveDuration;
   const getPreviewElement = useCallback(
     (element: TimelineElement): TimelineElement => {
       if (resizingClip?.element.id === element.id) {
@@ -1324,7 +1379,7 @@ export const Timeline = memo(function Timeline({
                   className="text-[9px] font-mono tabular-nums leading-none mb-0.5"
                   style={{ color: theme.tickText }}
                 >
-                  {formatTime(t)}
+                  {formatTimelineTickLabel(t, effectiveDuration, majorTickInterval)}
                 </span>
                 <div className="w-px h-[5px]" style={{ background: theme.tickMajor }} />
               </div>

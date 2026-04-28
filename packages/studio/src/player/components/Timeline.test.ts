@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  formatTimelineTickLabel,
   generateTicks,
   getDefaultDroppedTrack,
   getTimelineCanvasHeight,
@@ -79,6 +80,20 @@ describe("generateTicks", () => {
       expect(major[0]).toBe(0);
     }
   });
+
+  it("uses denser major labels as timeline zoom increases", () => {
+    const fitTicks = generateTicks(180, 10);
+    const zoomedTicks = generateTicks(180, 48);
+    expect(fitTicks.major[1] - fitTicks.major[0]).toBe(15);
+    expect(zoomedTicks.major[1] - zoomedTicks.major[0]).toBe(5);
+    expect(zoomedTicks.minor).toContain(1);
+    expect(zoomedTicks.minor).toContain(4);
+  });
+
+  it("keeps labels readable instead of placing one at every tiny tick", () => {
+    const { major } = generateTicks(180, 80);
+    expect(major[1] - major[0]).toBe(2);
+  });
 });
 
 describe("formatTime", () => {
@@ -116,6 +131,20 @@ describe("formatTime", () => {
     expect(formatTime(1)).toBe("0:01");
     expect(formatTime(9)).toBe("0:09");
     expect(formatTime(61)).toBe("1:01");
+  });
+});
+
+describe("formatTimelineTickLabel", () => {
+  it("uses minute-second labels for normal timeline intervals", () => {
+    expect(formatTimelineTickLabel(90, 180, 5)).toBe("1:30");
+  });
+
+  it("uses hour labels for long timelines", () => {
+    expect(formatTimelineTickLabel(3661, 4000, 60)).toBe("1:01:01");
+  });
+
+  it("shows subsecond labels when the major ruler interval is below one second", () => {
+    expect(formatTimelineTickLabel(1.5, 3, 0.5)).toBe("0:01.5");
   });
 });
 
