@@ -24,6 +24,26 @@ export { SourceEditor } from "./components/editor/SourceEditor";
 export { PropertyPanel } from "./components/editor/PropertyPanel";
 export { FileTree } from "./components/editor/FileTree";
 
+// DOM editing inspector
+export {
+  resolveDomEditSelection,
+  refreshDomEditSelection,
+  resolveDomEditCapabilities,
+  findElementForSelection,
+  isTextEditableSelection,
+  buildDomEditStylePatchOperation,
+  buildDomEditMovePatchOperations,
+  buildDomEditResizePatchOperations,
+  buildDomEditDetachPatchOperations,
+} from "./components/editor/domEditing";
+export type {
+  DomEditSelection,
+  DomEditTextField,
+  DomEditCapabilities,
+  DomEditContextOptions,
+} from "./components/editor/domEditing";
+export type { ImportedFontAsset } from "./components/editor/fontAssets";
+
 // App
 export { StudioApp } from "./App";
 
