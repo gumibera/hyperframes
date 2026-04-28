@@ -6,6 +6,7 @@ import {
   resolveTimelineAssetDrop,
   getTimelinePlayheadLeft,
   getTimelineScrollLeftForZoomTransition,
+  shouldShowTimelineShortcutHint,
   shouldHandleTimelineDeleteKey,
   shouldAutoScrollTimeline,
 } from "./Timeline";
@@ -162,6 +163,17 @@ describe("getTimelineCanvasHeight", () => {
 
   it("still keeps ruler space when there are no tracks", () => {
     expect(getTimelineCanvasHeight(0)).toBeGreaterThan(24);
+  });
+});
+
+describe("shouldShowTimelineShortcutHint", () => {
+  it("shows the hint when the timeline does not vertically overflow", () => {
+    expect(shouldShowTimelineShortcutHint(220, 220)).toBe(true);
+    expect(shouldShowTimelineShortcutHint(220.5, 220)).toBe(true);
+  });
+
+  it("hides the hint when timeline tracks need vertical scrolling", () => {
+    expect(shouldShowTimelineShortcutHint(221.5, 220)).toBe(false);
   });
 });
 
