@@ -540,7 +540,8 @@ This is suppressed in CI environments, non-TTY shells, and when `HYPERFRAMES_NO_
     | `--quality` | draft, standard, high | standard | Encoding quality preset (drives CRF/bitrate) |
     | `--crf` | 0-51 | — | Override encoder CRF (lower = higher quality). Mutually exclusive with `--video-bitrate` |
     | `--video-bitrate` | e.g. `10M`, `5000k` | — | Target video bitrate. Mutually exclusive with `--crf` |
-    | `--hdr` | — | off | Detect HDR sources and output HDR10 (H.265 10-bit, BT.2020 PQ/HLG). MP4 only. SDR-only compositions are unaffected. See [HDR Rendering](/guides/hdr) |
+    | `--hdr` | — | off | Force HDR output even if no HDR sources are detected. MP4 only. See [HDR Rendering](/guides/hdr) |
+    | `--sdr` | — | off | Force SDR output even if HDR sources are detected |
     | `--workers` | 1-8 | 4 | Parallel render workers |
     | `--gpu` | — | off | GPU encoding (NVENC, VideoToolbox, VAAPI) |
     | `--docker` | — | off | Use Docker for [deterministic rendering](/concepts/determinism) |

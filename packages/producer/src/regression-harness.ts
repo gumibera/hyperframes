@@ -34,7 +34,7 @@ type TestMetadata = {
     fps: 24 | 30 | 60;
     format?: "mp4" | "webm"; // Optional: defaults to "mp4"
     workers?: number; // Optional: auto-calculates if omitted
-    /** Enable HDR color-space probing + HDR10 encode pipeline. */
+    /** Force HDR in the harness; omitted/false preserves historical SDR-only test behavior. */
     hdr?: boolean;
   };
 };
@@ -600,7 +600,7 @@ async function runTestSuite(
       workers: suite.meta.renderConfig.workers,
       useGpu: false,
       debug: false,
-      hdrMode: suite.meta.renderConfig.hdr ? "force-hdr" : "auto",
+      hdrMode: suite.meta.renderConfig.hdr ? "force-hdr" : "force-sdr",
     });
 
     await executeRenderJob(job, tempSrcDir, renderedOutputPath);

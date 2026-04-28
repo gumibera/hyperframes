@@ -87,8 +87,6 @@ describe("buildDockerRunArgs", () => {
         "standard",
         "--format",
         "mp4",
-        "--workers",
-        "4",
         "--crf",
         "18",
         "--quiet",

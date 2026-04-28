@@ -9,7 +9,7 @@ export const examples: Example[] = [
   ["High quality at 60fps", "hyperframes render --fps 60 --quality high --output hd.mp4"],
   ["Deterministic render via Docker", "hyperframes render --docker --output deterministic.mp4"],
   ["Parallel rendering with 6 workers", "hyperframes render --workers 6 --output fast.mp4"],
-  ["HDR output (H.265 10-bit)", "hyperframes render --hdr --output hdr-output.mp4"],
+  ["HDR output (auto-detected)", "hyperframes render --output hdr-output.mp4"],
 ];
 import { cpus, freemem, tmpdir } from "node:os";
 import { resolve, dirname, join, basename } from "node:path";
