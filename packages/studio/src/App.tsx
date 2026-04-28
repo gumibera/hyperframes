@@ -2880,6 +2880,7 @@ export function StudioApp() {
                   selection={
                     !rightCollapsed && rightPanelTab === "design" ? domEditSelection : null
                   }
+                  allowCanvasMovement={false}
                   onCanvasMouseDown={handlePreviewCanvasMouseDown}
                   onCanvasDoubleClick={handlePreviewCanvasDoubleClick}
                   onSelectedDoubleClick={handleSelectedOverlayDoubleClick}
@@ -2974,6 +2975,7 @@ export function StudioApp() {
                         onImportAssets={handleImportFiles}
                         fontAssets={fontAssets}
                         onImportFonts={handleImportFonts}
+                        allowLayoutDetach={false}
                       />
                     ) : (
                       <RenderQueue
