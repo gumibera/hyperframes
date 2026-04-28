@@ -1,7 +1,76 @@
 import type { LintContext, HyperframeLintFinding } from "../context";
 import { readAttr, truncateSnippet } from "../utils";
 
+// Agent guidance thresholds: warning-only nudges for files/tracks that become hard
+// to inspect and revise reliably in a single composition.
+const MAX_COMPOSITION_LINES = 300;
+const MAX_TIMED_ELEMENTS_PER_TRACK = 3;
+const TRACK_DENSITY_EXEMPT_TAGS = new Set(["audio", "script", "style", "video"]);
+
+function countPhysicalLines(source: string): number {
+  if (source.length === 0) return 0;
+
+  const normalized = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const withoutFinalNewline = normalized.endsWith("\n") ? normalized.slice(0, -1) : normalized;
+  return withoutFinalNewline.split("\n").length;
+}
+
+function isCompositionRootOrMount(rawTag: string): boolean {
+  return Boolean(
+    readAttr(rawTag, "data-composition-id") || readAttr(rawTag, "data-composition-src"),
+  );
+}
+
 export const compositionRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
+  // composition_file_too_large
+  ({ rawSource, options }) => {
+    const lineCount = countPhysicalLines(rawSource);
+    if (lineCount <= MAX_COMPOSITION_LINES) return [];
+
+    const splitTarget = options.isSubComposition
+      ? "Split this sub-composition further into smaller .html files"
+      : "Split coherent scenes or layers into separate .html files under compositions/";
+
+    return [
+      {
+        code: "composition_file_too_large",
+        severity: "warning",
+        message: `This HTML composition file has ${lineCount} lines. Agents produce better results when large scenes are split into smaller sub-compositions.`,
+        fixHint: `${splitTarget}, then mount them from the parent with data-composition-src so each file stays small enough to inspect, revise, and validate independently.`,
+      },
+    ];
+  },
+
+  // timeline_track_too_dense
+  ({ tags, options }) => {
+    const trackCounts = new Map<string, number>();
+    for (const tag of tags) {
+      if (TRACK_DENSITY_EXEMPT_TAGS.has(tag.name)) continue;
+      if (isCompositionRootOrMount(tag.raw)) continue;
+      if (!readAttr(tag.raw, "data-start")) continue;
+
+      const track = readAttr(tag.raw, "data-track-index");
+      if (!track) continue;
+      trackCounts.set(track, (trackCounts.get(track) ?? 0) + 1);
+    }
+
+    const findings: HyperframeLintFinding[] = [];
+    for (const [track, count] of trackCounts) {
+      if (count <= MAX_TIMED_ELEMENTS_PER_TRACK) continue;
+      const splitTarget = options.isSubComposition
+        ? "Move coherent scene groups into smaller .html files"
+        : "Move coherent scene groups into separate .html files under compositions/";
+      findings.push({
+        code: "timeline_track_too_dense",
+        severity: "warning",
+        message: `Track ${track} has ${count} timed elements in this HTML file. Agents produce better timelines when dense tracks are split into smaller sub-compositions.`,
+        fixHint: `${splitTarget} and mount them from the parent with data-composition-src so the timeline stays easier to inspect, revise, and validate.`,
+      });
+    }
+
+    return findings;
+  },
+
   // timed_element_missing_visibility_hidden
   ({ tags }) => {
     const findings: HyperframeLintFinding[] = [];

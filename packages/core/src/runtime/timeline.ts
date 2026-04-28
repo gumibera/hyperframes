@@ -416,7 +416,7 @@ export function collectRuntimeTimelinePayload(params: {
       targets?: () => Element[];
       startTime?: () => number;
       duration?: () => number;
-      parent?: { startTime?: () => number };
+      parent?: GsapTween;
     };
     const tlWithChildren = masterTimeline as typeof masterTimeline & {
       getChildren?: (nested: boolean, tweens: boolean, timelines: boolean) => GsapTween[];
@@ -452,9 +452,9 @@ export function collectRuntimeTimelinePayload(params: {
             continue;
           let tweenStart = tween.startTime();
           let parent = tween.parent;
-          while (parent && typeof parent.startTime === "function") {
+          while (parent && parent !== masterTimeline && typeof parent.startTime === "function") {
             tweenStart += parent.startTime();
-            parent = (parent as GsapTween).parent;
+            parent = parent.parent;
           }
           const tweenEnd = tweenStart + tween.duration();
           if (!Number.isFinite(tweenStart) || !Number.isFinite(tweenEnd)) continue;

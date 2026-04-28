@@ -2,14 +2,10 @@ import { spawn } from "node:child_process";
 import { defineCommand } from "citty";
 import { existsSync, mkdtempSync, readFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve, join, dirname, relative, isAbsolute } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve, join, relative, isAbsolute } from "node:path";
 import { resolveProject } from "../utils/project.js";
 import { c } from "../ui/colors.js";
 import type { Example } from "./_examples.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 /** Maximum time a single-frame FFmpeg extract is allowed to run. Mirrors the
  * default applied by `@hyperframes/engine`'s `runFfmpeg` so a pathological
@@ -103,12 +99,11 @@ async function captureSnapshots(
   let html = await bundleToSingleHtml(projectDir);
 
   // Inject local runtime if available.
-  // The runtime IIFE is copied into the CLI dist during build (build:runtime),
-  // so it lives alongside cli.js. The old ../../../core/dist/ path only worked
-  // in the monorepo dev layout and broke for published/npx installs.
-  const runtimePath = resolve(__dirname, "hyperframe.runtime.iife.js");
-  if (existsSync(runtimePath)) {
-    const runtimeSource = readFileSync(runtimePath, "utf-8");
+  // Uses the same multi-strategy resolver as the studio preview server
+  // (runtimeSource.ts) so snapshot works in dev (tsx), built CLI, and npx.
+  const { loadRuntimeSource } = await import("../server/runtimeSource.js");
+  const runtimeSource = await loadRuntimeSource();
+  if (runtimeSource) {
     html = html.replace(
       /<script[^>]*data-hyperframes-preview-runtime[^>]*src="[^"]*"[^>]*><\/script>/,
       () => `<script data-hyperframes-preview-runtime="1">${runtimeSource}</script>`,

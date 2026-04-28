@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  formatTimelineTickLabel,
   generateTicks,
   getDefaultDroppedTrack,
   getTimelineCanvasHeight,
   resolveTimelineAssetDrop,
   getTimelinePlayheadLeft,
+  getTimelineScrollLeftForZoomAnchor,
   getTimelineScrollLeftForZoomTransition,
   shouldShowTimelineShortcutHint,
   shouldHandleTimelineDeleteKey,
@@ -79,6 +81,20 @@ describe("generateTicks", () => {
       expect(major[0]).toBe(0);
     }
   });
+
+  it("uses denser major labels as timeline zoom increases", () => {
+    const fitTicks = generateTicks(180, 10);
+    const zoomedTicks = generateTicks(180, 48);
+    expect(fitTicks.major[1] - fitTicks.major[0]).toBe(15);
+    expect(zoomedTicks.major[1] - zoomedTicks.major[0]).toBe(5);
+    expect(zoomedTicks.minor).toContain(1);
+    expect(zoomedTicks.minor).toContain(4);
+  });
+
+  it("keeps labels readable instead of placing one at every tiny tick", () => {
+    const { major } = generateTicks(180, 80);
+    expect(major[1] - major[0]).toBe(2);
+  });
 });
 
 describe("formatTime", () => {
@@ -119,6 +135,20 @@ describe("formatTime", () => {
   });
 });
 
+describe("formatTimelineTickLabel", () => {
+  it("uses minute-second labels for normal timeline intervals", () => {
+    expect(formatTimelineTickLabel(90, 180, 5)).toBe("1:30");
+  });
+
+  it("uses hour labels for long timelines", () => {
+    expect(formatTimelineTickLabel(3661, 4000, 60)).toBe("1:01:01");
+  });
+
+  it("shows subsecond labels when the major ruler interval is below one second", () => {
+    expect(formatTimelineTickLabel(1.5, 3, 0.5)).toBe("0:01.5");
+  });
+});
+
 describe("shouldAutoScrollTimeline", () => {
   it("never auto-scrolls in fit mode", () => {
     expect(shouldAutoScrollTimeline("fit", 1200, 800)).toBe(false);
@@ -145,6 +175,48 @@ describe("getTimelineScrollLeftForZoomTransition", () => {
     expect(getTimelineScrollLeftForZoomTransition("manual", "manual", 480)).toBe(480);
   });
 });
+
+describe("getTimelineScrollLeftForZoomAnchor", () => {
+  it("preserves the time under the pointer when zooming in", () => {
+    expect(
+      getTimelineScrollLeftForZoomAnchor({
+        pointerX: 300,
+        currentScrollLeft: 200,
+        gutter: 32,
+        currentPixelsPerSecond: 10,
+        nextPixelsPerSecond: 20,
+        duration: 120,
+      }),
+    ).toBe(668);
+  });
+
+  it("clamps negative scroll targets", () => {
+    expect(
+      getTimelineScrollLeftForZoomAnchor({
+        pointerX: 300,
+        currentScrollLeft: 0,
+        gutter: 32,
+        currentPixelsPerSecond: 20,
+        nextPixelsPerSecond: 5,
+        duration: 120,
+      }),
+    ).toBe(0);
+  });
+
+  it("preserves current scroll when inputs are invalid", () => {
+    expect(
+      getTimelineScrollLeftForZoomAnchor({
+        pointerX: 300,
+        currentScrollLeft: 120,
+        gutter: 32,
+        currentPixelsPerSecond: 0,
+        nextPixelsPerSecond: 20,
+        duration: 120,
+      }),
+    ).toBe(120);
+  });
+});
+
 describe("getTimelinePlayheadLeft", () => {
   it("converts time to a pixel offset from the gutter", () => {
     expect(getTimelinePlayheadLeft(4, 20)).toBe(112);

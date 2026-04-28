@@ -2,6 +2,148 @@ import { describe, it, expect } from "vitest";
 import { lintHyperframeHtml } from "../hyperframeLinter.js";
 
 describe("composition rules", () => {
+  describe("subcomposition guidance", () => {
+    it("warns when any HTML composition file is over 300 lines", () => {
+      const html = Array.from({ length: 301 }, (_, i) =>
+        i === 0 ? "<html><body>" : `<!-- filler ${i} -->`,
+      ).join("\n");
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/compositions/scene.html" });
+      const finding = result.findings.find((f) => f.code === "composition_file_too_large");
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe("warning");
+    });
+
+    it("does not warn when an HTML composition file is exactly 300 lines", () => {
+      const html = Array.from({ length: 300 }, (_, i) =>
+        i === 0 ? "<html><body>" : `<!-- filler ${i} -->`,
+      ).join("\n");
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/index.html" });
+      const finding = result.findings.find((f) => f.code === "composition_file_too_large");
+      expect(finding).toBeUndefined();
+    });
+
+    it("does not count a final trailing newline as an extra physical line", () => {
+      const html =
+        Array.from({ length: 300 }, (_, i) =>
+          i === 0 ? "<html><body>" : `<!-- filler ${i} -->`,
+        ).join("\n") + "\n";
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/index.html" });
+      const finding = result.findings.find((f) => f.code === "composition_file_too_large");
+      expect(finding).toBeUndefined();
+    });
+
+    it("warns on large HTML files regardless of path", () => {
+      const html = Array.from({ length: 301 }, (_, i) =>
+        i === 0 ? "<html><body>" : `<!-- filler ${i} -->`,
+      ).join("\n");
+
+      const result = lintHyperframeHtml(html, {
+        filePath: "/project/registry/blocks/data-chart.html",
+      });
+      const finding = result.findings.find((f) => f.code === "composition_file_too_large");
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe("warning");
+    });
+
+    it("uses nested split copy for large sub-composition files", () => {
+      const html = Array.from({ length: 301 }, (_, i) =>
+        i === 0 ? "<html><body>" : `<!-- filler ${i} -->`,
+      ).join("\n");
+
+      const result = lintHyperframeHtml(html, {
+        filePath: "/project/compositions/scene.html",
+        isSubComposition: true,
+      });
+      const finding = result.findings.find((f) => f.code === "composition_file_too_large");
+      expect(finding?.fixHint).toContain("Split this sub-composition further");
+    });
+
+    it("warns when more than 3 timed elements share the same track", () => {
+      const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0">
+    <div class="clip" data-start="0" data-duration="1" data-track-index="0">A</div>
+    <div class="clip" data-start="1" data-duration="1" data-track-index="0">B</div>
+    <div class="clip" data-start="2" data-duration="1" data-track-index="0">C</div>
+    <div class="clip" data-start="3" data-duration="1" data-track-index="0">D</div>
+  </div>
+</body></html>`;
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/compositions/scene.html" });
+      const finding = result.findings.find((f) => f.code === "timeline_track_too_dense");
+      expect(finding).toBeDefined();
+      expect(finding?.severity).toBe("warning");
+      expect(finding?.message).toContain("Track 0 has 4 timed elements");
+    });
+
+    it("does not warn when 3 timed elements share the same track", () => {
+      const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0">
+    <div class="clip" data-start="0" data-duration="1" data-track-index="0">A</div>
+    <div class="clip" data-start="1" data-duration="1" data-track-index="0">B</div>
+    <div class="clip" data-start="2" data-duration="1" data-track-index="0">C</div>
+  </div>
+</body></html>`;
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/index.html" });
+      const finding = result.findings.find((f) => f.code === "timeline_track_too_dense");
+      expect(finding).toBeUndefined();
+    });
+
+    it("does not warn when timed elements are split across tracks", () => {
+      const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0">
+    <div class="clip" data-start="0" data-duration="1" data-track-index="0">A</div>
+    <div class="clip" data-start="1" data-duration="1" data-track-index="0">B</div>
+    <div class="clip" data-start="2" data-duration="1" data-track-index="1">C</div>
+    <div class="clip" data-start="3" data-duration="1" data-track-index="1">D</div>
+  </div>
+</body></html>`;
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/index.html" });
+      const finding = result.findings.find((f) => f.code === "timeline_track_too_dense");
+      expect(finding).toBeUndefined();
+    });
+
+    it("does not count timed media or script/style tags as dense track elements", () => {
+      const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0">
+    <audio data-start="0" data-duration="1" data-track-index="0"></audio>
+    <audio data-start="1" data-duration="1" data-track-index="0"></audio>
+    <video muted data-start="2" data-duration="1" data-track-index="0"></video>
+    <script data-start="3" data-duration="1" data-track-index="0"></script>
+    <style data-start="4" data-duration="1" data-track-index="0"></style>
+  </div>
+</body></html>`;
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/index.html" });
+      const finding = result.findings.find((f) => f.code === "timeline_track_too_dense");
+      expect(finding).toBeUndefined();
+    });
+
+    it("does not count root composition or mounted sub-compositions as dense elements", () => {
+      const html = `<!DOCTYPE html>
+<html><body>
+  <div data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-track-index="0">
+    <div data-composition-id="a" data-composition-src="compositions/a.html" data-start="0" data-duration="1" data-track-index="0"></div>
+    <div data-composition-id="b" data-composition-src="compositions/b.html" data-start="1" data-duration="1" data-track-index="0"></div>
+    <div data-composition-id="c" data-composition-src="compositions/c.html" data-start="2" data-duration="1" data-track-index="0"></div>
+    <div data-composition-id="d" data-composition-src="compositions/d.html" data-start="3" data-duration="1" data-track-index="0"></div>
+  </div>
+</body></html>`;
+
+      const result = lintHyperframeHtml(html, { filePath: "/project/index.html" });
+      const finding = result.findings.find((f) => f.code === "timeline_track_too_dense");
+      expect(finding).toBeUndefined();
+    });
+  });
+
   it("reports info for composition with external CDN script dependency", () => {
     const html = `<template id="rockets-template">
   <div data-composition-id="rockets" data-width="1920" data-height="1080">

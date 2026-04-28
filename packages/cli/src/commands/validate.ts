@@ -27,10 +27,6 @@ interface ContrastEntry {
   bg: string;
 }
 
-// esbuild's text loader inlines this at build time — no runtime file read.
-// @ts-expect-error — .browser.js files use esbuild text loader, not TS module resolution
-import CONTRAST_AUDIT_SCRIPT from "./contrast-audit.browser.js";
-
 const CONTRAST_SAMPLES = 5;
 const SEEK_SETTLE_MS = 150;
 
@@ -64,7 +60,7 @@ async function runContrastAudit(page: import("puppeteer-core").Page): Promise<Co
   const duration = await getCompositionDuration(page);
   if (duration <= 0) return [];
 
-  await page.addScriptTag({ content: CONTRAST_AUDIT_SCRIPT });
+  await page.addScriptTag({ content: loadContrastAuditScript() });
 
   const results: ContrastEntry[] = [];
   for (let i = 0; i < CONTRAST_SAMPLES; i++) {
@@ -84,6 +80,19 @@ async function runContrastAudit(page: import("puppeteer-core").Page): Promise<Co
   }
 
   return results;
+}
+
+function loadContrastAuditScript(): string {
+  const candidates = [
+    join(__dirname, "contrast-audit.browser.js"),
+    join(__dirname, "commands", "contrast-audit.browser.js"),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return readFileSync(candidate, "utf-8");
+  }
+
+  throw new Error("Missing contrast audit browser script");
 }
 
 async function validateInBrowser(

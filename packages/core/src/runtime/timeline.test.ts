@@ -402,6 +402,92 @@ describe("collectRuntimeTimelinePayload", () => {
     expect(s2?.duration).toBe(3);
   });
 
+  it("does not offset GSAP scene clips by the master timeline start time", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "20");
+    document.body.appendChild(root);
+
+    const scene = document.createElement("div");
+    scene.id = "scene-1";
+    root.appendChild(scene);
+
+    const masterTimeline = {
+      duration: () => 20,
+      time: () => 1.25,
+      play: () => {},
+      pause: () => {},
+      seek: () => {},
+      add: () => {},
+      paused: () => {},
+      set: () => {},
+      startTime: () => 1.25,
+      getChildren: () => [
+        {
+          targets: () => [scene],
+          startTime: () => 4,
+          duration: () => 3,
+          parent: masterTimeline,
+        },
+      ],
+    };
+
+    (window as any).__timelines = {
+      main: masterTimeline,
+    };
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    const clip = result.clips.find((c) => c.id === "scene-1");
+    expect(clip).toBeDefined();
+    expect(clip?.start).toBe(4);
+    expect(clip?.duration).toBe(3);
+  });
+
+  it("keeps nested GSAP timeline offsets below the master timeline", () => {
+    const root = document.createElement("div");
+    root.setAttribute("data-composition-id", "main");
+    root.setAttribute("data-duration", "20");
+    document.body.appendChild(root);
+
+    const scene = document.createElement("div");
+    scene.id = "scene-1";
+    root.appendChild(scene);
+
+    const masterTimeline = {
+      duration: () => 20,
+      time: () => 1.25,
+      play: () => {},
+      pause: () => {},
+      seek: () => {},
+      add: () => {},
+      paused: () => {},
+      set: () => {},
+      startTime: () => 1.25,
+      getChildren: () => [] as unknown[],
+    };
+    const nestedTimeline = {
+      startTime: () => 6,
+      parent: masterTimeline,
+    };
+    const nestedTween = {
+      targets: () => [scene],
+      startTime: () => 2,
+      duration: () => 3,
+      parent: nestedTimeline,
+    };
+    masterTimeline.getChildren = () => [nestedTween];
+
+    (window as any).__timelines = {
+      main: masterTimeline,
+    };
+
+    const result = collectRuntimeTimelinePayload(defaultParams);
+    const clip = result.clips.find((c) => c.id === "scene-1");
+    expect(clip).toBeDefined();
+    expect(clip?.start).toBe(8);
+    expect(clip?.duration).toBe(3);
+  });
+
   it("bubbles child tween ranges up to scene-level ancestors", () => {
     const root = document.createElement("div");
     root.setAttribute("data-composition-id", "main");

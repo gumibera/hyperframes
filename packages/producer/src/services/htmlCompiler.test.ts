@@ -494,6 +494,7 @@ describe("template-wrapped sub-composition media offsets", () => {
   function writeTemplateWrappedProject(
     hostAttrs: string,
     mediaAttrs: string = 'data-start="0" data-duration="4"',
+    extraMediaMarkup: string = "",
   ): {
     projectDir: string;
     indexPath: string;
@@ -547,6 +548,7 @@ describe("template-wrapped sub-composition media offsets", () => {
       ${mediaAttrs}
       data-track-index="0"
     ></video>
+    ${extraMediaMarkup}
     <script>
       window.__timelines = window.__timelines || {};
       window.__timelines["scene"] = { duration: () => 4 };
@@ -628,6 +630,30 @@ describe("template-wrapped sub-composition media offsets", () => {
       start: 21.5,
       end: 25.5,
     });
+  });
+
+  it("includes explicit audio from template-wrapped sub-compositions", async () => {
+    const { projectDir, indexPath } = writeTemplateWrappedProject(
+      'data-start="5" data-duration="6" data-width="640" data-height="360"',
+      'data-start="1" data-duration="4"',
+      `<audio
+        id="scene-audio"
+        src="../assets/narration.wav"
+        data-start="2"
+        data-duration="3"
+        data-track-index="1"
+      ></audio>`,
+    );
+
+    const compiled = await compileForRender(projectDir, indexPath, projectDir);
+
+    expect(compiled.audios).toContainEqual(
+      expect.objectContaining({
+        id: "scene-audio",
+        start: 7,
+        end: 10,
+      }),
+    );
   });
 
   it("flattens the sub-composition root onto the host in compiled render HTML", async () => {
