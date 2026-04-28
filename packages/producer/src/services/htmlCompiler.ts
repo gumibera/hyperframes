@@ -51,6 +51,7 @@ export interface CompiledComposition {
   height: number;
   staticDuration: number;
   renderModeHints: RenderModeHints;
+  hasShaderTransitions: boolean;
 }
 
 export type RenderModeHintCode = "iframe" | "requestAnimationFrame";
@@ -122,6 +123,22 @@ export function detectRenderModeHints(html: string): RenderModeHints {
     recommendScreenshot: reasons.length > 0,
     reasons,
   };
+}
+
+const SHADER_TRANSITION_USAGE_PATTERN =
+  /\b(?:(?:window|globalThis)\s*\.\s*)?HyperShader\s*\.\s*init\s*\(|\b__hf\s*\.\s*transitions\s*=/;
+
+export function detectShaderTransitionUsage(html: string): boolean {
+  let scriptMatch: RegExpExecArray | null;
+  const scriptPattern = new RegExp(INLINE_SCRIPT_PATTERN.source, INLINE_SCRIPT_PATTERN.flags);
+  while ((scriptMatch = scriptPattern.exec(html)) !== null) {
+    const attrs = scriptMatch[1] || "";
+    if (/\bsrc\s*=/i.test(attrs)) continue;
+    const content = stripJsComments(stripCompilerMountBootstrap(scriptMatch[2] || ""));
+    if (SHADER_TRANSITION_USAGE_PATTERN.test(content)) return true;
+  }
+
+  return false;
 }
 
 async function resolveMediaDuration(
@@ -932,6 +949,7 @@ export async function compileForRender(
     "$1",
   );
   const renderModeHints = detectRenderModeHints(sanitizedHtml);
+  const hasShaderTransitions = detectShaderTransitionUsage(sanitizedHtml);
 
   const coalescedHtml = await injectDeterministicFontFaces(
     coalesceHeadStylesAndBodyScripts(promoteCssImportsToLinkTags(sanitizedHtml)),
@@ -1014,6 +1032,7 @@ export async function compileForRender(
     height,
     staticDuration,
     renderModeHints,
+    hasShaderTransitions,
   };
 }
 
@@ -1189,5 +1208,6 @@ export async function recompileWithResolutions(
     images,
     unresolvedCompositions: remaining,
     renderModeHints: compiled.renderModeHints,
+    hasShaderTransitions: compiled.hasShaderTransitions,
   };
 }

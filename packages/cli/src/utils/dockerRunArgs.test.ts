@@ -5,7 +5,6 @@ const BASE: DockerRenderOptions = {
   fps: 30,
   quality: "standard",
   format: "mp4",
-  workers: 4,
   gpu: false,
   hdr: false,
   crf: undefined,
@@ -43,17 +42,28 @@ describe("buildDockerRunArgs", () => {
         "standard",
         "--format",
         "mp4",
-        "--workers",
-        "4",
       ]
     `);
+  });
+
+  it("omits --workers when auto sizing should happen inside the container", () => {
+    const args = buildDockerRunArgs({ ...FIXED_INPUT, options: BASE });
+    expect(args).not.toContain("--workers");
   });
 
   it("matches snapshot when every renderer flag is enabled", () => {
     expect(
       buildDockerRunArgs({
         ...FIXED_INPUT,
-        options: { ...BASE, gpu: true, hdr: true, crf: 18, videoBitrate: undefined, quiet: true },
+        options: {
+          ...BASE,
+          workers: 4,
+          gpu: true,
+          hdr: true,
+          crf: 18,
+          videoBitrate: undefined,
+          quiet: true,
+        },
       }),
     ).toMatchInlineSnapshot(`
       [

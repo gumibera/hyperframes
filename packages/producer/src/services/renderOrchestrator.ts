@@ -58,6 +58,8 @@ import {
   distributeFrames,
   executeParallelCapture,
   mergeWorkerFrames,
+  type ParallelProgress,
+  type WorkerTask,
   spawnStreamingEncoder,
   createFrameReorderBuffer,
   type StreamingEncoder,
@@ -278,6 +280,13 @@ export interface RenderPerfSummary {
   tmpPeakBytes?: number;
   captureAvgMs?: number;
   capturePeakMs?: number;
+  captureCalibration?: {
+    sampledFrames: number[];
+    p95Ms?: number;
+    multiplier: number;
+    reasons: string[];
+  };
+  captureAttempts?: CaptureAttemptSummary[];
   /**
    * Peak resident set size (RSS) observed during the render, in MiB.
    *
@@ -301,6 +310,29 @@ export interface RenderPerfSummary {
 export interface HdrDiagnostics {
   videoExtractionFailures: number;
   imageDecodeFailures: number;
+}
+
+export interface CaptureCostEstimate {
+  multiplier: number;
+  reasons: string[];
+  p95Ms?: number;
+}
+
+export interface CaptureCalibrationSample {
+  frameIndex: number;
+  captureTimeMs: number;
+}
+
+export interface FrameRange {
+  startFrame: number;
+  endFrame: number;
+}
+
+export interface CaptureAttemptSummary {
+  attempt: number;
+  workers: number;
+  frameCount: number;
+  reason: "initial" | "retry";
 }
 
 export interface RenderJob {
@@ -480,6 +512,7 @@ export function writeCompiledArtifacts(
       })),
       subCompositions: Array.from(compiled.subCompositions.keys()),
       renderModeHints: compiled.renderModeHints,
+      hasShaderTransitions: compiled.hasShaderTransitions,
     };
     writeFileSync(join(compileDir, "summary.json"), JSON.stringify(summary, null, 2), "utf-8");
   }
@@ -497,6 +530,383 @@ export function applyRenderModeHints(
     reasonCodes: compiled.renderModeHints.reasons.map((reason) => reason.code),
     reasons: compiled.renderModeHints.reasons.map((reason) => reason.message),
   });
+}
+
+export function resolveRenderWorkerCount(
+  totalFrames: number,
+  requestedWorkers: number | undefined,
+  cfg: EngineConfig,
+  compiled: Pick<CompiledComposition, "hasShaderTransitions" | "renderModeHints">,
+  composition: Pick<CompositionMetadata, "videos" | "audios">,
+  log: ProducerLogger = defaultLogger,
+  measuredCaptureCost?: CaptureCostEstimate,
+): number {
+  const captureCost = combineCaptureCostEstimates(
+    estimateCaptureCostMultiplier(compiled, composition),
+    measuredCaptureCost,
+  );
+  const workerCount = calculateOptimalWorkers(totalFrames, requestedWorkers, {
+    ...cfg,
+    captureCostMultiplier: captureCost.multiplier,
+  });
+
+  if (requestedWorkers !== undefined || captureCost.multiplier <= 1) {
+    return workerCount;
+  }
+
+  const baselineWorkers = calculateOptimalWorkers(totalFrames, undefined, cfg);
+  if (workerCount < baselineWorkers) {
+    log.warn(
+      "[Render] Reduced auto worker count for high-cost capture workload to avoid Chrome compositor starvation.",
+      {
+        from: baselineWorkers,
+        to: workerCount,
+        costMultiplier: captureCost.multiplier,
+        reasons: captureCost.reasons,
+      },
+    );
+  }
+
+  return workerCount;
+}
+
+export function estimateCaptureCostMultiplier(
+  compiled: Pick<CompiledComposition, "hasShaderTransitions" | "renderModeHints">,
+  composition: Pick<CompositionMetadata, "videos" | "audios">,
+): CaptureCostEstimate {
+  let multiplier = 1;
+  const reasons: string[] = [];
+
+  if (compiled.hasShaderTransitions) {
+    multiplier += 2;
+    reasons.push("shader-transitions");
+  }
+
+  const reasonCodes = new Set(compiled.renderModeHints.reasons.map((reason) => reason.code));
+  if (reasonCodes.has("requestAnimationFrame")) {
+    multiplier += 1;
+    reasons.push("requestAnimationFrame");
+  }
+  if (reasonCodes.has("iframe")) {
+    multiplier += 0.5;
+    reasons.push("iframe");
+  }
+
+  if (composition.videos.length > 0) {
+    multiplier += Math.min(2, composition.videos.length * 0.75);
+    reasons.push(`${composition.videos.length} video${composition.videos.length === 1 ? "" : "s"}`);
+  }
+
+  if (composition.audios.length > 0) {
+    multiplier += Math.min(1, composition.audios.length * 0.75);
+    reasons.push(`${composition.audios.length} audio${composition.audios.length === 1 ? "" : "s"}`);
+  }
+
+  return {
+    multiplier: Math.round(multiplier * 100) / 100,
+    reasons,
+  };
+}
+
+function combineCaptureCostEstimates(
+  staticCost: CaptureCostEstimate,
+  measuredCost?: CaptureCostEstimate,
+): CaptureCostEstimate {
+  if (!measuredCost || measuredCost.multiplier <= 1) return staticCost;
+  if (staticCost.multiplier >= measuredCost.multiplier) {
+    return {
+      multiplier: staticCost.multiplier,
+      reasons: [...staticCost.reasons, ...measuredCost.reasons],
+      p95Ms: measuredCost.p95Ms,
+    };
+  }
+  return {
+    multiplier: measuredCost.multiplier,
+    reasons: [...measuredCost.reasons, ...staticCost.reasons],
+    p95Ms: measuredCost.p95Ms,
+  };
+}
+
+const CAPTURE_CALIBRATION_TARGET_MS = 600;
+const MAX_MEASURED_CAPTURE_COST_MULTIPLIER = 8;
+const CAPTURE_CALIBRATION_PROTOCOL_TIMEOUT_MS = 30_000;
+
+export function createCaptureCalibrationConfig(cfg: EngineConfig): EngineConfig {
+  return {
+    ...cfg,
+    protocolTimeout: Math.min(cfg.protocolTimeout, CAPTURE_CALIBRATION_PROTOCOL_TIMEOUT_MS),
+  };
+}
+
+export function estimateMeasuredCaptureCostMultiplier(
+  samples: CaptureCalibrationSample[],
+): CaptureCostEstimate {
+  if (samples.length === 0) {
+    return { multiplier: 1, reasons: [] };
+  }
+
+  const sorted = [...samples].sort((a, b) => a.captureTimeMs - b.captureTimeMs);
+  const p95Index = Math.max(0, Math.ceil(sorted.length * 0.95) - 1);
+  const p95Sample = sorted[p95Index] ?? sorted[sorted.length - 1];
+  if (!p95Sample) {
+    return { multiplier: 1, reasons: [] };
+  }
+  const p95Ms = Math.round(p95Sample.captureTimeMs);
+  const multiplier = Math.min(
+    MAX_MEASURED_CAPTURE_COST_MULTIPLIER,
+    Math.max(1, Math.round((p95Ms / CAPTURE_CALIBRATION_TARGET_MS) * 100) / 100),
+  );
+
+  return {
+    multiplier,
+    reasons: multiplier > 1 ? [`calibration-p95=${p95Ms}ms`] : [],
+    p95Ms,
+  };
+}
+
+export function selectCaptureCalibrationFrames(totalFrames: number): number[] {
+  if (totalFrames <= 0) return [];
+  const lastFrame = totalFrames - 1;
+  const candidates = [
+    0,
+    Math.floor(totalFrames * 0.25),
+    Math.floor(totalFrames * 0.5),
+    Math.floor(totalFrames * 0.75),
+    lastFrame,
+  ];
+  return Array.from(
+    new Set(candidates.map((frame) => Math.max(0, Math.min(lastFrame, frame)))),
+  ).sort((a, b) => a - b);
+}
+
+export function findMissingFrameRanges(
+  totalFrames: number,
+  framesDir: string,
+  frameExt: "jpg" | "png",
+): FrameRange[] {
+  const ranges: FrameRange[] = [];
+  let rangeStart: number | null = null;
+
+  for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+    const framePath = join(framesDir, `frame_${String(frameIndex).padStart(6, "0")}.${frameExt}`);
+    const missing = !existsSync(framePath);
+    if (missing && rangeStart === null) {
+      rangeStart = frameIndex;
+    } else if (!missing && rangeStart !== null) {
+      ranges.push({ startFrame: rangeStart, endFrame: frameIndex });
+      rangeStart = null;
+    }
+  }
+
+  if (rangeStart !== null) {
+    ranges.push({ startFrame: rangeStart, endFrame: totalFrames });
+  }
+
+  return ranges;
+}
+
+export function buildMissingFrameRetryBatches(
+  ranges: FrameRange[],
+  maxWorkers: number,
+  workDir: string,
+  attempt: number,
+): WorkerTask[][] {
+  const workersPerBatch = Math.max(1, Math.floor(maxWorkers));
+  const batches: WorkerTask[][] = [];
+
+  for (let i = 0; i < ranges.length; i += workersPerBatch) {
+    const batchIndex = batches.length;
+    const batch = ranges.slice(i, i + workersPerBatch).map((range, workerId) => ({
+      workerId,
+      startFrame: range.startFrame,
+      endFrame: range.endFrame,
+      outputDir: join(workDir, `retry-${attempt}-batch-${batchIndex}-worker-${workerId}`),
+    }));
+    batches.push(batch);
+  }
+
+  return batches;
+}
+
+export function getNextRetryWorkerCount(currentWorkers: number): number {
+  return Math.max(1, Math.floor(currentWorkers / 2));
+}
+
+export function isRecoverableParallelCaptureError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("[Parallel] Capture failed") &&
+    /Runtime\.callFunctionOn timed out|HeadlessExperimental\.beginFrame timed out|Waiting failed|timeout exceeded|timed out|Navigation timeout|Protocol error|Target closed/i.test(
+      message,
+    )
+  );
+}
+
+export function shouldFallbackToScreenshotAfterCalibrationError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /HeadlessExperimental\.beginFrame timed out|beginFrame probe timeout|Another frame is pending|Frame still pending|Protocol error.*HeadlessExperimental\.beginFrame/i.test(
+    message,
+  );
+}
+
+function countCapturedFrames(
+  totalFrames: number,
+  framesDir: string,
+  frameExt: "jpg" | "png",
+): number {
+  let captured = 0;
+  for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+    const framePath = join(framesDir, `frame_${String(frameIndex).padStart(6, "0")}.${frameExt}`);
+    if (existsSync(framePath)) captured++;
+  }
+  return captured;
+}
+
+function countFrameRanges(ranges: FrameRange[]): number {
+  return ranges.reduce((sum, range) => sum + (range.endFrame - range.startFrame), 0);
+}
+
+async function measureCaptureCostFromSession(
+  session: CaptureSession,
+  totalFrames: number,
+  fps: number,
+): Promise<{ estimate: CaptureCostEstimate; samples: CaptureCalibrationSample[] }> {
+  const sampledFrames = selectCaptureCalibrationFrames(totalFrames);
+  const samples: CaptureCalibrationSample[] = [];
+
+  for (const frameIndex of sampledFrames) {
+    const time = frameIndex / fps;
+    const startedAt = Date.now();
+    const result = await captureFrameToBuffer(session, frameIndex, time);
+    samples.push({
+      frameIndex,
+      captureTimeMs: result.captureTimeMs || Date.now() - startedAt,
+    });
+  }
+
+  return {
+    estimate: estimateMeasuredCaptureCostMultiplier(samples),
+    samples,
+  };
+}
+
+async function executeDiskCaptureWithAdaptiveRetry(options: {
+  serverUrl: string;
+  workDir: string;
+  framesDir: string;
+  totalFrames: number;
+  initialWorkerCount: number;
+  allowRetry: boolean;
+  frameExt: "jpg" | "png";
+  captureOptions: CaptureOptions;
+  createBeforeCaptureHook: () => BeforeCaptureHook | null;
+  abortSignal?: AbortSignal;
+  onProgress?: (progress: ParallelProgress) => void;
+  cfg: EngineConfig;
+  log: ProducerLogger;
+}): Promise<CaptureAttemptSummary[]> {
+  const attempts: CaptureAttemptSummary[] = [];
+  let currentWorkers = options.initialWorkerCount;
+  let missingRanges: FrameRange[] | null = null;
+  let attempt = 0;
+
+  while (true) {
+    const frameCount = missingRanges ? countFrameRanges(missingRanges) : options.totalFrames;
+    attempts.push({
+      attempt,
+      workers: currentWorkers,
+      frameCount,
+      reason: attempt === 0 ? "initial" : "retry",
+    });
+
+    const attemptWorkDir = join(options.workDir, `capture-attempt-${attempt}`);
+    const batches = missingRanges
+      ? buildMissingFrameRetryBatches(missingRanges, currentWorkers, attemptWorkDir, attempt)
+      : [distributeFrames(options.totalFrames, currentWorkers, attemptWorkDir)];
+
+    try {
+      for (const tasks of batches) {
+        const capturedBeforeBatch = countCapturedFrames(
+          options.totalFrames,
+          options.framesDir,
+          options.frameExt,
+        );
+        try {
+          await executeParallelCapture(
+            options.serverUrl,
+            attemptWorkDir,
+            tasks,
+            options.captureOptions,
+            options.createBeforeCaptureHook,
+            options.abortSignal,
+            options.onProgress
+              ? (progress) => {
+                  options.onProgress?.({
+                    ...progress,
+                    totalFrames: options.totalFrames,
+                    capturedFrames: Math.min(
+                      options.totalFrames,
+                      capturedBeforeBatch + progress.capturedFrames,
+                    ),
+                  });
+                }
+              : undefined,
+            undefined,
+            options.cfg,
+          );
+        } finally {
+          await mergeWorkerFrames(attemptWorkDir, tasks, options.framesDir);
+        }
+      }
+
+      const remaining = findMissingFrameRanges(
+        options.totalFrames,
+        options.framesDir,
+        options.frameExt,
+      );
+      if (remaining.length === 0) {
+        return attempts;
+      }
+      if (!options.allowRetry || currentWorkers <= 1) {
+        throw new Error(
+          `[Render] Capture completed but ${countFrameRanges(remaining)} frame(s) are missing`,
+        );
+      }
+
+      const nextWorkers = getNextRetryWorkerCount(currentWorkers);
+      options.log.warn("[Render] Retrying missing captured frames with fewer workers.", {
+        fromWorkers: currentWorkers,
+        toWorkers: nextWorkers,
+        missingFrames: countFrameRanges(remaining),
+      });
+      currentWorkers = nextWorkers;
+      missingRanges = remaining;
+      attempt++;
+    } catch (error) {
+      const remaining = findMissingFrameRanges(
+        options.totalFrames,
+        options.framesDir,
+        options.frameExt,
+      );
+      if (remaining.length === 0) {
+        return attempts;
+      }
+      if (!options.allowRetry || currentWorkers <= 1 || !isRecoverableParallelCaptureError(error)) {
+        throw error;
+      }
+
+      const nextWorkers = getNextRetryWorkerCount(currentWorkers);
+      options.log.warn("[Render] Parallel capture timed out; retrying missing frames.", {
+        fromWorkers: currentWorkers,
+        toWorkers: nextWorkers,
+        missingFrames: countFrameRanges(remaining),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      currentWorkers = nextWorkers;
+      missingRanges = remaining;
+      attempt++;
+    }
+  }
 }
 
 /**
@@ -1607,7 +2017,113 @@ export async function executeRenderJob(
       skipReadinessVideoIds: Array.from(nativeHdrVideoIds),
     });
 
-    const workerCount = calculateOptimalWorkers(totalFrames, job.config.workers, cfg);
+    let captureCalibration:
+      | {
+          estimate: CaptureCostEstimate;
+          samples: CaptureCalibrationSample[];
+        }
+      | undefined;
+    let switchedToScreenshotAfterCalibration = false;
+
+    if (job.config.workers === undefined && totalFrames >= 60) {
+      const calibrationDir = join(workDir, "capture-calibration");
+      const calibrationCfg = createCaptureCalibrationConfig(cfg);
+      const videoInjector = createVideoFrameInjector(frameLookup);
+      let calibrationSession: CaptureSession | null = null;
+      try {
+        calibrationSession = await createCaptureSession(
+          fileServer.url,
+          calibrationDir,
+          buildHdrCaptureOptions(),
+          videoInjector,
+          calibrationCfg,
+        );
+        if (!calibrationSession.isInitialized) {
+          await initializeSession(calibrationSession);
+        }
+        assertNotAborted();
+
+        captureCalibration = await measureCaptureCostFromSession(
+          calibrationSession,
+          totalFrames,
+          job.config.fps,
+        );
+        if (captureCalibration.estimate.multiplier > 1) {
+          log.warn("[Render] Measured slow frame capture during auto-worker calibration.", {
+            multiplier: captureCalibration.estimate.multiplier,
+            p95Ms: captureCalibration.estimate.p95Ms,
+            sampledFrames: captureCalibration.samples.map((sample) => sample.frameIndex),
+          });
+        } else {
+          log.debug("[Render] Auto-worker calibration kept baseline capture cost.", {
+            p95Ms: captureCalibration.estimate.p95Ms,
+            sampledFrames: captureCalibration.samples.map((sample) => sample.frameIndex),
+          });
+        }
+      } catch (error) {
+        const shouldFallbackToScreenshot =
+          !cfg.forceScreenshot && shouldFallbackToScreenshotAfterCalibrationError(error);
+        if (shouldFallbackToScreenshot) {
+          cfg.forceScreenshot = true;
+          switchedToScreenshotAfterCalibration = true;
+          if (probeSession) {
+            lastBrowserConsole = probeSession.browserConsoleBuffer;
+            await closeCaptureSession(probeSession).catch(() => {});
+            probeSession = null;
+          }
+        }
+        captureCalibration = {
+          estimate: {
+            multiplier: MAX_MEASURED_CAPTURE_COST_MULTIPLIER,
+            reasons: shouldFallbackToScreenshot
+              ? ["calibration-beginframe-timeout", "screenshot-fallback"]
+              : ["calibration-failed"],
+          },
+          samples: [],
+        };
+        if (shouldFallbackToScreenshot) {
+          log.warn(
+            "[Render] BeginFrame auto-worker calibration timed out; falling back to screenshot capture mode.",
+            {
+              protocolTimeout: calibrationCfg.protocolTimeout,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
+        } else {
+          log.warn("[Render] Auto-worker calibration failed; using conservative worker budget.", {
+            protocolTimeout: calibrationCfg.protocolTimeout,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      } finally {
+        if (calibrationSession) {
+          lastBrowserConsole = calibrationSession.browserConsoleBuffer;
+          await closeCaptureSession(calibrationSession).catch(() => {});
+        }
+      }
+    }
+
+    let workerCount = resolveRenderWorkerCount(
+      totalFrames,
+      job.config.workers,
+      cfg,
+      compiled,
+      composition,
+      log,
+      captureCalibration?.estimate,
+    );
+
+    if (switchedToScreenshotAfterCalibration && workerCount > 1) {
+      workerCount = 1;
+    }
+
+    if (workerCount > 1 && probeSession) {
+      lastBrowserConsole = probeSession.browserConsoleBuffer;
+      await closeCaptureSession(probeSession);
+      probeSession = null;
+    }
+
+    const captureAttempts: CaptureAttemptSummary[] = [];
 
     // png-sequence is "no container" — outputPath is treated as a directory and
     // the encode/mux/faststart stages are skipped entirely. The empty extension
@@ -2500,16 +3016,18 @@ export async function executeRenderJob(
           // ── Disk-based capture (original flow) ────────────────────────────
           if (workerCount > 1) {
             // Parallel capture
-            const tasks = distributeFrames(job.totalFrames, workerCount, workDir);
-
-            await executeParallelCapture(
-              fileServer.url,
+            const attempts = await executeDiskCaptureWithAdaptiveRetry({
+              serverUrl: fileServer.url,
               workDir,
-              tasks,
-              buildHdrCaptureOptions(),
-              () => createVideoFrameInjector(frameLookup),
+              framesDir,
+              totalFrames: job.totalFrames,
+              initialWorkerCount: workerCount,
+              allowRetry: job.config.workers === undefined,
+              frameExt: needsAlpha ? "png" : "jpg",
+              captureOptions: buildHdrCaptureOptions(),
+              createBeforeCaptureHook: () => createVideoFrameInjector(frameLookup),
               abortSignal,
-              (progress) => {
+              onProgress: (progress) => {
                 job.framesRendered = progress.capturedFrames;
                 const frameProgress = progress.capturedFrames / progress.totalFrames;
                 const progressPct = 25 + frameProgress * 45;
@@ -2521,17 +3039,20 @@ export async function executeRenderJob(
                   updateJobStatus(
                     job,
                     "rendering",
-                    `Capturing frame ${progress.capturedFrames}/${progress.totalFrames} (${workerCount} workers)`,
+                    `Capturing frame ${progress.capturedFrames}/${progress.totalFrames} (${progress.activeWorkers} workers)`,
                     Math.round(progressPct),
                     onProgress,
                   );
                 }
               },
-              undefined,
               cfg,
-            );
-
-            await mergeWorkerFrames(workDir, tasks, framesDir);
+              log,
+            });
+            captureAttempts.push(...attempts);
+            const lastAttempt = attempts[attempts.length - 1];
+            if (lastAttempt) {
+              workerCount = lastAttempt.workers;
+            }
             if (probeSession) {
               lastBrowserConsole = probeSession.browserConsoleBuffer;
               await closeCaptureSession(probeSession);
@@ -2747,6 +3268,15 @@ export async function executeRenderJob(
       stages: perfStages,
       videoExtractBreakdown: extractionResult?.phaseBreakdown,
       tmpPeakBytes,
+      captureCalibration: captureCalibration
+        ? {
+            sampledFrames: captureCalibration.samples.map((sample) => sample.frameIndex),
+            p95Ms: captureCalibration.estimate.p95Ms,
+            multiplier: captureCalibration.estimate.multiplier,
+            reasons: captureCalibration.estimate.reasons,
+          }
+        : undefined,
+      captureAttempts: captureAttempts.length > 0 ? captureAttempts : undefined,
       hdrDiagnostics:
         hdrDiagnostics.videoExtractionFailures > 0 || hdrDiagnostics.imageDecodeFailures > 0
           ? { ...hdrDiagnostics }

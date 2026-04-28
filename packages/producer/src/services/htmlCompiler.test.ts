@@ -7,6 +7,7 @@ import {
   collectExternalAssets,
   compileForRender,
   detectRenderModeHints,
+  detectShaderTransitionUsage,
   inlineExternalScripts,
   recompileWithResolutions,
 } from "./htmlCompiler.js";
@@ -456,6 +457,36 @@ describe("detectRenderModeHints", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe("detectShaderTransitionUsage", () => {
+  it("detects authored HyperShader initialization", () => {
+    const html = `<!doctype html>
+<html><body>
+  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
+  <script>
+    window.HyperShader.init({
+      scenes: ["s1", "s2"],
+      transitions: [{ time: 1, shader: "cinematic-zoom", duration: 0.5 }],
+    });
+  </script>
+</body></html>`;
+
+    expect(detectShaderTransitionUsage(html)).toBe(true);
+  });
+
+  it("ignores comments and external scripts by themselves", () => {
+    const html = `<!doctype html>
+<html><body>
+  <script src="https://cdn.jsdelivr.net/npm/@hyperframes/shader-transitions/dist/index.global.js"></script>
+  <script>
+    // window.HyperShader.init({ scenes: ["s1", "s2"], transitions: [] });
+    const label = "safe";
+  </script>
+</body></html>`;
+
+    expect(detectShaderTransitionUsage(html)).toBe(false);
   });
 });
 

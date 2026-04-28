@@ -7,8 +7,18 @@ import type { CompiledComposition } from "./htmlCompiler.js";
 
 import {
   applyRenderModeHints,
+  buildMissingFrameRetryBatches,
+  createCaptureCalibrationConfig,
+  estimateMeasuredCaptureCostMultiplier,
+  estimateCaptureCostMultiplier,
   extractStandaloneEntryFromIndex,
+  findMissingFrameRanges,
+  getNextRetryWorkerCount,
+  isRecoverableParallelCaptureError,
   projectBrowserEndToCompositionTimeline,
+  resolveRenderWorkerCount,
+  selectCaptureCalibrationFrames,
+  shouldFallbackToScreenshotAfterCalibrationError,
   writeCompiledArtifacts,
 } from "./renderOrchestrator.js";
 import { toExternalAssetKey } from "../utils/paths.js";
@@ -119,6 +129,7 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
         recommendScreenshot: false,
         reasons: [],
       },
+      hasShaderTransitions: false,
     };
 
     writeCompiledArtifacts(compiled, workDir, false);
@@ -150,6 +161,7 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
         recommendScreenshot: false,
         reasons: [],
       },
+      hasShaderTransitions: false,
     };
 
     writeCompiledArtifacts(compiled, workDir, false);
@@ -159,60 +171,61 @@ describe("writeCompiledArtifacts — external assets on Windows drive-letter pat
   });
 });
 
+function createCompiledComposition(
+  reasonCodes: Array<"iframe" | "requestAnimationFrame">,
+): CompiledComposition {
+  return {
+    html: "<html></html>",
+    subCompositions: new Map(),
+    videos: [],
+    audios: [],
+    unresolvedCompositions: [],
+    externalAssets: new Map(),
+    width: 1920,
+    height: 1080,
+    staticDuration: 5,
+    renderModeHints: {
+      recommendScreenshot: reasonCodes.length > 0,
+      reasons: reasonCodes.map((code) => ({
+        code,
+        message: `reason: ${code}`,
+      })),
+    },
+    hasShaderTransitions: false,
+  };
+}
+
+function createConfig(): EngineConfig {
+  return {
+    fps: 30,
+    quality: "standard",
+    format: "jpeg",
+    jpegQuality: 80,
+    concurrency: "auto",
+    coresPerWorker: 2.5,
+    minParallelFrames: 120,
+    largeRenderThreshold: 1000,
+    disableGpu: false,
+    enableBrowserPool: false,
+    browserTimeout: 120000,
+    protocolTimeout: 300000,
+    forceScreenshot: false,
+    enableChunkedEncode: false,
+    chunkSizeFrames: 360,
+    enableStreamingEncode: false,
+    ffmpegEncodeTimeout: 600000,
+    ffmpegProcessTimeout: 300000,
+    ffmpegStreamingTimeout: 600000,
+    audioGain: 1,
+    frameDataUriCacheLimit: 256,
+    playerReadyTimeout: 45000,
+    renderReadyTimeout: 15000,
+    verifyRuntime: true,
+    debug: false,
+  };
+}
+
 describe("applyRenderModeHints", () => {
-  function createCompiledComposition(
-    reasonCodes: Array<"iframe" | "requestAnimationFrame">,
-  ): CompiledComposition {
-    return {
-      html: "<html></html>",
-      subCompositions: new Map(),
-      videos: [],
-      audios: [],
-      unresolvedCompositions: [],
-      externalAssets: new Map(),
-      width: 1920,
-      height: 1080,
-      staticDuration: 5,
-      renderModeHints: {
-        recommendScreenshot: reasonCodes.length > 0,
-        reasons: reasonCodes.map((code) => ({
-          code,
-          message: `reason: ${code}`,
-        })),
-      },
-    };
-  }
-
-  function createConfig(): EngineConfig {
-    return {
-      fps: 30,
-      quality: "standard",
-      format: "jpeg",
-      jpegQuality: 80,
-      concurrency: "auto",
-      coresPerWorker: 2.5,
-      minParallelFrames: 120,
-      largeRenderThreshold: 1000,
-      disableGpu: false,
-      enableBrowserPool: false,
-      browserTimeout: 120000,
-      protocolTimeout: 300000,
-      forceScreenshot: false,
-      enableChunkedEncode: false,
-      chunkSizeFrames: 360,
-      enableStreamingEncode: false,
-      ffmpegEncodeTimeout: 600000,
-      ffmpegProcessTimeout: 300000,
-      ffmpegStreamingTimeout: 600000,
-      audioGain: 1,
-      frameDataUriCacheLimit: 256,
-      playerReadyTimeout: 45000,
-      renderReadyTimeout: 15000,
-      verifyRuntime: true,
-      debug: false,
-    };
-  }
-
   it("forces screenshot mode when compatibility hints recommend it", () => {
     const cfg = createConfig();
     const compiled = createCompiledComposition(["iframe", "requestAnimationFrame"]);
@@ -243,6 +256,246 @@ describe("applyRenderModeHints", () => {
     applyRenderModeHints(cfg, compiled, log);
 
     expect(log.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveRenderWorkerCount", () => {
+  const cfg = { ...createConfig(), coresPerWorker: 100 };
+  const audio = {
+    id: "narration",
+    src: "narration.wav",
+    start: 0,
+    end: 3,
+    mediaStart: 0,
+    layer: 9,
+    type: "audio" as const,
+  };
+
+  it("reduces auto workers for expensive capture workloads", () => {
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    const workers = resolveRenderWorkerCount(
+      180,
+      undefined,
+      cfg,
+      {
+        hasShaderTransitions: true,
+        renderModeHints: { recommendScreenshot: false, reasons: [] },
+      },
+      { videos: [], audios: [audio] },
+      log,
+    );
+
+    expect(workers).toBe(1);
+    expect(log.warn).toHaveBeenCalledOnce();
+  });
+
+  it("respects explicit worker requests", () => {
+    const log = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    const workers = resolveRenderWorkerCount(
+      180,
+      6,
+      cfg,
+      {
+        hasShaderTransitions: true,
+        renderModeHints: { recommendScreenshot: false, reasons: [] },
+      },
+      { videos: [], audios: [audio] },
+      log,
+    );
+
+    expect(workers).toBe(6);
+    expect(log.warn).not.toHaveBeenCalled();
+  });
+
+  it("uses measured capture cost when static hints miss an expensive composition", () => {
+    const workers = resolveRenderWorkerCount(
+      180,
+      undefined,
+      cfg,
+      {
+        hasShaderTransitions: false,
+        renderModeHints: { recommendScreenshot: false, reasons: [] },
+      },
+      { videos: [], audios: [] },
+      undefined,
+      { multiplier: 4, reasons: ["calibration-p95=2400ms"] },
+    );
+
+    expect(workers).toBe(1);
+  });
+});
+
+describe("estimateCaptureCostMultiplier", () => {
+  it("weights shader transitions, media, and render mode hints", () => {
+    const cost = estimateCaptureCostMultiplier(
+      {
+        hasShaderTransitions: true,
+        renderModeHints: {
+          recommendScreenshot: true,
+          reasons: [{ code: "requestAnimationFrame", message: "raw rAF" }],
+        },
+      },
+      {
+        videos: [],
+        audios: [
+          {
+            id: "narration",
+            src: "narration.wav",
+            start: 0,
+            end: 3,
+            mediaStart: 0,
+            layer: 9,
+            type: "audio" as const,
+          },
+        ],
+      },
+    );
+
+    expect(cost.multiplier).toBe(4.75);
+    expect(cost.reasons).toEqual(["shader-transitions", "requestAnimationFrame", "1 audio"]);
+  });
+});
+
+describe("estimateMeasuredCaptureCostMultiplier", () => {
+  it("turns slow calibration samples into a capture cost multiplier", () => {
+    const estimate = estimateMeasuredCaptureCostMultiplier([
+      { frameIndex: 0, captureTimeMs: 180 },
+      { frameIndex: 45, captureTimeMs: 700 },
+      { frameIndex: 90, captureTimeMs: 2400 },
+      { frameIndex: 135, captureTimeMs: 900 },
+    ]);
+
+    expect(estimate.multiplier).toBe(4);
+    expect(estimate.reasons).toEqual(["calibration-p95=2400ms"]);
+  });
+
+  it("keeps fast calibration samples at baseline cost", () => {
+    const estimate = estimateMeasuredCaptureCostMultiplier([
+      { frameIndex: 0, captureTimeMs: 120 },
+      { frameIndex: 60, captureTimeMs: 180 },
+      { frameIndex: 119, captureTimeMs: 220 },
+    ]);
+
+    expect(estimate.multiplier).toBe(1);
+    expect(estimate.reasons).toEqual([]);
+  });
+});
+
+describe("selectCaptureCalibrationFrames", () => {
+  it("samples the start, middle, end, and quartiles without duplicates", () => {
+    expect(selectCaptureCalibrationFrames(180)).toEqual([0, 45, 90, 135, 179]);
+    expect(selectCaptureCalibrationFrames(3)).toEqual([0, 1, 2]);
+  });
+});
+
+describe("capture calibration safeguards", () => {
+  it("uses a bounded protocol timeout for calibration probes", () => {
+    const cfg = createConfig();
+    const calibrationCfg = createCaptureCalibrationConfig(cfg);
+
+    expect(calibrationCfg.protocolTimeout).toBe(30000);
+    expect(cfg.protocolTimeout).toBe(300000);
+  });
+
+  it("preserves smaller explicit protocol timeouts for calibration probes", () => {
+    const cfg = createConfig();
+    cfg.protocolTimeout = 5000;
+
+    expect(createCaptureCalibrationConfig(cfg).protocolTimeout).toBe(5000);
+  });
+
+  it("falls back to screenshot mode after beginFrame calibration failures", () => {
+    expect(
+      shouldFallbackToScreenshotAfterCalibrationError(
+        new Error("HeadlessExperimental.beginFrame timed out"),
+      ),
+    ).toBe(true);
+    expect(shouldFallbackToScreenshotAfterCalibrationError(new Error("ffmpeg exited"))).toBe(false);
+  });
+});
+
+describe("adaptive missing-frame retry helpers", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(() => {
+    while (tempDirs.length > 0) {
+      const d = tempDirs.pop();
+      if (d) rmSync(d, { recursive: true, force: true });
+    }
+  });
+
+  function makeFramesDir(): string {
+    const d = mkdtempSync(join(tmpdir(), "hf-missing-frames-"));
+    tempDirs.push(d);
+    return d;
+  }
+
+  it("finds contiguous missing frame ranges from captured disk frames", () => {
+    const framesDir = makeFramesDir();
+    for (const frameIndex of [0, 1, 4]) {
+      writeFileSync(join(framesDir, `frame_${String(frameIndex).padStart(6, "0")}.jpg`), "x");
+    }
+
+    expect(findMissingFrameRanges(6, framesDir, "jpg")).toEqual([
+      { startFrame: 2, endFrame: 4 },
+      { startFrame: 5, endFrame: 6 },
+    ]);
+  });
+
+  it("builds retry batches that cap active workers per attempt", () => {
+    const batches = buildMissingFrameRetryBatches(
+      [
+        { startFrame: 2, endFrame: 4 },
+        { startFrame: 5, endFrame: 6 },
+        { startFrame: 9, endFrame: 12 },
+      ],
+      2,
+      "/tmp/work",
+      1,
+    );
+
+    expect(batches).toHaveLength(2);
+    expect(batches[0]).toMatchObject([
+      { workerId: 0, startFrame: 2, endFrame: 4 },
+      { workerId: 1, startFrame: 5, endFrame: 6 },
+    ]);
+    expect(batches[1]).toMatchObject([{ workerId: 0, startFrame: 9, endFrame: 12 }]);
+    expect(batches[0][0].outputDir).toContain("retry-1-batch-0-worker-0");
+  });
+
+  it("halves retry workers until sequential fallback", () => {
+    expect(getNextRetryWorkerCount(8)).toBe(4);
+    expect(getNextRetryWorkerCount(3)).toBe(1);
+    expect(getNextRetryWorkerCount(2)).toBe(1);
+    expect(getNextRetryWorkerCount(1)).toBe(1);
+  });
+
+  it("only retries parallel capture timeout failures", () => {
+    expect(
+      isRecoverableParallelCaptureError(
+        new Error("[Parallel] Capture failed: Worker 0: Runtime.callFunctionOn timed out"),
+      ),
+    ).toBe(true);
+    expect(
+      isRecoverableParallelCaptureError(
+        new Error("[Parallel] Capture failed: Worker 1: HeadlessExperimental.beginFrame timed out"),
+      ),
+    ).toBe(true);
+    expect(isRecoverableParallelCaptureError(new Error("Encoding failed: ffmpeg exited"))).toBe(
+      false,
+    );
   });
 });
 

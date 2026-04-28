@@ -35,11 +35,6 @@ const FORMAT_EXT: Record<string, string> = { mp4: ".mp4", webm: ".webm", mov: ".
 
 const CPU_CORE_COUNT = cpus().length;
 
-/** 3/4 of CPU cores, capped at 8. Each worker spawns a Chrome process (~256 MB). */
-function defaultWorkerCount(): number {
-  return Math.max(1, Math.min(Math.floor((CPU_CORE_COUNT * 3) / 4), 8));
-}
-
 export default defineCommand({
   meta: {
     name: "render",
@@ -216,12 +211,9 @@ export default defineCommand({
     }
 
     // ── Print render plan ─────────────────────────────────────────────────
-    const workerCount = workers ?? defaultWorkerCount();
     if (!quiet) {
       const workerLabel =
-        args.workers != null
-          ? `${workerCount} workers`
-          : `${workerCount} workers (auto — ${CPU_CORE_COUNT} cores detected)`;
+        workers != null ? `${workers} workers` : `auto workers (${CPU_CORE_COUNT} cores detected)`;
       console.log("");
       console.log(
         c.accent("\u25C6") +
@@ -307,7 +299,7 @@ export default defineCommand({
         fps,
         quality,
         format,
-        workers: workerCount,
+        workers,
         gpu: useGpu,
         hdr: args.hdr ?? false,
         crf,
@@ -319,7 +311,7 @@ export default defineCommand({
         fps,
         quality,
         format,
-        workers: workerCount,
+        workers,
         gpu: useGpu,
         hdr: args.hdr ?? false,
         crf,
@@ -335,7 +327,7 @@ interface RenderOptions {
   fps: 24 | 30 | 60;
   quality: "draft" | "standard" | "high";
   format: "mp4" | "webm" | "mov";
-  workers: number;
+  workers?: number;
   gpu: boolean;
   hdr: boolean;
   crf?: number;
@@ -604,7 +596,7 @@ function trackRenderMetrics(
     durationMs: elapsedMs,
     fps: options.fps,
     quality: options.quality,
-    workers: options.workers,
+    workers: options.workers ?? perf?.workers,
     docker,
     gpu: options.gpu,
     compositionDurationMs,

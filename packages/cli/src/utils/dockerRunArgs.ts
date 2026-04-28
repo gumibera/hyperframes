@@ -22,7 +22,7 @@ export interface DockerRenderOptions {
   fps: 24 | 30 | 60;
   quality: "draft" | "standard" | "high";
   format: "mp4" | "webm" | "mov";
-  workers: number;
+  workers?: number;
   gpu: boolean;
   hdr: boolean;
   crf?: number;
@@ -54,8 +54,7 @@ export function buildDockerRunArgs(input: DockerRunArgsInput): string[] {
     options.quality,
     "--format",
     options.format,
-    "--workers",
-    String(options.workers),
+    ...(options.workers != null ? ["--workers", String(options.workers)] : []),
     ...(options.crf != null ? ["--crf", String(options.crf)] : []),
     ...(options.videoBitrate ? ["--video-bitrate", options.videoBitrate] : []),
     ...(options.quiet ? ["--quiet"] : []),
