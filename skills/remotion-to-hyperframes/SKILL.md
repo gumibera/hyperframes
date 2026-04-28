@@ -7,26 +7,95 @@ description: Translate a Remotion (React-based) video composition into a HyperFr
 
 ## Overview
 
-Translate Remotion (React-based) video compositions into HyperFrames (HTML + GSAP) compositions. Most Remotion idioms have direct HyperFrames equivalents — the translation is mechanical for ~80% of typical compositions. This skill encodes the mapping and guards against the lossy 20%.
+Translate Remotion (React-based) video compositions into HyperFrames (HTML + GSAP) compositions. Most Remotion idioms have direct HyperFrames equivalents — the translation is mechanical for ~80% of typical compositions. This skill encodes the mapping and guards against the lossy 20% by refusing to translate patterns that don't fit HF's seek-driven model and recommending the runtime interop pattern from [PR #214](https://github.com/heygen-com/hyperframes/pull/214) instead.
+
+The skill ships with a **tiered test corpus** (T1–T4, 4 fixtures total) that grades translations against measured SSIM thresholds. Don't translate without running the eval — a translation that "looks right" but renders 0.05 SSIM lower than the validated baseline is silently wrong.
 
 ## Workflow
 
-1. **Lint the source.** Run the source-lint script against the Remotion project to surface any patterns that can't translate cleanly (React state hooks, async metadata, third-party React components). If the source uses any blocker pattern, recommend the runtime interop escape hatch (PR #214 pattern) instead of attempting a translation.
+### Step 1: Lint the source
 
-2. **Scaffold the translation.** Generate a HyperFrames HTML skeleton from the Remotion source — `Composition` props become `data-*` attributes on the root `#stage` div, `<Sequence>` wrappers become elements with `data-start` / `data-duration` / `data-track-index`, `<AbsoluteFill>` becomes `<div style="position:absolute;inset:0">`. Leave timing-sensitive and easing-sensitive sections marked for refinement.
+Run [`scripts/lint_source.py`](scripts/lint_source.py) over the Remotion source directory. The lint detects patterns that can't translate cleanly:
 
-3. **Refine timing and easing.** Convert each `useCurrentFrame`-driven `interpolate` / `spring` call into an equivalent paused GSAP tween on the composition timeline. This is the part where translation correctness matters most — easing curves and stagger timing are what readers notice.
+- **Blockers** (refuse + recommend interop): `useState`, `useReducer`, `useEffect`/`useLayoutEffect` with non-empty deps, async `calculateMetadata`, third-party React UI libraries (MUI, Chakra, Mantine, antd, shadcn, Radix, NextUI).
+- **Warnings** (translate after dropping the construct): `@remotion/lambda` config, `delayRender`, `useCallback`, `useMemo`, custom hooks.
+- **Info** (translate with note): `staticFile`, `interpolateColors`.
 
-4. **Validate by frame-diff.** Render both the original Remotion composition and the translated HyperFrames composition, then compute per-frame SSIM. Threshold-based pass/fail tells the user which scenes are visually correct and which need another pass.
+If any blocker fires, **stop**. Read [`references/escape-hatch.md`](references/escape-hatch.md) and surface the recommendation message. Warnings don't stop translation — drop the offending construct in step 3 and note the gap in `TRANSLATION_NOTES.md`. `@remotion/lambda` config is the canonical warning case: the skill drops the import + `renderMediaOnLambda(...)` calls but translates the rest of the composition.
 
-5. **Document the gaps.** Any Remotion features that didn't translate (custom React subcomponents requiring manual rewrite, library transitions without a HyperFrames equivalent, etc.) get listed in a `TRANSLATION_NOTES.md` next to the output so the user can finish them or decide to use the runtime interop instead.
+### Step 2: Plan the translation
+
+Read [`references/api-map.md`](references/api-map.md) — the index of every Remotion API and its HF equivalent or per-topic reference. Identify which topic references you'll need based on what the source uses:
+
+| Source contains                                                           | Load reference                                |
+| ------------------------------------------------------------------------- | --------------------------------------------- |
+| `Composition`, `defaultProps`, `schema`, `calculateMetadata`              | [`parameters.md`](references/parameters.md)   |
+| `Sequence`, `Series`, `Loop`, `AbsoluteFill`, `Freeze`                    | [`sequencing.md`](references/sequencing.md)   |
+| `useCurrentFrame`, `interpolate`, `spring`, `Easing`, `interpolateColors` | [`timing.md`](references/timing.md)           |
+| `Audio`, `Video`, `Img`, `IFrame`, `staticFile`, `delayRender`            | [`media.md`](references/media.md)             |
+| `TransitionSeries`, `@remotion/transitions`                               | [`transitions.md`](references/transitions.md) |
+| `@remotion/lottie`                                                        | [`lottie.md`](references/lottie.md)           |
+| `@remotion/google-fonts/<Family>`, `Font.loadFont`, `@font-face`          | [`fonts.md`](references/fonts.md)             |
+
+Don't load all of them — load only what the specific source needs.
+
+### Step 3: Generate the HF composition
+
+Emit `index.html` with:
+
+- Root `<div id="stage">` carrying the composition's `data-composition-id`, `data-start="0"`, `data-duration` (in seconds), `data-fps`, `data-width`, `data-height`, plus one `data-*` per scalar prop.
+- A flat list of scene divs with `data-start` / `data-duration` / `data-track-index`.
+- Inline `<style>` for layout; CSS sets the `from` state of every animated property.
+- A single `<script>` tag at the bottom containing one paused `gsap.timeline({paused: true})`. Every Remotion `useCurrentFrame()` derivation becomes a tween on this timeline at the right offset.
+- `window.__timelines["<composition-id>"] = tl;` registers the timeline with HF's runtime.
+
+Custom React subcomponents inline as repeated HTML using the prop interface as the template (see [`parameters.md`](references/parameters.md) for the per-instance `data-*` pattern).
+
+### Step 4: Validate
+
+Run the eval harness — [`references/eval.md`](references/eval.md) for the full guide. Quick path:
+
+```bash
+# Render Remotion baseline (after npm install in the fixture)
+cd remotion-src && npx remotion render <CompositionId> out/baseline.mp4
+
+# Render HF translation
+cd ../hf-src && npx hyperframes render --output ../hf.mp4
+
+# SSIM diff
+../../scripts/render_diff.sh ./remotion-src/out/baseline.mp4 ./hf.mp4 ./diff
+```
+
+Threshold: ~0.02 below `p05` of the source's complexity tier (see `eval.md`'s validated thresholds table). If the diff fails, run [`scripts/frame_strip.sh`](scripts/frame_strip.sh) to see _which_ frames diverged, then re-read the relevant timing/sequencing/media reference.
+
+**Critical**: both renders must use matching pixel format. Set `Config.setVideoImageFormat("png")` + `Config.setColorSpace("bt709")` in the Remotion source's `remotion.config.ts` — otherwise the diff measures encoder differences (~0.05 SSIM hit), not translation fidelity.
+
+### Step 5: Document gaps
+
+Anything that didn't translate cleanly (volume ramps dropped, custom presentations approximated, fonts substituted) gets a `TRANSLATION_NOTES.md` written next to the HF output. See [`references/limitations.md`](references/limitations.md) for the format.
 
 ## What this skill explicitly does NOT do
 
-- **Translate React state machines.** Remotion compositions that drive animation via `useState` + `useEffect` are not deterministic frame-capture targets in HyperFrames' model; recommend the runtime interop escape hatch.
-- **Translate `@remotion/lambda` configuration.** HyperFrames is single-machine today; Lambda-specific code drops with a note.
-- **Run Remotion's render pipeline alongside HyperFrames.** That's the runtime interop pattern from [PR #214](https://github.com/heygen-com/hyperframes/pull/214) — a separate problem with a separate (and existing) solution.
+- **Translate React state machines.** Compositions that drive animation via `useState` + `useEffect` are not deterministic frame-capture targets in HyperFrames' seek-driven model. Recommend the runtime interop pattern.
+- **Run Remotion's render pipeline alongside HyperFrames.** That's the runtime interop pattern from [PR #214](https://github.com/heygen-com/hyperframes/pull/214) — a separate solution for compositions that fail this skill's lint.
 
-## Status
+(`@remotion/lambda` is _not_ a blocker — Lambda config is deployment, not animation. The skill drops it as a warning and translates the rest. See [`references/escape-hatch.md`](references/escape-hatch.md).)
 
-Skill scaffold landed; eval harness, test corpus, and translation references are added in subsequent PRs in the stack. Until then, this skill should bow out and recommend the user hand-translate or use the runtime interop pattern.
+## How to grade your own translation
+
+Run the test corpus orchestrator:
+
+```bash
+./assets/test-corpus/run.sh
+```
+
+It runs T1, T2, T3 (render + diff) and T4 (lint validation), prints a per-tier pass/fail table, and emits an aggregate JSON report. Use this to verify the skill is working end-to-end on a clean checkout — and as a regression check after editing any reference.
+
+Validated baseline (as of 2026-04-27):
+
+| Tier | Composition shape                           | Mean SSIM | Threshold |
+| ---- | ------------------------------------------- | --------- | --------- |
+| T1   | single-element fade-in                      | 0.974     | 0.95      |
+| T2   | multi-scene + spring + audio + image        | 0.985     | 0.95      |
+| T3   | data-driven, custom subcomponents, count-up | 0.953     | 0.90      |
+| T4   | escape-hatch (8 lint cases)                 | 8/8 pass  | n/a       |
