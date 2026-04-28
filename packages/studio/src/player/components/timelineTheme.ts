@@ -130,7 +130,11 @@ export function getRenderedTimelineElement({
   previewStart: number | null;
   previewTrack: number | null;
 }): TimelineElement {
-  if (element.id !== draggedElementId || previewStart === null || previewTrack === null) {
+  if (
+    (element.key ?? element.id) !== draggedElementId ||
+    previewStart === null ||
+    previewTrack === null
+  ) {
     return element;
   }
   return {
