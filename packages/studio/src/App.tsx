@@ -872,6 +872,8 @@ export function StudioApp() {
             label={el.id || el.tag}
             labelColor={style.label}
             accentColor={style.clip}
+            selector={el.selector}
+            selectorIndex={el.selectorIndex}
             seekTime={el.start}
             duration={el.duration}
           />
@@ -932,6 +934,8 @@ export function StudioApp() {
             label={el.id || el.tag}
             labelColor={style.label}
             accentColor={style.clip}
+            selector={el.selector}
+            selectorIndex={el.selectorIndex}
             seekTime={el.start}
             duration={el.duration}
           />
@@ -2036,7 +2040,7 @@ export function StudioApp() {
   );
 
   const handlePreviewCanvasMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: React.MouseEvent<HTMLDivElement>, options?: { preferClipAncestor?: boolean }) => {
       const iframe = previewIframeRef.current;
       if (!iframe || captionEditMode) return;
       const target = getPreviewTargetFromPointer(iframe, e.clientX, e.clientY);
@@ -2048,7 +2052,7 @@ export function StudioApp() {
       e.preventDefault();
       e.stopPropagation();
       const nextSelection = buildDomSelectionFromTarget(target, {
-        preferClipAncestor: true,
+        preferClipAncestor: options?.preferClipAncestor ?? true,
       });
       if (!nextSelection) {
         lastPreviewClickRef.current = null;
