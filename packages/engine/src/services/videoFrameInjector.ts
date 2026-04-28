@@ -343,7 +343,10 @@ export async function queryElementStacking(
       let current: Element | null = node.parentElement;
       while (current) {
         const cs = window.getComputedStyle(current);
-        if (cs.overflow !== "visible") {
+        const clipsX = cs.overflowX !== "visible";
+        const clipsY = cs.overflowY !== "visible";
+        const clips = cs.overflow !== "visible" || clipsX || clipsY;
+        if (clips) {
           const tl = resolveRadius(cs.borderTopLeftRadius, current);
           const tr = resolveRadius(cs.borderTopRightRadius, current);
           const brr = resolveRadius(cs.borderBottomRightRadius, current);
