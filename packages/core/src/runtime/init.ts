@@ -2,6 +2,7 @@ import { installRuntimeControlBridge, postRuntimeMessage } from "./bridge";
 import { initRuntimeAnalytics, emitAnalyticsEvent } from "./analytics";
 import { createCssAdapter } from "./adapters/css";
 import { createGsapAdapter } from "./adapters/gsap";
+import { createAnimeJsAdapter } from "./adapters/animejs";
 import { createLottieAdapter } from "./adapters/lottie";
 import { createThreeAdapter } from "./adapters/three";
 import { createWaapiAdapter } from "./adapters/waapi";
@@ -1595,6 +1596,7 @@ export function initSandboxRuntimeModular(): void {
     createCssAdapter({
       resolveStartSeconds: (element) => resolveStartForElement(element, 0),
     }),
+    createAnimeJsAdapter(),
     createLottieAdapter(),
     createThreeAdapter(),
     createGsapAdapter({ getTimeline: () => state.capturedTimeline }),

@@ -44,6 +44,24 @@ declare global {
     };
     THREE?: ThreeLike;
     /**
+     * Global anime.js instance (set by including the anime.iife.min.js script).
+     * The adapter uses `anime.running` for auto-discovery.
+     */
+    anime?: {
+      (params: unknown): unknown;
+      timeline?: (params?: unknown) => unknown;
+      running: unknown[];
+    };
+    /**
+     * anime.js instances registered by compositions.
+     * The adapter seeks all instances when the player is seeked.
+     *
+     * Push your animation or timeline instance here:
+     *   window.__hfAnime = window.__hfAnime || [];
+     *   window.__hfAnime.push(anim);
+     */
+    __hfAnime?: unknown[];
+    /**
      * Global lottie-web instance (set by including the lottie.min.js script).
      * The adapter uses `lottie.getRegisteredAnimations()` for auto-discovery.
      */
