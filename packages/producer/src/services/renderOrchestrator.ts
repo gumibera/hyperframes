@@ -1728,13 +1728,18 @@ function replaceBodyWithRenderClone(body: HTMLElement, renderClone: Element): vo
   body.appendChild(renderClone);
 }
 
+const STREAMING_ENCODE_MAX_DURATION_SECONDS = 4 * 60;
+
 export function shouldUseStreamingEncode(
   cfg: Pick<EngineConfig, "enableStreamingEncode">,
   outputFormat: NonNullable<RenderConfig["format"]>,
   workerCount: number,
+  durationSeconds: number,
 ): boolean {
   if (!cfg.enableStreamingEncode) return false;
   if (outputFormat === "png-sequence") return false;
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return false;
+  if (durationSeconds > STREAMING_ENCODE_MAX_DURATION_SECONDS) return false;
   return workerCount === 1;
 }
 
@@ -2526,7 +2531,12 @@ export async function executeRenderJob(
     // let auto-parallel renders use disk frames: the current ordered streaming
     // writer would otherwise stall later workers behind earlier frame ranges.
     // png-sequence has no encoded video output, so streaming is always bypassed.
-    const enableStreamingEncode = shouldUseStreamingEncode(cfg, outputFormat, workerCount);
+    const enableStreamingEncode = shouldUseStreamingEncode(
+      cfg,
+      outputFormat,
+      workerCount,
+      job.duration,
+    );
 
     const captureAttempts: CaptureAttemptSummary[] = [];
 

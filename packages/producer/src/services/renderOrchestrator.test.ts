@@ -87,18 +87,25 @@ describe("extractStandaloneEntryFromIndex", () => {
 
 describe("shouldUseStreamingEncode", () => {
   it("enables streaming for default single-worker video renders", () => {
-    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 1)).toBe(true);
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 1, 240)).toBe(true);
   });
 
   it("lets config disable streaming encode", () => {
-    expect(shouldUseStreamingEncode({ enableStreamingEncode: false }, "mp4", 1)).toBe(false);
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: false }, "mp4", 1, 240)).toBe(false);
   });
 
   it("keeps png-sequence and parallel capture on the non-streaming path", () => {
-    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "png-sequence", 1)).toBe(
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "png-sequence", 1, 240)).toBe(
       false,
     );
-    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 2)).toBe(false);
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 2, 240)).toBe(false);
+  });
+
+  it("keeps renders over four minutes on normal encoding", () => {
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 1, 240)).toBe(true);
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 1, 240.001)).toBe(
+      false,
+    );
   });
 });
 
