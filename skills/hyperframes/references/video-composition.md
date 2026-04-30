@@ -60,3 +60,16 @@ Subtle reads as static at 30fps. Err toward more movement than feels safe.
 - **Anchor to edges.** Pin content to left/top or right/bottom. Centered-and-floating is a web layout pattern.
 - **Split frames.** Data panel left, content right. Top bar with metadata, full-width below. Zone-based layouts over centered stacks.
 - **Structural elements.** Rules, dividers, border panels. They create visual paths and animate well (`scaleX: 0` → `1`).
+
+## Use the Real Subject
+
+If the composition is about a specific, named, real-world artifact — a photograph, painting, company UI, historical event — and that artifact is accessible, use it. Do not abstract it to a placeholder.
+
+Use this decision tree before authoring:
+
+1. **Local asset exists:** copy or reference the local file and record the path in the expanded prompt.
+2. **User provided or approved a URL:** download it before rendering, store it in the project, and record the local path. Do not hotlink.
+3. **Artifact is identifiable but not available:** ask for the asset or state the fallback before writing HTML.
+4. **Artifact is generic or illustrative:** use a generated/abstracted substitute only after recording that no concrete real-subject asset was available.
+
+Render-time network fetches are not allowed. The final HTML should reference local files only.

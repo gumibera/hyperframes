@@ -725,4 +725,300 @@ describe("GSAP rules", () => {
     const finding = result.findings.find((f) => f.code === "gsap_infinite_repeat");
     expect(finding).toBeUndefined();
   });
+
+  it("warns on tl.from() in multi-scene compositions", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#s2-heading", { opacity: 0, y: 30, duration: 0.4 }, 5.2);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("warning");
+  });
+
+  it("warns on tl.fromTo() in multi-scene compositions", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#s2-heading", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.4 }, 5.2);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain("tl.fromTo");
+  });
+
+  it("does not warn on tl.from() in single-scene compositions", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#s1-heading", { opacity: 0, y: 30, duration: 0.4 }, 0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+
+    expect(finding).toBeUndefined();
+  });
+
+  it("does not warn on tl.from() targeting first-scene prefixed elements", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene10" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#s1-heading", { opacity: 0, duration: 0.4 }, 0);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+
+    expect(finding).toBeUndefined();
+  });
+
+  it("warns on scene 10 tl.from() when scene 1 is first", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene10" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.from("#s10-title", { opacity: 0, duration: 0.4 }, 60);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "tl_from_in_multiscene");
+
+    expect(finding).toBeDefined();
+  });
+
+  it("warns on tl.set with opacity: 0 after time 0 in multi-scene compositions", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#s2-heading", { opacity: 0, y: 30 }, 5);
+    tl.to("#s2-heading", { opacity: 1, y: 0, duration: 0.4 }, 5.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("warning");
+  });
+
+  it("warns on tl.set with opacity: 0 at a variable scene start", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    var S2 = 5;
+    tl.set("#s2-heading", { opacity: 0, y: 30 }, S2);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain("S2");
+  });
+
+  it("does not warn on tl.set with opacity: 0 at time 0", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#s2-heading", { opacity: 0, y: 30 }, 0);
+    tl.to("#s2-heading", { opacity: 1, y: 0, duration: 0.4 }, 5.5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+
+    expect(finding).toBeUndefined();
+  });
+
+  it("does not warn on tl.set with opacity: 0 and no explicit position", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#s2-heading", { opacity: 0, y: 30 });
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+
+    expect(finding).toBeUndefined();
+  });
+
+  it("does not warn on tl.set with fractional opacity", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.set("#s2-heading", { opacity: 0.5 }, 5);
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "late_init_set");
+
+    expect(finding).toBeUndefined();
+  });
+
+  it("errors when scene container CSS overrides scaffold positioning", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <style>
+    #scene2 { position: relative; background: #000; }
+  </style>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "scene_position_override");
+
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe("error");
+    expect(finding?.elementId).toBe("scene2");
+  });
+
+  it("does not error when scene container CSS leaves position alone", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+    <div id="scene2" class="scene"></div>
+  </div>
+  <style>
+    #scene2 { background: #000; }
+  </style>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "scene_position_override");
+
+    expect(finding).toBeUndefined();
+  });
+
+  it("does not error on scene container position in single-scene compositions", () => {
+    const html = `
+<html><body>
+  <div data-composition-id="c1" data-width="1920" data-height="1080">
+    <div id="scene1" class="scene"></div>
+  </div>
+  <style>
+    #scene1 { position: relative; }
+  </style>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    window.__timelines["c1"] = tl;
+  </script>
+</body></html>`;
+
+    const result = lintHyperframeHtml(html);
+    const finding = result.findings.find((f) => f.code === "scene_position_override");
+
+    expect(finding).toBeUndefined();
+  });
 });

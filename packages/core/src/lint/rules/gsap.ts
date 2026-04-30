@@ -1,7 +1,12 @@
 import { parseGsapScript } from "../../parsers/gsapParser";
 import type { LintContext, HyperframeLintFinding } from "../context";
 import type { OpenTag } from "../utils";
-import { readAttr, truncateSnippet, WINDOW_TIMELINE_ASSIGN_PATTERN } from "../utils";
+import {
+  getSceneElements,
+  readAttr,
+  truncateSnippet,
+  WINDOW_TIMELINE_ASSIGN_PATTERN,
+} from "../utils";
 
 // ── GSAP-specific types ────────────────────────────────────────────────────
 
@@ -327,6 +332,96 @@ function isSuspiciousGlobalSelector(selector: string): boolean {
 function getSingleClassSelector(selector: string): string | null {
   const match = selector.trim().match(/^\.(?<name>[A-Za-z0-9_-]+)$/);
   return match?.groups?.name || null;
+}
+
+function getSceneNumberFromId(id: string): number | null {
+  const match = id.match(/^scene(\d+)$/i);
+  if (!match?.[1]) return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getFirstSceneNumber(sceneElements: OpenTag[]): number | null {
+  const sceneNumbers = sceneElements
+    .map((tag) => getSceneNumberFromId(readAttr(tag.raw, "id") || ""))
+    .filter((value) => value !== null);
+  if (sceneNumbers.length === 0) return null;
+  return Math.min(...sceneNumbers);
+}
+
+function selectorTargetsSceneNumber(selector: string, sceneNumber: number): boolean {
+  return new RegExp(`(^|[\\s>+~,])#scene${sceneNumber}(?![\\w-])`).test(selector);
+}
+
+function selectorUsesScenePrefix(selector: string, sceneNumber: number): boolean {
+  return new RegExp(`(^|[\\s>+~,])[#.]s${sceneNumber}-`).test(selector);
+}
+
+function splitTopLevelArgs(args: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let depth = 0;
+  let quote = "";
+  let escaped = false;
+
+  for (const char of args) {
+    if (quote) {
+      current += char;
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === quote) {
+        quote = "";
+      }
+      continue;
+    }
+
+    if (char === '"' || char === "'" || char === "`") {
+      quote = char;
+      current += char;
+      continue;
+    }
+
+    if (char === "(" || char === "{" || char === "[") {
+      depth += 1;
+      current += char;
+      continue;
+    }
+
+    if (char === ")" || char === "}" || char === "]") {
+      depth -= 1;
+      current += char;
+      continue;
+    }
+
+    if (char === "," && depth === 0) {
+      result.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.trim()) result.push(current.trim());
+  return result;
+}
+
+function getGsapPositionExpression(rawCall: string): string {
+  const openParenIndex = rawCall.indexOf("(");
+  const closeParenIndex = rawCall.lastIndexOf(")");
+  if (openParenIndex === -1 || closeParenIndex === -1 || closeParenIndex <= openParenIndex) {
+    return "";
+  }
+
+  return splitTopLevelArgs(rawCall.slice(openParenIndex + 1, closeParenIndex))[2] ?? "";
+}
+
+function isZeroPositionExpression(positionExpression: string): boolean {
+  if (!positionExpression) return true;
+  const numeric = Number(positionExpression);
+  return Number.isFinite(numeric) && numeric === 0;
 }
 
 function cssTransformToGsapProps(cssTransform: string): string | null {
@@ -744,11 +839,7 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
   ({ scripts, tags }) => {
     const findings: HyperframeLintFinding[] = [];
 
-    // Detect multi-scene compositions: multiple elements with "scene" in their id
-    const sceneElements = tags.filter((t) => {
-      const id = readAttr(t.raw, "id") || "";
-      return /^scene\d+$/i.test(id);
-    });
+    const sceneElements = getSceneElements(tags);
     if (sceneElements.length < 2) return findings;
 
     for (const script of scripts) {
@@ -777,6 +868,111 @@ export const gsapRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
         }
       }
     }
+    return findings;
+  },
+
+  // tl_from_in_multiscene
+  ({ scripts, tags }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const sceneElements = getSceneElements(tags);
+    if (sceneElements.length < 2) return findings;
+
+    const firstSceneNumber = getFirstSceneNumber(sceneElements);
+
+    for (const script of scripts) {
+      for (const win of extractGsapWindows(script.content)) {
+        if (win.method !== "from" && win.method !== "fromTo") continue;
+        if (
+          firstSceneNumber !== null &&
+          (selectorTargetsSceneNumber(win.targetSelector, firstSceneNumber) ||
+            selectorUsesScenePrefix(win.targetSelector, firstSceneNumber))
+        ) {
+          continue;
+        }
+
+        findings.push({
+          code: "tl_from_in_multiscene",
+          severity: "warning",
+          message:
+            `tl.${win.method}("${truncateSnippet(win.targetSelector, 40)}") in a multi-scene composition. ` +
+            "Use tl.set() at time 0 to hide, then tl.to() to animate in. " +
+            "tl.from() and tl.fromTo() can flash elements before their entrance when seeking non-linearly.",
+          selector: win.targetSelector,
+          fixHint:
+            `Replace with: tl.set("${truncateSnippet(win.targetSelector, 30)}", { opacity: 0, ... }, 0); ` +
+            `tl.to("${truncateSnippet(win.targetSelector, 30)}", { opacity: 1, ... }, startTime);`,
+          snippet: truncateSnippet(win.raw),
+        });
+      }
+    }
+
+    return findings;
+  },
+
+  // late_init_set
+  ({ scripts, tags }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const sceneElements = getSceneElements(tags);
+    if (sceneElements.length < 2) return findings;
+
+    for (const script of scripts) {
+      for (const win of extractGsapWindows(script.content)) {
+        if (win.method !== "set") continue;
+        if (!zeroValue(win.propertyValues.opacity) && !zeroValue(win.propertyValues.autoAlpha)) {
+          continue;
+        }
+        if ("visibility" in win.propertyValues || "display" in win.propertyValues) continue;
+
+        const positionExpression = getGsapPositionExpression(win.raw);
+        if (isZeroPositionExpression(positionExpression)) continue;
+
+        findings.push({
+          code: "late_init_set",
+          severity: "warning",
+          message:
+            `tl.set("${truncateSnippet(win.targetSelector, 40)}", { opacity: 0 }) at time ` +
+            `${positionExpression || win.position}s instead of 0. Elements must be hidden from time 0 ` +
+            "to prevent flashing when transitions reveal scenes early.",
+          selector: win.targetSelector,
+          fixHint: `Move to time 0: tl.set("${truncateSnippet(win.targetSelector, 30)}", { opacity: 0, ... }, 0);`,
+          snippet: truncateSnippet(win.raw),
+        });
+      }
+    }
+
+    return findings;
+  },
+
+  // scene_position_override
+  ({ styles, tags }) => {
+    const findings: HyperframeLintFinding[] = [];
+    const sceneElements = getSceneElements(tags);
+    if (sceneElements.length < 2) return findings;
+
+    for (const style of styles) {
+      for (const tag of sceneElements) {
+        const sceneId = readAttr(tag.raw, "id");
+        if (!sceneId) continue;
+
+        const sceneRulePattern = new RegExp(`#${sceneId}\\s*\\{([^}]+)\\}`, "g");
+        let match: RegExpExecArray | null;
+        while ((match = sceneRulePattern.exec(style.content)) !== null) {
+          const declarations = match[1] || "";
+          const positionMatch = declarations.match(/position\s*:\s*(relative|static|fixed)/);
+          if (!positionMatch?.[1]) continue;
+
+          findings.push({
+            code: "scene_position_override",
+            severity: "error",
+            elementId: sceneId,
+            message: `#${sceneId} sets position: ${positionMatch[1]} — this overrides the scaffold's position: absolute and can push the scene off-screen.`,
+            fixHint: `Remove the position property from #${sceneId} CSS. The scaffold owns scene container positioning.`,
+            snippet: truncateSnippet(match[0]),
+          });
+        }
+      }
+    }
+
     return findings;
   },
 ];

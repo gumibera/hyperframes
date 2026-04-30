@@ -1,0 +1,62 @@
+{
+  "skill_name": "hyperframes",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a 15-second HyperFrames video with three scenes for a product launch: a dramatic hook, a feature breakdown, and a CTA. Use crisp transitions and make each scene feel visually dense.",
+      "expected_output": "A multi-scene HyperFrames project that routes through prompt expansion, writes a scene manifest, uses the multi-scene pipeline, creates per-scene fragments, evaluates them, assembles deterministically, and runs lint/validate gates.",
+      "files": [],
+      "expectations": [
+        "Reads references/multi-scene.md before planning or authoring because the prompt has 2+ scenes",
+        "Writes .hyperframes/expanded-prompt.md with per-scene beats, rhythm, global rules, motifs, and R4 marked Not applicable when there is no persistent subject",
+        "Writes .hyperframes/scene-manifest.json before dispatching scene work, with scene numbers, starts, durations, transition timing, register, and transitionOut entries",
+        "Scaffold initializes exactly one scene visible at t=0, keeps scenes 2+ hidden until their manifest handoff, and uses timeline sets so non-linear seeking is deterministic",
+        "Creates .hyperframes/scenes/sceneN.html fragments with exactly HTML, CSS, and GSAP sections",
+        "Uses tl.set() at time 0 plus tl.to() at scene time inside scene fragments, not tl.from() or tl.fromTo(); each var S{N} matches the manifest start",
+        "Writes .hyperframes/scenes/sceneN.eval.md files with standalone Verdict: PASS lines before assembly",
+        "Runs per-scene evaluation, assembles with the deterministic assembler, then runs hyperframes lint and validate"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "You are already inside a delegated HyperFrames subtask and cannot dispatch more agents. Build a 2-scene customer proof video with a stat scene and a quote scene.",
+      "expected_output": "A serial build that still follows the multi-scene fragment spec, evaluates each scene with the Phase 2b checklist, writes eval verdicts, assembles deterministically, and reports that parallel dispatch was unavailable.",
+      "files": [],
+      "expectations": [
+        "Uses the nested-subagent fallback instead of pretending to dispatch scene or evaluator subagents",
+        "Writes the scaffold first, then each scene fragment sequentially",
+        "Writes .hyperframes/scenes/sceneN.eval.md verdicts using the same format and content checks as Phase 2b",
+        "Does not run the assemble-scenes helper until every scene has a standalone Verdict: PASS evaluation file",
+        "Does not rely on assembler validation as the only quality gate",
+        "Notes in the final report that the build was serial because parallel dispatch was unavailable"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Create a 20-second, 3-scene HyperFrames video where the same product screenshot stays on screen across scenes: first as the hero, then as an annotated interface detail, then as the final CTA anchor. If the screenshot asset is not already local, do not hotlink it.",
+      "expected_output": "A multi-scene composition that pre-plans persistent-subject choreography, reserves space per scene, keeps the subject in a scaffold-owned overlay, and uses only local or explicitly provided assets.",
+      "files": [],
+      "expectations": [
+        "Writes an R4 persistent-subject choreography plan with role, reserved region, center/scale, boundary motion, and scene relationship for every scene",
+        "Copies the full R4 plan into .hyperframes/scene-manifest.json and passes the full plan to the scaffold author plus the relevant per-scene block to each scene author",
+        "Keeps the persistent screenshot DOM and GSAP timeline in the scaffold-owned shared overlay outside .scene containers",
+        "Scene fragments reserve space for the screenshot and do not author or animate the screenshot themselves",
+        "Uses a local/user-provided/downloaded-before-render asset path or explicitly asks for the asset/fallback; it does not hotlink external URLs or rely on render-time network fetches"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Create a 15-second HyperFrames video with four scenes at exact timings: scene 1 is 0-3s, scene 2 is 3-7s, scene 3 is 7-11s, and scene 4 is 11-15s. Use a planned hard cut from scene 2 to scene 3 because the script has a percussive beat there; use CSS transitions elsewhere.",
+      "expected_output": "A multi-scene composition whose scaffold, fragments, transitions, and evaluations all use the same scene manifest timing, including one declared hard cut.",
+      "files": [],
+      "expectations": [
+        "Writes .hyperframes/scene-manifest.json with exact start, duration, end, and transitionOut timing for all four scenes",
+        "Sets composition.duration to 15 and keeps it equal to the final scene end",
+        "Marks the scene 2 to scene 3 handoff with transitionOut.hardCut true, duration 0, and a rhythm/content reason",
+        "Defines var S1 = 0, var S2 = 3, var S3 = 7, and var S4 = 11 in the corresponding fragments",
+        "Uses the same manifest timing in scaffold transition code and scene fragment GSAP positions; no agent recalculates or drifts timings",
+        "Runs the assemble-scenes helper successfully before lint and validate"
+      ]
+    }
+  ]
+}

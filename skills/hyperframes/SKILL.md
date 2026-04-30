@@ -1,6 +1,6 @@
 ---
 name: hyperframes
-description: Create video compositions, animations, title cards, overlays, captions, voiceovers, audio-reactive visuals, and scene transitions in HyperFrames HTML. Use when asked to build any HTML-based video content, add captions or subtitles synced to audio, generate text-to-speech narration, create audio-reactive animation (beat sync, glow, pulse driven by music), add animated text highlighting (marker sweeps, hand-drawn circles, burst lines, scribble, sketchout), or add transitions between scenes (crossfades, wipes, reveals, shader transitions). Covers composition authoring, timing, media, and the full video production workflow. For CLI commands (init, lint, preview, render, transcribe, tts) see the hyperframes-cli skill.
+description: Create video compositions, animations, title cards, overlays, captions, voiceovers, audio-reactive visuals, multi-scene build pipelines, persistent-subject choreography, and scene transitions in HyperFrames HTML. Use when asked to build any HTML-based video content, add captions or subtitles synced to audio, generate text-to-speech narration, create audio-reactive animation (beat sync, glow, pulse driven by music), add animated text highlighting (marker sweeps, hand-drawn circles, burst lines, scribble, sketchout), build compositions with 2+ scenes, or add transitions between scenes (crossfades, wipes, reveals, shader transitions). Covers composition authoring, timing, media, scene-fragment assembly, and the full video production workflow. For CLI commands (init, lint, preview, render, transcribe, tts) see the hyperframes-cli skill.
 ---
 
 # HyperFrames
@@ -42,6 +42,14 @@ Always run on every composition (except single-scene pieces and trivial edits). 
 
 Read [references/prompt-expansion.md](references/prompt-expansion.md) for the full process and output format.
 
+### Step 2b: Route multi-scene work
+
+For any composition with **2 or more scenes**, read [references/multi-scene.md](references/multi-scene.md) before planning or authoring. Follow that pipeline for scaffold creation, scene fragments, evaluation, assembly, and persistent elements.
+
+Before dispatching scene work, produce the blocking scene manifest described in `multi-scene.md`. That manifest is the single source of truth for scene numbers, starts, durations, transition timing, register, and persistent-subject reservations.
+
+The multi-scene reference overrides the generic entrance examples in this file for **scene fragments**: fragments use `tl.set()` at time 0 plus `tl.to()` at scene time. Do not use `gsap.from()` or `tl.from()` inside scene fragments. Single-scene compositions, standalone title cards, and small edits can use the simpler one-pass flow below.
+
 ### Step 3: Plan
 
 Before writing HTML, think at a high level:
@@ -71,7 +79,7 @@ Position every element where it should be at its **most visible moment** — the
 
 1. **Identify the hero frame** for each scene — the moment when the most elements are simultaneously visible. This is the layout you build.
 2. **Write static CSS** for that frame. The `.scene-content` container MUST fill the full scene using `width: 100%; height: 100%; padding: Npx;` with `display: flex; flex-direction: column; gap: Npx; box-sizing: border-box`. Use padding to push content inward — NEVER `position: absolute; top: Npx` on a content container. Absolute-positioned content containers overflow when content is taller than the remaining space. Reserve `position: absolute` for decoratives only.
-3. **Add entrances with `gsap.from()`** — animate FROM offscreen/invisible TO the CSS position. The CSS position is the ground truth; the tween describes the journey to get there. (In sub-compositions loaded via `data-composition-src`, prefer `gsap.fromTo()` — see load-bearing GSAP rules in [references/motion-principles.md](references/motion-principles.md).)
+3. **Add entrances from the static layout** — animate FROM offscreen/invisible TO the CSS position. The CSS position is the ground truth; the tween describes the journey to get there. In full standalone timelines, `gsap.from()` is usually the right tool. In multi-scene scene fragments, use the fragment-safe pattern from [references/multi-scene.md](references/multi-scene.md): `tl.set()` at time 0 plus `tl.to()` at scene time. In sub-compositions loaded via `data-composition-src`, prefer `gsap.fromTo()` — see load-bearing GSAP rules in [references/motion-principles.md](references/motion-principles.md).
 4. **Add exits with `gsap.to()`** — animate TO offscreen/invisible FROM the CSS position.
 
 ### Example
@@ -112,7 +120,7 @@ Position every element where it should be at its **most visible moment** — the
 ```
 
 ```js
-// Step 3: Animate INTO those positions
+// Standalone or single-scene example: animate INTO those positions
 tl.from(".title", { y: 60, opacity: 0, duration: 0.6, ease: "power3.out" }, 0);
 tl.from(".subtitle", { y: 40, opacity: 0, duration: 0.5, ease: "power3.out" }, 0.2);
 tl.from(".logo", { scale: 0.8, opacity: 0, duration: 0.4, ease: "power2.out" }, 0.3);
@@ -246,8 +254,8 @@ Video must be `muted playsinline`. Audio is always a separate `<audio>` element:
 
 Every multi-scene composition MUST follow ALL of these rules. Violating any one of them is a broken composition.
 
-1. **ALWAYS use transitions between scenes.** No jump cuts. No exceptions.
-2. **ALWAYS use entrance animations on every scene.** Every element animates IN via `gsap.from()`. No element may appear fully-formed. If a scene has 5 elements, it needs 5 entrance tweens.
+1. **ALWAYS use a planned handoff between scenes.** CSS transitions, shader transitions, and declared hard cuts are allowed. Accidental jump cuts are not. If using a hard cut, it must be listed in `.hyperframes/scene-manifest.json` with `hardCut: true` and a reason tied to rhythm or content.
+2. **ALWAYS use entrance animations on every scene.** No element may appear fully-formed. If a scene has 5 elements, it needs 5 entrance tweens. In full standalone timelines this often uses `gsap.from()`. In multi-scene scene fragments, translate each entrance into `tl.set()` at time 0 plus `tl.to()` at scene time per [references/multi-scene.md](references/multi-scene.md).
 3. **NEVER use exit animations** except on the final scene. This means: NO `gsap.to()` that animates opacity to 0, y offscreen, scale to 0, or any other "out" animation before a transition fires. The transition IS the exit. The outgoing scene's content MUST be fully visible at the moment the transition starts.
 4. **Final scene only:** The last scene may fade elements out (e.g., fade to black). This is the ONLY scene where `gsap.to(..., { opacity: 0 })` is allowed.
 
@@ -263,6 +271,7 @@ tl.to("#s1-subtitle", { opacity: 0, duration: 0.3 }, 6.7);
 **RIGHT — entrance only, transition handles exit:**
 
 ```js
+// Full-composition timeline example; scene fragments use tl.set() + tl.to().
 // Scene 1 entrance animations
 tl.from("#s1-title", { y: 50, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.3);
 tl.from("#s1-subtitle", { y: 30, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.6);
@@ -396,6 +405,7 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 - **[references/css-patterns.md](references/css-patterns.md)** — CSS+GSAP marker highlighting: highlight, circle, burst, scribble, sketchout. Deterministic, fully seekable. Read when adding visual emphasis to text.
 - **[references/video-composition.md](references/video-composition.md)** — Video-medium rules: density, color presence, scale, frame composition, design.md as brand not layout. **Always read** — these override web instincts.
 - **[references/beat-direction.md](references/beat-direction.md)** — Beat planning: concept, mood, choreography verbs, rhythm templates, transition decisions, depth layers. **Always read for multi-scene compositions.**
+- **[references/multi-scene.md](references/multi-scene.md)** — Multi-scene build pipeline: fragment spec, scaffold contract, parallel dispatch, serial fallback, assembly, persistent elements. **Always read before planning or authoring compositions with 2+ scenes.**
 - **[references/typography.md](references/typography.md)** — Typography: font pairing, OpenType features, dark-background adjustments, font discovery script. **Always read** — every composition has text.
 - **[references/motion-principles.md](references/motion-principles.md)** — Motion design principles, image motion treatment, load-bearing GSAP rules. **Always read** — every composition has motion.
 - **[references/techniques.md](references/techniques.md)** — 11 visual techniques with code patterns: SVG drawing, Canvas 2D, CSS 3D, kinetic type, Lottie, video compositing, typing effect, variable fonts, MotionPath, velocity transitions, audio-reactive. Read when planning techniques per beat.
@@ -408,7 +418,7 @@ Skip on small edits (fixing a color, adjusting one duration). Run on new composi
 - **[references/transcript-guide.md](references/transcript-guide.md)** — Transcription commands, whisper models, external APIs, troubleshooting.
 - **[references/dynamic-techniques.md](references/dynamic-techniques.md)** — Dynamic caption animation techniques (karaoke, clip-path, slam, scatter, elastic, 3D).
 
-- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions. Energy/mood selection, CSS vs WebGL guidance. **Always read for multi-scene compositions** — scenes without transitions feel like jump cuts.
+- **[references/transitions.md](references/transitions.md)** — Scene transitions: crossfades, wipes, reveals, shader transitions, and declared hard cuts. Energy/mood selection, CSS vs WebGL guidance. **Always read for multi-scene compositions** — scenes without planned handoffs feel like accidental jump cuts.
   - [transitions/catalog.md](references/transitions/catalog.md) — Hard rules, scene template, and routing to per-type implementation code.
   - Shader transitions are in `@hyperframes/shader-transitions` (`packages/shader-transitions/`) — read package source, not skill files.
 

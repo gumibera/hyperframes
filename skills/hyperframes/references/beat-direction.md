@@ -4,6 +4,22 @@ How to plan and direct individual scenes (beats) in a multi-scene composition. R
 
 ---
 
+## Choose the Register First
+
+Before enriching a composition with decoratives, motion, and narrative arc — identify what energy the content expects and stay inside it. A running-shoes teaser treated as an introspective documentary is clever but wrong. A historical photograph treated with tech-product chrome (ghost watermarks, coord stamps, registration ticks) fights the tone.
+
+Choose the register FIRST, then decide what to enrich. The register must appear in the expanded prompt, scene manifest, and evaluator verdict so it survives the full build.
+
+| Content type                  | Good register                    | Enrichment that fits                                    | Enrichment to avoid                                  |
+| ----------------------------- | -------------------------------- | ------------------------------------------------------- | ---------------------------------------------------- |
+| Product launch / growth proof | High-clarity, confident, kinetic | Bold scale, crisp stats, visible brand accent, snap     | Quiet documentary pacing                             |
+| Historical / documentary      | Respectful, archival, restrained | Film grain, captions, measured camera moves, provenance | Tech chrome, coord stamps, fake HUDs                 |
+| Luxury / premium              | Slow, tactile, editorial         | Negative space, soft focus, subtle parallax             | Overloaded badges, glitch, frantic transition rhythm |
+| Tutorial / explainer          | Clear, paced, legible            | Callouts, progressive reveal, consistent layout         | Decorative motion that competes with comprehension   |
+| Social promo                  | Fast, interruptive, punchy       | Hard cuts, slams, large type, strong contrast           | Slow abstract metaphors before the hook              |
+
+---
+
 ## Per-Beat Direction
 
 Each beat is a WORLD, not a layout. Before writing CSS specs and GSAP instructions, describe what the viewer EXPERIENCES. The difference between a great storyboard and a mediocre one:
@@ -45,13 +61,13 @@ How this beat hands off to the next. Specify the type and parameters.
 
 **When to pick which:**
 
-| Choose shader transition for                                                    | Choose CSS transition for                                                           | Choose hard cut for                                            |
+| Choose shader transition for                                                    | Choose CSS transition for                                                           | Choose planned hard cut for                                    |
 | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | Reveals, big reaction shots, product/logo unveils, energy shifts, "wow" moments | Continuous camera-motion beats where the scene feels like one move broken into cuts | Rapid-fire lists, percussive edits on the beat, comedic timing |
 | Any moment the music/VO punctuates with a downbeat or SFX hit                   | Beats that ease from one composition into the next with shared motion vocabulary    | Sequences of 3+ quick tempo-matched switches                   |
 | Brand moments where the transition itself _is_ the visual                       | Minimal/editorial pacing                                                            | Anytime a 0.3-0.8s transition would feel too slow              |
 
-Rule of thumb: if the beat is the _centerpiece_ of the video, shader-transition into it. If the beat is connective tissue, CSS-transition. A brand reel of 5-7 beats usually wants 1-2 shader transitions (the hero reveal + the CTA) and the rest CSS or hard cuts — too many shader transitions flatten their impact.
+Rule of thumb: if the beat is the _centerpiece_ of the video, shader-transition into it. If the beat is connective tissue, CSS-transition. A brand reel of 5-7 beats usually wants 1-2 shader transitions (the hero reveal + the CTA) and the rest CSS or planned hard cuts — too many shader transitions flatten their impact. A hard cut is still a planned handoff: list it in the scene manifest with `hardCut: true` and a rhythm/content reason.
 
 **CSS transitions** (choose from `skills/hyperframes/references/transitions/catalog.md`):
 

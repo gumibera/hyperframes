@@ -6,8 +6,8 @@ A transition tells the viewer how two scenes relate. A crossfade says "this cont
 
 These are non-negotiable for every multi-scene composition:
 
-1. **Every composition uses transitions.** No exceptions. Scenes without transitions feel like jump cuts.
-2. **Every scene uses entrance animations.** Elements animate IN via `gsap.from()` — opacity, position, scale, etc. No scene should pop fully-formed onto screen.
+1. **Every composition uses planned handoffs.** CSS transitions, shader transitions, and declared hard cuts are allowed. Scenes with no planned handoff feel like accidental jump cuts.
+2. **Every scene uses entrance animations.** Elements animate in from an intentional initial state. Full-composition timelines often use `gsap.from()`. Multi-scene fragments use `tl.set()` plus `tl.to()` per [multi-scene.md](multi-scene.md).
 3. **Exit animations are BANNED** except on the final scene. Do NOT use `gsap.to()` to animate elements out before a transition fires. The transition IS the exit. Outgoing scene content must be fully visible when the transition starts — the transition handles the visual handoff.
 4. **Final scene exception:** The last scene MAY fade elements out (e.g., fade to black at the end of the composition). This is the only scene where exit animations are allowed.
 

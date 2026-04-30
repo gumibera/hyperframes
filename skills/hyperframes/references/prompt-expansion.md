@@ -40,20 +40,36 @@ Expand into a full production prompt with these sections:
 
 1. **Title + style block** — cite design.md's exact hex values, font names, and mood. Do NOT invent a palette — quote what the design provides.
 
+   Include a **Register** line that names the content's expected energy and tone, then constrains enrichment. Example: `Register: respectful archival documentary — enrich with provenance, grain, and measured camera moves; avoid tech-product HUD chrome.`
+
 2. **Rhythm declaration** — name the scene rhythm before detailing any scene. Example: `hook-PUNCH-breathe-CTA` or `slow-build-BUILD-PEAK-breathe-CTA`. See [beat-direction.md](beat-direction.md) for rhythm templates by video type.
 
 3. **Global rules** — parallax layers, micro-motion requirements, transition style, primary + accent transitions. Match energy to mood (calm → slow eases, high → snappy eases).
 
 4. **Per-scene beats** — for each scene, use the beat-direction format:
    - **Concept** — the big idea in 2-3 sentences. What visual WORLD? What metaphor? What should the viewer FEEL?
+   - **Register fit** — how this scene stays inside the global register. This is not optional; downstream evaluators check it.
    - **Mood direction** — cultural/design references, not hex codes. ("Bauhaus color studies", "cinematic title sequence", "editorial calm")
    - **Depth layers** — BG (2-5 decoratives with ambient motion), MG (content), FG (accents, structural elements, micro-details). 8-10 total elements per scene per video-composition.md.
    - **Animation choreography** — specific verbs per element. High: SLAMS, CRASHES. Medium: CASCADE, SLIDES. Low: floats, types on, counts up. Every element gets a verb. If you can't name the verb, the element is not yet designed.
    - **Transition out** — shader or CSS, with specific type and parameters. Not "crossfade" but "blur crossfade, 0.4s, power2.inOut."
 
-5. **Recurring motifs** — visual threads across scenes from the brand palette.
+5. **R4: Pre-plan persistent-subject choreography** — always evaluate this section. If the composition does not have a persistent subject across 2+ scenes, write exactly: `R4: Not applicable — no persistent subject`.
 
-6. **Negative prompt** — what to avoid, informed by design.md's constraints if present.
+   If the composition has a persistent subject — a product shot, photograph, logo, artwork, UI screenshot, person, or other concrete object that should feel continuous through cuts — include a full choreography plan.
+
+   For each scene, output one block with:
+   - **Subject role** — focal subject, background anchor, data-point, transition bridge, or final hero.
+   - **Reserved region** — x/y/width/height or named region (for example, "right 42% of frame, 240px margin"). Scene content must avoid this region.
+   - **Subject center + scale** — center coordinates as percentages and approximate rendered size.
+   - **Motion across boundary** — where the subject moves from the previous scene into this scene, including timing relative to the transition midpoint.
+   - **Scene relationship** — what scene chrome points to, frames, labels, or avoids around the subject.
+
+   These blocks map into `.hyperframes/scene-manifest.json` as `r4.role`, `r4.reservedRegion`, `r4.center`, `r4.scale`, `r4.motionAcrossBoundary`, and `r4.sceneRelationship`.
+
+6. **Recurring motifs** — visual threads across scenes from the brand palette.
+
+7. **Negative prompt** — what to avoid, informed by design.md's constraints if present.
 
 ## Output
 
