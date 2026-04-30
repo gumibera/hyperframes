@@ -30,6 +30,7 @@ describe("resolveConfig", () => {
     expect(config.format).toBe("jpeg");
     expect(config.jpegQuality).toBe(80);
     expect(config.browserGpuMode).toBe("software");
+    expect(config.enableStreamingEncode).toBe(true);
     expect(config.audioGain).toBe(1);
     expect(config.debug).toBe(false);
   });
@@ -58,6 +59,13 @@ describe("resolveConfig", () => {
     const config = resolveConfig();
     expect(config.disableGpu).toBe(true);
     expect(config.enableBrowserPool).toBe(true);
+  });
+
+  it("lets env vars opt out of default streaming encode", () => {
+    setEnv("PRODUCER_ENABLE_STREAMING_ENCODE", "false");
+
+    const config = resolveConfig();
+    expect(config.enableStreamingEncode).toBe(false);
   });
 
   it("treats non-'true' boolean env vars as false", () => {

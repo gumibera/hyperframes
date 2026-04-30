@@ -21,6 +21,7 @@ import {
   resolveRenderWorkerCount,
   selectCaptureCalibrationFrames,
   shouldFallbackToScreenshotAfterCalibrationError,
+  shouldUseStreamingEncode,
   writeCompiledArtifacts,
 } from "./renderOrchestrator.js";
 import { toExternalAssetKey } from "../utils/paths.js";
@@ -81,6 +82,23 @@ describe("extractStandaloneEntryFromIndex", () => {
     const extracted = extractStandaloneEntryFromIndex(indexHtml, "compositions/outro.html");
 
     expect(extracted).toBeNull();
+  });
+});
+
+describe("shouldUseStreamingEncode", () => {
+  it("enables streaming for default single-worker video renders", () => {
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 1)).toBe(true);
+  });
+
+  it("lets config disable streaming encode", () => {
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: false }, "mp4", 1)).toBe(false);
+  });
+
+  it("keeps png-sequence and parallel capture on the non-streaming path", () => {
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "png-sequence", 1)).toBe(
+      false,
+    );
+    expect(shouldUseStreamingEncode({ enableStreamingEncode: true }, "mp4", 2)).toBe(false);
   });
 });
 

@@ -1710,6 +1710,34 @@ function normalizeCompositionSrcPath(srcPath: string): string {
   return srcPath.replace(/\\/g, "/").replace(/^\.\//, "");
 }
 
+function createStandaloneEntryRenderClone(root: Element, host: Element): Element {
+  const hostClone = host.cloneNode(true) as Element;
+  hostClone.setAttribute("data-start", "0");
+
+  if (root === host) return hostClone;
+
+  const rootClone = root.cloneNode(false) as Element;
+  rootClone.appendChild(hostClone);
+  return rootClone;
+}
+
+function replaceBodyWithRenderClone(body: HTMLElement, renderClone: Element): void {
+  while (body.firstChild) {
+    body.removeChild(body.firstChild);
+  }
+  body.appendChild(renderClone);
+}
+
+export function shouldUseStreamingEncode(
+  cfg: Pick<EngineConfig, "enableStreamingEncode">,
+  outputFormat: NonNullable<RenderConfig["format"]>,
+  workerCount: number,
+): boolean {
+  if (!cfg.enableStreamingEncode) return false;
+  if (outputFormat === "png-sequence") return false;
+  return workerCount === 1;
+}
+
 /**
  * Main render pipeline
  */
@@ -1737,19 +1765,8 @@ export function extractStandaloneEntryFromIndex(
     ) ?? null;
   if (!root) return null;
 
-  const hostClone = host.cloneNode(true) as Element;
-  hostClone.setAttribute("data-start", "0");
-
-  body.innerHTML = "";
-
-  if (root === host) {
-    body.appendChild(hostClone);
-    return document.toString();
-  }
-
-  const rootClone = root.cloneNode(false) as Element;
-  rootClone.appendChild(hostClone);
-  body.appendChild(rootClone);
+  const renderClone = createStandaloneEntryRenderClone(root, host);
+  replaceBodyWithRenderClone(body, renderClone);
 
   return document.toString();
 }
@@ -1783,7 +1800,7 @@ export async function executeRenderJob(
   let hdrPerf: HdrPerfCollector | undefined;
   const perfOutputPath = join(workDir, "perf-summary.json");
   const cfg = { ...(job.config.producerConfig ?? resolveConfig()) };
-  const outputFormat = (job.config.format ?? "mp4") as "mp4" | "webm" | "mov" | "png-sequence";
+  const outputFormat = (job.config.format ?? "mp4") as NonNullable<RenderConfig["format"]>;
   const isWebm = outputFormat === "webm";
   const isMov = outputFormat === "mov";
   const isPngSequence = outputFormat === "png-sequence";
@@ -1794,12 +1811,6 @@ export async function executeRenderJob(
   }
   const enableChunkedEncode = cfg.enableChunkedEncode;
   const chunkedEncodeSize = cfg.chunkSizeFrames;
-  // Streaming encode pipes captured frames through ffmpeg's stdin to produce
-  // a single video file. png-sequence has no encoded video output — frames go
-  // straight to disk — so the streaming branch is bypassed regardless of the
-  // engine config flag.
-  const enableStreamingEncode = cfg.enableStreamingEncode && !isPngSequence;
-
   // Periodic memory sampler — surfaces peak RSS/heap so the benchmark harness
   // can detect memory regressions (e.g. unbounded image-cache growth) that
   // wall-clock numbers miss. Sampled every 250ms; the interval is `unref`'d so
@@ -2509,6 +2520,13 @@ export async function executeRenderJob(
       await closeCaptureSession(probeSession);
       probeSession = null;
     }
+
+    // Streaming encode pipes captured frames through ffmpeg's stdin to produce
+    // a single video file. Keep the default enabled for sequential capture, but
+    // let auto-parallel renders use disk frames: the current ordered streaming
+    // writer would otherwise stall later workers behind earlier frame ranges.
+    // png-sequence has no encoded video output, so streaming is always bypassed.
+    const enableStreamingEncode = shouldUseStreamingEncode(cfg, outputFormat, workerCount);
 
     const captureAttempts: CaptureAttemptSummary[] = [];
 
