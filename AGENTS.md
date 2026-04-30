@@ -10,6 +10,9 @@ This repo ships AI agent skills via [vercel-labs/skills](https://github.com/verc
 npx skills add heygen-com/hyperframes
 ```
 
+**Always invoke the relevant HyperFrames skill before writing or modifying compositions.**
+If skills are not available, stop and ask the user to run `npx skills add heygen-com/hyperframes` before composition work continues.
+
 ## Build & Test
 
 ```bash

@@ -1,6 +1,6 @@
 # HyperFrames Composition Project
 
-## Skills
+## Skills — Use These First
 
 This project uses AI agent skills for framework-specific patterns. Install them if not already present:
 
@@ -8,7 +8,9 @@ This project uses AI agent skills for framework-specific patterns. Install them 
 npx skills add heygen-com/hyperframes
 ```
 
-Skills encode patterns like `window.__timelines` registration, `data-*` attribute semantics, and shader-compatible CSS rules that are not in generic web docs. Using them produces correct compositions from the start.
+**Always invoke the relevant HyperFrames skill before writing or modifying compositions.** Skills encode patterns like `window.__timelines` registration, `data-*` attribute semantics, and shader-compatible CSS rules that are not in generic web docs. Skipping them produces broken compositions.
+
+**Skills not available?** Stop and ask the user to run `npx hyperframes skills` and restart their agent session, or install manually with `npx skills add heygen-com/hyperframes`.
 
 ## Commands
 
