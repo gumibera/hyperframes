@@ -95,7 +95,9 @@ function applyMediaMetadataFromElement(entry: TimelineElement, el: Element): voi
   const src = mediaEl.getAttribute("src");
   if (src) entry.src = src;
 
-  if (!(mediaEl instanceof HTMLMediaElement)) return;
+  const win = mediaEl.ownerDocument.defaultView ?? window;
+  const MediaElementCtor = win.HTMLMediaElement ?? globalThis.HTMLMediaElement;
+  if (typeof MediaElementCtor === "undefined" || !(mediaEl instanceof MediaElementCtor)) return;
 
   const sourceDurationAttr =
     el.getAttribute("data-source-duration") ?? mediaEl.getAttribute("data-source-duration");

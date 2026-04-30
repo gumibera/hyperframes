@@ -195,6 +195,35 @@ describe("anonymous timeline identity", () => {
     expect(new Set(elements.map((element) => element.key)).size).toBe(2);
     expect(elements.map((element) => element.selectorIndex)).toEqual([0, 1]);
   });
+
+  it("reads media metadata from owner-window media elements", () => {
+    const doc = createDocument(`
+      <div data-composition-id="main" data-start="0" data-duration="8">
+        <div class="clip video-card" data-start="0" data-duration="3" data-track-index="0">
+          <video src="/clip.mp4" data-source-duration="12"></video>
+        </div>
+      </div>
+    `);
+    const hostEl = doc.querySelector(".video-card");
+    const video = hostEl?.querySelector("video");
+    if (!hostEl || !video) throw new Error("missing video test fixture");
+    Object.defineProperty(video, "defaultPlaybackRate", {
+      value: 1.5,
+      configurable: true,
+    });
+
+    const element = createTimelineElementFromManifestClip({
+      clip: createClip({ kind: "video", tagName: "div" }),
+      fallbackIndex: 0,
+      doc,
+      hostEl,
+    });
+
+    expect(element.tag).toBe("video");
+    expect(element.src).toBe("/clip.mp4");
+    expect(element.sourceDuration).toBe(12);
+    expect(element.playbackRate).toBe(1.5);
+  });
 });
 
 describe("mergeTimelineElementsPreservingDowngrades", () => {

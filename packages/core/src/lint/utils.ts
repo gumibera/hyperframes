@@ -59,12 +59,18 @@ export function extractBlocks(source: string, pattern: RegExp): ExtractedBlock[]
 }
 
 export function findRootTag(source: string): OpenTag | null {
-  const bodyMatch = source.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
-  const bodyContent = bodyMatch ? (bodyMatch[1] ?? source) : source;
+  const bodyOpenMatch = /<body\b[^>]*>/i.exec(source);
+  const bodyCloseMatch = /<\/body>/i.exec(source);
+  const bodyStart = bodyOpenMatch ? bodyOpenMatch.index + bodyOpenMatch[0].length : 0;
+  const bodyEnd =
+    bodyOpenMatch && bodyCloseMatch && bodyCloseMatch.index > bodyStart
+      ? bodyCloseMatch.index
+      : source.length;
+  const bodyContent = bodyOpenMatch ? source.slice(bodyStart, bodyEnd) : source;
   const bodyTags = extractOpenTags(bodyContent);
   for (const tag of bodyTags) {
     if (["script", "style", "meta", "link", "title"].includes(tag.name)) continue;
-    return tag;
+    return { ...tag, index: tag.index + bodyStart };
   }
   return null;
 }
