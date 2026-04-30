@@ -1728,18 +1728,17 @@ function replaceBodyWithRenderClone(body: HTMLElement, renderClone: Element): vo
   body.appendChild(renderClone);
 }
 
-const STREAMING_ENCODE_MAX_DURATION_SECONDS = 4 * 60;
-
 export function shouldUseStreamingEncode(
-  cfg: Pick<EngineConfig, "enableStreamingEncode">,
+  cfg: Pick<EngineConfig, "enableStreamingEncode" | "streamingEncodeMaxDurationSeconds">,
   outputFormat: NonNullable<RenderConfig["format"]>,
   workerCount: number,
+  // Composition timeline duration in seconds.
   durationSeconds: number,
 ): boolean {
   if (!cfg.enableStreamingEncode) return false;
   if (outputFormat === "png-sequence") return false;
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return false;
-  if (durationSeconds > STREAMING_ENCODE_MAX_DURATION_SECONDS) return false;
+  if (durationSeconds > cfg.streamingEncodeMaxDurationSeconds) return false;
   return workerCount === 1;
 }
 
@@ -2531,12 +2530,15 @@ export async function executeRenderJob(
     // let auto-parallel renders use disk frames: the current ordered streaming
     // writer would otherwise stall later workers behind earlier frame ranges.
     // png-sequence has no encoded video output, so streaming is always bypassed.
-    const enableStreamingEncode = shouldUseStreamingEncode(
-      cfg,
+    let useStreamingEncode = shouldUseStreamingEncode(cfg, outputFormat, workerCount, job.duration);
+    log.info("streaming-encode gate", {
+      enabled: useStreamingEncode,
+      configFlag: cfg.enableStreamingEncode,
       outputFormat,
       workerCount,
-      job.duration,
-    );
+      durationSeconds: job.duration,
+      maxDurationSeconds: cfg.streamingEncodeMaxDurationSeconds,
+    });
 
     const captureAttempts: CaptureAttemptSummary[] = [];
 
@@ -3347,30 +3349,50 @@ export async function executeRenderJob(
       let streamingEncoder: StreamingEncoder | null = null;
       let streamingEncoderClosed = false;
 
-      if (enableStreamingEncode) {
-        streamingEncoder = await spawnStreamingEncoder(
-          videoOnlyPath,
-          {
-            fps: job.config.fps,
-            width,
-            height,
-            codec: preset.codec,
-            preset: preset.preset,
-            quality: effectiveQuality,
-            bitrate: effectiveBitrate,
-            pixelFormat: preset.pixelFormat,
-            useGpu: job.config.useGpu,
-            imageFormat: captureOptions.format || "jpeg",
-            hdr: preset.hdr,
-          },
-          abortSignal,
-        );
-        assertNotAborted();
+      if (useStreamingEncode) {
+        try {
+          streamingEncoder = await spawnStreamingEncoder(
+            videoOnlyPath,
+            {
+              fps: job.config.fps,
+              width,
+              height,
+              codec: preset.codec,
+              preset: preset.preset,
+              quality: effectiveQuality,
+              bitrate: effectiveBitrate,
+              pixelFormat: preset.pixelFormat,
+              useGpu: job.config.useGpu,
+              imageFormat: captureOptions.format || "jpeg",
+              hdr: preset.hdr,
+            },
+            abortSignal,
+          );
+          assertNotAborted();
+        } catch (err) {
+          if (abortSignal?.aborted) {
+            if (streamingEncoder && !streamingEncoderClosed) {
+              await streamingEncoder.close().catch(() => {});
+              streamingEncoderClosed = true;
+            }
+            throw err;
+          }
+          useStreamingEncode = false;
+          streamingEncoder = null;
+          log.warn("[Render] Streaming encoder spawn failed; falling back to disk-frame encode.", {
+            error: err instanceof Error ? err.message : String(err),
+            outputFormat,
+            workerCount,
+            durationSeconds: job.duration,
+          });
+        }
       }
 
       try {
-        if (enableStreamingEncode && streamingEncoder) {
+        if (useStreamingEncode && streamingEncoder) {
           // ── Streaming capture + encode (Stage 4 absorbs Stage 5) ──────────
+          // Streaming encode is locked in here; capture retries may shrink
+          // workerCount later, but must not grow a streaming render past one worker.
           const reorderBuffer = createFrameReorderBuffer(0, totalFrames);
           const currentEncoder = streamingEncoder;
 

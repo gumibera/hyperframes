@@ -31,6 +31,7 @@ describe("resolveConfig", () => {
     expect(config.jpegQuality).toBe(80);
     expect(config.browserGpuMode).toBe("software");
     expect(config.enableStreamingEncode).toBe(true);
+    expect(config.streamingEncodeMaxDurationSeconds).toBe(240);
     expect(config.audioGain).toBe(1);
     expect(config.debug).toBe(false);
   });
@@ -66,6 +67,20 @@ describe("resolveConfig", () => {
 
     const config = resolveConfig();
     expect(config.enableStreamingEncode).toBe(false);
+  });
+
+  it("reads the streaming encode duration cutoff from env", () => {
+    setEnv("PRODUCER_STREAMING_ENCODE_MAX_DURATION_SECONDS", "120");
+
+    const config = resolveConfig();
+    expect(config.streamingEncodeMaxDurationSeconds).toBe(120);
+  });
+
+  it("clamps negative streaming encode duration cutoff env values to zero", () => {
+    setEnv("PRODUCER_STREAMING_ENCODE_MAX_DURATION_SECONDS", "-1");
+
+    const config = resolveConfig();
+    expect(config.streamingEncodeMaxDurationSeconds).toBe(0);
   });
 
   it("treats non-'true' boolean env vars as false", () => {

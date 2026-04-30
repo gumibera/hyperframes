@@ -48,6 +48,12 @@ export interface EngineConfig {
   enableChunkedEncode: boolean;
   chunkSizeFrames: number;
   enableStreamingEncode: boolean;
+  /**
+   * Max composition duration eligible for streaming encode (seconds).
+   * Mirrors GSAP rendering's 4-minute streaming guard: production has seen
+   * ffmpeg's streaming pipe hit FFMPEG_STREAMING_TIMEOUT_MS on longer videos.
+   */
+  streamingEncodeMaxDurationSeconds: number;
 
   // ── FFmpeg timeouts ──────────────────────────────────────────────────
   /** Timeout for FFmpeg frame encoding (ms). Default: 600_000 */
@@ -127,6 +133,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   enableChunkedEncode: false,
   chunkSizeFrames: 360,
   enableStreamingEncode: true,
+  streamingEncodeMaxDurationSeconds: 240,
 
   ffmpegEncodeTimeout: 600_000,
   ffmpegProcessTimeout: 300_000,
@@ -206,6 +213,13 @@ export function resolveConfig(overrides?: Partial<EngineConfig>): EngineConfig {
     enableStreamingEncode: envBool(
       "PRODUCER_ENABLE_STREAMING_ENCODE",
       DEFAULT_CONFIG.enableStreamingEncode,
+    ),
+    streamingEncodeMaxDurationSeconds: Math.max(
+      0,
+      envNum(
+        "PRODUCER_STREAMING_ENCODE_MAX_DURATION_SECONDS",
+        DEFAULT_CONFIG.streamingEncodeMaxDurationSeconds,
+      ),
     ),
 
     ffmpegEncodeTimeout: envNum("FFMPEG_ENCODE_TIMEOUT_MS", DEFAULT_CONFIG.ffmpegEncodeTimeout),
