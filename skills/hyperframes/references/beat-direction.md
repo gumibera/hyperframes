@@ -4,6 +4,14 @@ How to plan and direct individual scenes (beats) in a multi-scene composition. R
 
 ---
 
+## Choose the Register First
+
+Before enriching a composition with decoratives, motion, and narrative arc — identify what energy the content expects and stay inside it. A running-shoes teaser treated as an introspective documentary is clever but wrong. A historical photograph treated with tech-product chrome (ghost watermarks, coord stamps, registration ticks) fights the tone.
+
+Choose the register FIRST, then decide what to enrich.
+
+---
+
 ## Per-Beat Direction
 
 Each beat is a WORLD, not a layout. Before writing CSS specs and GSAP instructions, describe what the viewer EXPERIENCES. The difference between a great storyboard and a mediocre one:
