@@ -102,8 +102,8 @@
     "prepublishOnly": "echo skip"
   },
   "dependencies": {
-    "@chenglou/pretext": "^0.0.5",
-    "postcss": "^8.5.8"
+    "@chenglou/pretext": "^0.0.6",
+    "postcss": "^8.5.13"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.0",
