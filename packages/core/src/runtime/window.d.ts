@@ -44,6 +44,19 @@ declare global {
     };
     THREE?: ThreeLike;
     /**
+     * Global Motion instance (set by including the motion.min.js UMD bundle).
+     */
+    Motion?: Record<string, unknown>;
+    /**
+     * Motion animation instances registered by compositions.
+     * The adapter seeks all instances via the .time setter (seconds).
+     *
+     * Push your animation instance here:
+     *   window.__hfMotion = window.__hfMotion || [];
+     *   window.__hfMotion.push(anim);
+     */
+    __hfMotion?: unknown[];
+    /**
      * Global anime.js instance (set by including the anime.iife.min.js script).
      * The adapter uses `anime.running` for auto-discovery.
      */
