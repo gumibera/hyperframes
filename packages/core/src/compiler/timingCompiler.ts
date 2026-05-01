@@ -7,7 +7,6 @@
  * Guarantees every timed element gets:
  * - id on media elements when missing
  * - data-end (computed from data-start + data-duration when possible)
- * - data-has-audio="true" on <video> elements
  *
  * For elements without data-duration (e.g. videos relying on source duration),
  * this compiler identifies them as "unresolved" so the caller can provide
@@ -101,11 +100,6 @@ function compileTag(
     }
   }
 
-  // 2. Add data-has-audio="true" to <video> elements
-  if (isVideo && !hasAttr(result, "data-has-audio")) {
-    result = injectAttr(result, "data-has-audio", "true");
-  }
-
   return { tag: result, unresolved };
 }
 
@@ -113,7 +107,7 @@ function compileTag(
  * Compile timing attributes in HTML.
  *
  * Phase 1 (static): Adds data-end where data-duration exists,
- * adds data-has-audio on videos.
+ * preserves explicit video audio declarations.
  *
  * Returns the compiled HTML and a list of elements that could not be
  * resolved statically (missing data-duration). The caller should resolve

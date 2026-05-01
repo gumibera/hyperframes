@@ -53,19 +53,21 @@ const THUMBNAIL_CACHE_VERSION = "v2";
 function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAdapter {
   // Lazy-load the bundler via Vite's SSR module loader
   let _bundler: ((dir: string) => Promise<string>) | null = null;
-  let _producerModulePromise: Promise<{
-    createRenderJob: (config: {
-      fps: 24 | 30 | 60;
-      quality: "draft" | "standard" | "high";
-      format: string;
-    }) => unknown;
-    executeRenderJob: (
-      job: unknown,
-      projectDir: string,
-      outputPath: string,
-      onProgress?: (job: { progress: number; currentStage?: string }) => void,
-    ) => Promise<void>;
-  }> | null = null;
+  let _producerModuleLoader:
+    | (() => Promise<{
+        createRenderJob: (config: {
+          fps: 24 | 30 | 60;
+          quality: "draft" | "standard" | "high";
+          format: string;
+        }) => unknown;
+        executeRenderJob: (
+          job: unknown,
+          projectDir: string,
+          outputPath: string,
+          onProgress?: (job: { progress: number; currentStage?: string }) => void,
+        ) => Promise<void>;
+      }>)
+    | null = null;
   const getBundler = async () => {
     if (!_bundler) {
       try {
@@ -80,8 +82,8 @@ function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAda
   };
 
   const getProducerModule = async () => {
-    if (!_producerModulePromise) {
-      _producerModulePromise = createRetryingModuleLoader(async () => {
+    if (!_producerModuleLoader) {
+      _producerModuleLoader = createRetryingModuleLoader(async () => {
         const { built } = ensureProducerDist({
           studioDir: __dirname,
           env: process.env,
@@ -93,9 +95,9 @@ function createViteAdapter(dataDir: string, server: ViteDevServer): StudioApiAda
         }
         const producerPkg = "@hyperframes/producer";
         return await import(/* @vite-ignore */ producerPkg);
-      })();
+      });
     }
-    return _producerModulePromise();
+    return _producerModuleLoader();
   };
 
   return {

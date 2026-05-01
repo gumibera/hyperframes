@@ -73,10 +73,6 @@ function compileTag(
     }
   }
 
-  if (isVideo && !hasAttr(result, "data-has-audio")) {
-    result = injectAttr(result, "data-has-audio", "true");
-  }
-
   return { tag: result, unresolved };
 }
 

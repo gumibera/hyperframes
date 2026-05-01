@@ -2250,24 +2250,24 @@ export async function executeRenderJob(
       videoMetadataHints = collectVideoMetadataHints(extractionResult.extracted);
       perfStages.videoExtractMs = Date.now() - stage2Start;
 
-      // Auto-detect audio from video files via ffprobe metadata
+      // Only explicitly audible videos contribute audio. Muted visual video
+      // tracks often have embedded scratch/source audio while the composition
+      // uses a separate <audio> element for the final mix.
       const existingAudioSrcs = new Set(composition.audios.map((a) => a.src));
       for (const ext of extractionResult.extracted) {
-        if (ext.metadata.hasAudio) {
-          const video = composition.videos.find((v) => v.id === ext.videoId);
-          if (video && !existingAudioSrcs.has(video.src)) {
-            composition.audios.push({
-              id: `${video.id}-audio`,
-              src: video.src,
-              start: video.start,
-              end: video.end,
-              mediaStart: video.mediaStart,
-              layer: 0,
-              volume: 1.0,
-              type: "video",
-            });
-            existingAudioSrcs.add(video.src);
-          }
+        const video = composition.videos.find((v) => v.id === ext.videoId);
+        if (video?.hasAudio && ext.metadata.hasAudio && !existingAudioSrcs.has(video.src)) {
+          composition.audios.push({
+            id: `${video.id}-audio`,
+            src: video.src,
+            start: video.start,
+            end: video.end,
+            mediaStart: video.mediaStart,
+            layer: 0,
+            volume: 1.0,
+            type: "video",
+          });
+          existingAudioSrcs.add(video.src);
         }
       }
     } else {
@@ -3667,6 +3667,10 @@ export async function executeRenderJob(
           audioOutputPath,
           outputPath,
           abortSignal,
+          {
+            ffmpegProcessTimeout: cfg.ffmpegProcessTimeout,
+            durationSeconds: totalFrames / job.config.fps,
+          },
         );
         assertNotAborted();
         if (!muxResult.success) {

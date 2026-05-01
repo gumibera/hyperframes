@@ -12,5 +12,6 @@ export {
   type EncoderOptions,
   type EncodeResult,
   type MuxResult,
+  type MuxOptions,
   type GpuEncoder,
 } from "@hyperframes/engine";

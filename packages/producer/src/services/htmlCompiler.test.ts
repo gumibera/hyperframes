@@ -490,10 +490,51 @@ describe("detectShaderTransitionUsage", () => {
   });
 });
 
+describe("video audio declarations", () => {
+  it("does not synthesize audible video audio for muted visual tracks", async () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "hf-muted-video-audio-"));
+    writeFileSync(
+      join(projectDir, "index.html"),
+      `<!doctype html>
+<html>
+  <body>
+    <div data-composition-id="main" data-width="640" data-height="360" data-duration="2">
+      <video
+        id="visual"
+        src="clip.mp4"
+        muted
+        playsinline
+        data-start="0"
+        data-duration="2"
+      ></video>
+      <audio id="mix" src="mix.wav" data-start="0" data-duration="2"></audio>
+    </div>
+  </body>
+</html>`,
+    );
+
+    const compiled = await compileForRender(projectDir, join(projectDir, "index.html"), projectDir);
+
+    expect(compiled.videos).toEqual([
+      expect.objectContaining({
+        id: "visual",
+        hasAudio: false,
+      }),
+    ]);
+    expect(compiled.audios).toEqual([
+      expect.objectContaining({
+        id: "mix",
+        type: "audio",
+      }),
+    ]);
+    expect(compiled.html).not.toContain('data-has-audio="true"');
+  });
+});
+
 describe("template-wrapped sub-composition media offsets", () => {
   function writeTemplateWrappedProject(
     hostAttrs: string,
-    mediaAttrs: string = 'data-start="0" data-duration="4"',
+    mediaAttrs: string = 'data-start="0" data-duration="4" data-has-audio="true"',
     extraMediaMarkup: string = "",
   ): {
     projectDir: string;
@@ -613,7 +654,7 @@ describe("template-wrapped sub-composition media offsets", () => {
   it("offsets scene-local media in compositions that start much later on the timeline", async () => {
     const { projectDir, indexPath } = writeTemplateWrappedProject(
       'data-start="20" data-duration="6" data-width="640" data-height="360"',
-      'data-start="1.5" data-duration="4"',
+      'data-start="1.5" data-duration="4" data-has-audio="true"',
     );
 
     const compiled = await compileForRender(projectDir, indexPath, projectDir);

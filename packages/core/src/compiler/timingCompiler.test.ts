@@ -12,6 +12,16 @@ describe("compileTimingAttrs", () => {
     const { html: compiled, unresolved } = compileTimingAttrs(html);
 
     expect(compiled).toContain('data-end="7"');
+    expect(compiled).not.toContain("data-has-audio");
+    expect(unresolved).toHaveLength(0);
+  });
+
+  it("preserves explicit video audio declarations", () => {
+    const html =
+      '<video id="v1" src="a.mp4" data-start="2" data-duration="5" data-has-audio="true">';
+    const { html: compiled, unresolved } = compileTimingAttrs(html);
+
+    expect(compiled).toContain('data-end="7"');
     expect(compiled).toContain('data-has-audio="true"');
     expect(unresolved).toHaveLength(0);
   });
@@ -40,7 +50,7 @@ describe("compileTimingAttrs", () => {
     const { html: compiled, unresolved } = compileTimingAttrs(html);
 
     expect(compiled).toContain('id="hf-video-0"');
-    expect(compiled).toContain('data-has-audio="true"');
+    expect(compiled).not.toContain("data-has-audio");
     expect(unresolved).toHaveLength(1);
     expect(unresolved[0].id).toBe("hf-video-0");
     expect(unresolved[0].tagName).toBe("video");

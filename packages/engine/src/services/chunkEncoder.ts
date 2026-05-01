@@ -243,6 +243,10 @@ export function buildEncoderArgs(
   return args;
 }
 
+export interface MuxOptions extends Partial<Pick<EngineConfig, "ffmpegProcessTimeout">> {
+  durationSeconds?: number;
+}
+
 export async function encodeFramesFromDir(
   framesDir: string,
   framePattern: string,
@@ -494,14 +498,14 @@ export async function muxVideoWithAudio(
   audioPath: string,
   outputPath: string,
   signal?: AbortSignal,
-  config?: Partial<Pick<EngineConfig, "ffmpegProcessTimeout">>,
+  config?: MuxOptions,
 ): Promise<MuxResult> {
   const outputDir = dirname(outputPath);
   if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
 
   const isWebm = outputPath.endsWith(".webm");
   const isMov = outputPath.endsWith(".mov");
-  const args = ["-i", videoPath, "-i", audioPath, "-c:v", "copy"];
+  const args = ["-i", videoPath, "-i", audioPath, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy"];
 
   if (isWebm) {
     args.push("-c:a", "libopus", "-b:a", "128k");
@@ -510,7 +514,14 @@ export async function muxVideoWithAudio(
   } else {
     args.push("-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart");
   }
-  args.push("-shortest", "-y", outputPath);
+
+  const durationSeconds = config?.durationSeconds;
+  if (durationSeconds !== undefined && Number.isFinite(durationSeconds) && durationSeconds > 0) {
+    args.push("-t", String(durationSeconds));
+  } else {
+    args.push("-shortest");
+  }
+  args.push("-y", outputPath);
 
   const processTimeout = config?.ffmpegProcessTimeout ?? DEFAULT_CONFIG.ffmpegProcessTimeout;
   const result = await runFfmpeg(args, { signal, timeout: processTimeout });

@@ -167,11 +167,6 @@ function validateElementTiming(element: CompiledElement, label: string): string[
     }
   }
 
-  // Video-specific: require data-has-audio
-  if (element.tagName === "video" && element.dataHasAudio === undefined) {
-    errors.push(`${label} [${element.id}]: missing data-has-audio attribute`);
-  }
-
   return errors;
 }
 

@@ -1,5 +1,23 @@
 import { describe, it, expect, vi } from "vitest";
-import { ENCODER_PRESETS, getEncoderPreset, buildEncoderArgs } from "./chunkEncoder.js";
+import { runFfmpeg } from "../utils/runFfmpeg.js";
+import {
+  ENCODER_PRESETS,
+  getEncoderPreset,
+  buildEncoderArgs,
+  muxVideoWithAudio,
+} from "./chunkEncoder.js";
+
+vi.mock("../utils/runFfmpeg.js", () => ({
+  runFfmpeg: vi.fn(async () => ({
+    success: true,
+    exitCode: 0,
+    stderr: "",
+    durationMs: 12,
+  })),
+  formatFfmpegError: vi.fn((exitCode: number | null, stderr: string) =>
+    exitCode === null ? stderr : `FFmpeg exited with code ${exitCode}`,
+  ),
+}));
 
 describe("ENCODER_PRESETS", () => {
   it("has draft, standard, and high presets", () => {
@@ -75,6 +93,46 @@ describe("getEncoderPreset", () => {
     const preset = getEncoderPreset("standard");
     expect(preset.codec).toBe("h264");
     expect(preset.pixelFormat).toBe("yuv420p");
+  });
+});
+
+describe("muxVideoWithAudio", () => {
+  it("clamps mux output to the encoded video frame duration when provided", async () => {
+    const mockedRunFfmpeg = vi.mocked(runFfmpeg);
+    mockedRunFfmpeg.mockClear();
+
+    await muxVideoWithAudio("video-only.mp4", "audio.aac", "output.mp4", undefined, {
+      ffmpegProcessTimeout: 1234,
+      durationSeconds: 500 / 30,
+    });
+
+    expect(mockedRunFfmpeg).toHaveBeenCalledTimes(1);
+    const [args, options] = mockedRunFfmpeg.mock.calls[0] ?? [];
+    expect(args).toEqual(
+      expect.arrayContaining([
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
+        "-c:v",
+        "copy",
+        "-t",
+        String(500 / 30),
+      ]),
+    );
+    expect(args).not.toContain("-shortest");
+    expect(options).toEqual(expect.objectContaining({ timeout: 1234 }));
+  });
+
+  it("falls back to shortest-stream muxing when no target duration is known", async () => {
+    const mockedRunFfmpeg = vi.mocked(runFfmpeg);
+    mockedRunFfmpeg.mockClear();
+
+    await muxVideoWithAudio("video-only.mp4", "audio.aac", "output.mp4");
+
+    const [args] = mockedRunFfmpeg.mock.calls[0] ?? [];
+    expect(args).toContain("-shortest");
+    expect(args).not.toContain("-t");
   });
 });
 
