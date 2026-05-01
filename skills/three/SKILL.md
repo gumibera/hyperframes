@@ -12,6 +12,7 @@ HyperFrames supports Three.js through its `three` runtime adapter. The adapter d
 - Create the scene, camera, renderer, materials, and assets synchronously when possible.
 - Render from HyperFrames time, not wall-clock time.
 - Listen for the `hf-seek` event and render exactly that time.
+- Pass `preserveDrawingBuffer: true` to the WebGL context. Without it, Puppeteer screenshots capture blank canvases.
 - Load models, textures, and HDRIs before render-critical seeking. Do not fetch them at seek time.
 - Avoid `requestAnimationFrame` or `renderer.setAnimationLoop` as the source of truth for render-critical motion.
 
@@ -25,7 +26,7 @@ The adapter sets `window.__hfThreeTime` and dispatches `new CustomEvent("hf-seek
   import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.181.2/+esm";
 
   const canvas = document.getElementById("three-layer");
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true });
   // Match these to your composition's frame size.
   renderer.setSize(1920, 1080, false);
   renderer.setPixelRatio(1);
@@ -63,6 +64,31 @@ The adapter sets `window.__hfThreeTime` and dispatches `new CustomEvent("hf-seek
 }
 ```
 
+### preserveDrawingBuffer
+
+Always pass `preserveDrawingBuffer: true` to `WebGLRenderer`. HyperFrames captures frames via Puppeteer screenshots. Without this flag, WebGL clears the drawing buffer after compositing and screenshots capture blank canvases. This is the same pattern used internally by `@hyperframes/shader-transitions`.
+
+## GSAP onUpdate Pattern
+
+When your composition uses a GSAP timeline, you can render from the timeline's own update callback instead of the `hf-seek` event. HyperFrames seeks the GSAP timeline directly via `timeline.totalTime()`, which fires `onUpdate` on every frame. This pattern is reliable during both preview and render:
+
+```js
+const tl = gsap.timeline({ paused: true });
+
+// ... add your GSAP tweens ...
+
+tl.eventCallback("onUpdate", () => {
+  renderAt(tl.time());
+});
+
+// Also render the initial frame
+renderAt(0);
+
+window.__timelines["my-composition"] = tl;
+```
+
+This is the recommended pattern when your Three.js scene coexists with GSAP-driven animations. The `hf-seek` event is still dispatched by the adapter and remains useful for compositions that have no GSAP timeline.
+
 ## AnimationMixer Pattern
 
 For GLTF or authored clip animation, seek the mixer directly:
@@ -89,6 +115,7 @@ If several mixers exist, seek all of them from the same `time`.
 - Loading remote models or textures at render time.
 - Device-pixel-ratio dependent output. Pin renderer size and pixel ratio for video renders.
 - Post-processing passes that depend on previous frame history unless you can reconstruct state from time.
+- Creating a `WebGLRenderer` without `preserveDrawingBuffer: true`. Screenshots capture a cleared buffer.
 
 ## Validation
 
